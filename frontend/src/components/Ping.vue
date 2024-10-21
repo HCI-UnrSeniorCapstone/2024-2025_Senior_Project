@@ -1,3 +1,10 @@
+<template>
+  <div>
+    <v-btn color="secondary" @click="getMessage">{{msg}}</v-btn>
+  </div>
+</template>
+
+
 <script>
 import axios from 'axios';
 
@@ -25,10 +32,3 @@ export default {
   },
 };
 </script>
-
-
-<template>
-  <div>
-    <v-btn color="primary" @click="getMessage">{{msg}}</v-btn>
-  </div>
-</template>
