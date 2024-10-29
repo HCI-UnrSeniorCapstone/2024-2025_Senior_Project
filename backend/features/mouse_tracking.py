@@ -2,8 +2,6 @@
 These functions come from the pynut website.
 https://pynput.readthedocs.io/en/latest/
 '''
-
-from pynput.keyboard import Key
 from pynput import mouse
 import time
 from datetime import datetime
@@ -11,39 +9,34 @@ from datetime import datetime
 
 listener = None
 
-
-def time_exe(sec):
-    return time.time() + sec
-
-
 def on_move(x, y):
     # stole from the code vinh provided lol
-    with open('out.txt', 'a') as f:
+    with open('mouse_movment.txt', 'a') as f:
         f.write(
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: moved({x}, {y})\n")
 
 
 # not needed now, but this is from the original functions given
 def on_click(x, y, button, pressed):
-    print('{0} at {1}'.format(
-        'Pressed' if pressed else 'Released',
-        (x, y)))
-    if not pressed:
-        # Stop listener
-        return False
+    with open('mouse_clicks.txt', 'a') as f:
+        f.write(
+            f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: clicked({x}, {y})\n")
 
 
 def on_scroll(x, y, dx, dy):
-    print('Scrolled {0} at {1}'.format(
-        'down' if dy < 0 else 'up',
-        (x, y)))
+    with open('mouse_scroll.txt', 'a') as f:
+        f.write(
+            f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: scrolled({x}, {y})\n")
 
 
-def get_mouse_ps(run_time):
+def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=False):
     global listener
     if listener is None or not listener.running:
         listener = mouse.Listener(
-            on_move=on_move, on_click=None, on_scroll=None)
+            on_move=on_move if move_flag else None,
+            on_click=on_click if click_flag else None,
+            on_scroll=on_scroll if scroll_flag else None
+        )
         listener.start()
 
         # time of execution
