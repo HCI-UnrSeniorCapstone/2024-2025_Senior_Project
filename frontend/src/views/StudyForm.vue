@@ -45,7 +45,7 @@
                 <v-expansion-panel-title>
                   <template v-slot:default= "{ open }">
                     <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                      <span>Task {{  index + 1 }}</span>
+                      <span>{{ task.taskName || 'Task ' + (index+1) }}</span>
                       <div class="move-arrows">
                         <v-btn icon @click.stop="slideTaskUp(index)" :disabled="index === 0" size="x-small" class="individual-arrow">
                           <v-icon icon="mdi-arrow-up" size="x-small"></v-icon>
