@@ -24,7 +24,7 @@
     <div class="flex-row">
       <v-combobox
         v-model="task.measurementTypes"
-        :items="['Mouse Tracking', 'Keyboard Inputs', 'Eye Tracking']"
+        :items="['Mouse Tracking', 'Mouse Scrolls', 'Mouse Clicks', 'Keyboard Inputs']"
         label="Measurement Options"
         chips
         multiple
