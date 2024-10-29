@@ -87,6 +87,7 @@
   import { useField, useForm} from 'vee-validate'
   import { VDateInput } from 'vuetify/labs/VDateInput'
   import Task from '../components/Task.vue'
+  import axios from 'axios';
 
   const { handleSubmit} = useForm({
     validationSchema: {
@@ -141,7 +142,7 @@
     }
   };
 
-  const submit = handleSubmit(() => {
+  const submit = handleSubmit(async () => {
     const submissionData = {
       studyName: studyName.value.value,
       studyDescription: studyDescription.value.value || '',
@@ -155,6 +156,9 @@
       }))
     };
     alert(JSON.stringify(submissionData, null, 2));
+
+    const response = await axios.post('http://localhost:5000/start_tracking?num=10', submissionData);
+    console.log('Response:', response.data);
   });
     
 </script>
