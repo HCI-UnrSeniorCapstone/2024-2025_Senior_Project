@@ -157,7 +157,7 @@
     };
     alert(JSON.stringify(submissionData, null, 2));
 
-    const response = await axios.post('http://localhost:5000/start_tracking?num=10', submissionData);
+    const response = await axios.post('http://localhost:5000/start_tracking', submissionData);
     console.log('Response:', response.data);
   });
     

@@ -9,27 +9,38 @@ import threading
 from features.mouse_tracking import get_mouse_ps
 
 # creating app
-app = Flask (__name__)
+app = Flask(__name__)
 app.config.from_object(__name__)
 
-# enable CORS w/ specific routes 
+# enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
 # flask code for now
 tracking_thread = None
 
-@app.route("/start_tracking", methods=["POST"])
+
+@app.route("/start_tracking", methods=["POST", "GET"])
 def start_tracking():
     # num will be whatever we set it as in vue
     # default for now will be on 10
-    running_time = request.args.get('num', default=10, type=int)
+    submissionData = request.get_json()
+    tasks = submissionData.get('tasks', [])
 
-    global tracking_thread
+    task_duration = int(tasks[0]['taskDuration'])
+    task_measurements = tasks[0]['measurementTypes']
 
-    if tracking_thread is None or not tracking_thread.is_alive():
-        tracking_thread = threading.Thread(
-            target=get_mouse_ps, args=(running_time,))
-        tracking_thread.start()
-        return "Mouse tracking started"
+    # app.logger.debug(task_duration)
+    # app.logger.debug(task_measurements)
+
+    if 'Mouse Tracking' in task_measurements:
+        global tracking_thread
+
+        if tracking_thread is None or not tracking_thread.is_alive():
+            tracking_thread = threading.Thread(
+                target=get_mouse_ps, args=(task_duration,))
+            tracking_thread.start()
+            return "Mouse tracking started"
+    else:
+        return 'non foo'
 
 
 if __name__ == "__main__":
