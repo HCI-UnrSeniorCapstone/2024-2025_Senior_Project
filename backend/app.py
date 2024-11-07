@@ -8,6 +8,7 @@ from flask_cors import CORS
 import threading
 from features.mouse_tracking import get_mouse_ps
 from features.keyboard_tracking import get_keyboard_ps
+import ctypes  # lib for pop up
 
 
 def set_available_features(task_measurments):
@@ -21,6 +22,11 @@ def set_available_features(task_measurments):
             default_tasks[task] = True
 
     return default_tasks
+
+
+def Mbox(title, text, style):
+    # pop up function (https://stackoverflow.com/questions/2963263/how-can-i-create-a-simple-message-box-in-python)
+    return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
 # creating app
@@ -50,13 +56,6 @@ def start_tracking():
         task_duration.append(int(tasks[i]['taskDuration']))
         task_measurements.append((tasks[i]['measurementTypes']))
 
-    # app.logger.debug('')
-    # app.logger.debug(task_duration)
-    # app.logger.debug(task_measurements)
-
-    # app.logger.debug(task_measurements)
-    # app.logger.debug(task_duration)
-
     # checks to see what tasks were selected
     for task_amount in range(len(task_measurements)):
         tasks = set_available_features(task_measurements[task_amount])
@@ -67,6 +66,8 @@ def start_tracking():
     '''************************* MOUSE TRACKING  *************************'''
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
+        Mbox(f'Task {task_id + 1}', 'Start Next Task', 1)
+
         if True in user_Task[task_id].values():
             # try changing this or looking into a different way of doing this that doesn't add more complexity time, it looks a little ugly
             if user_Task[task_id]['Mouse Tracking'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False:
@@ -77,7 +78,6 @@ def start_tracking():
                 mouse_tracking_thread.join()
             else:
                 app.logger.debug("not tracking mouse foo")
-            # terminates mouse thread
 
             '''************************* KEYBOARD TRACKING  *************************'''
             # keyboard_tracking_thread is None or not keyboard_tracking_thread.is_alive() and
@@ -89,12 +89,15 @@ def start_tracking():
                 keyboard_tracking_thread.join()
             else:
                 app.logger.debug("no keyboard foo")
+
+            # pop up
+            Mbox(f'Task {task_id + 1}', 'Task Ended', 1)
+
+            app.logger.debug('')
+            app.logger.debug('*************Switching tasks*************')
+            app.logger.debug('')
         else:
             app.logger.debug('No Task added')
-        # here I add the pop up where it won't start recording until they move into the next task
-        app.logger.debug('')
-        app.logger.debug('*************Switching tasks*************')
-        app.logger.debug('')
 
     return "finished"
 
