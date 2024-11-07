@@ -42,6 +42,7 @@ keyboard_tracking_thread = None
 
 @app.route("/start_tracking", methods=["POST", "GET"])
 def start_tracking():
+    task_name = []
     task_duration = []
     task_measurements = []
     user_Task = []
@@ -53,8 +54,9 @@ def start_tracking():
 
     for i in range(len(tasks)):
         app.logger.debug(i)
+        task_name.append(tasks[i]['taskName'])
         task_duration.append(int(tasks[i]['taskDuration']))
-        task_measurements.append((tasks[i]['measurementTypes']))
+        task_measurements.append(tasks[i]['measurementTypes'])
 
     # checks to see what tasks were selected
     for task_amount in range(len(task_measurements)):
@@ -63,16 +65,19 @@ def start_tracking():
     app.logger.debug('user task: ')
     app.logger.debug(user_Task)
 
-    '''************************* MOUSE TRACKING  *************************'''
+    # Start experiment
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
-        Mbox(f'Task {task_id + 1}', 'Start Next Task', 1)
 
+        # pop up
+        Mbox(f'Task {task_id + 1}', 'Start Next Task', 0)
+
+        '''************************* MOUSE TRACKING  *************************'''
         if True in user_Task[task_id].values():
             # try changing this or looking into a different way of doing this that doesn't add more complexity time, it looks a little ugly
             if user_Task[task_id]['Mouse Tracking'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False:
                 mouse_tracking_thread = threading.Thread(target=get_mouse_ps, args=(
-                    task_duration[task_id], user_Task[task_id]['Mouse Tracking'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls']))
+                    task_duration[task_id], user_Task[task_id]['Mouse Tracking'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], task_name[task_id]))
                 mouse_tracking_thread.start()
                 app.logger.debug("tracking mouse")
                 mouse_tracking_thread.join()
@@ -83,7 +88,7 @@ def start_tracking():
             # keyboard_tracking_thread is None or not keyboard_tracking_thread.is_alive() and
             if user_Task[task_id]['Keyboard Inputs'] is not False:
                 keyboard_tracking_thread = threading.Thread(
-                    target=get_keyboard_ps, args=(task_duration[task_id], user_Task[task_id]['Keyboard Inputs']))
+                    target=get_keyboard_ps, args=(task_duration[task_id], user_Task[task_id]['Keyboard Inputs'], task_name[task_id]))
                 keyboard_tracking_thread.start()
                 app.logger.debug("tracking keyboard")
                 keyboard_tracking_thread.join()
@@ -91,7 +96,7 @@ def start_tracking():
                 app.logger.debug("no keyboard foo")
 
             # pop up
-            Mbox(f'Task {task_id + 1}', 'Task Ended', 1)
+            Mbox(f'Task {task_id + 1}', 'Task Ended', 0)
 
             app.logger.debug('')
             app.logger.debug('*************Switching tasks*************')

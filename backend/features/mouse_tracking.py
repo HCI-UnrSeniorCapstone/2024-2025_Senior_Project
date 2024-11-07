@@ -7,15 +7,16 @@ import time
 from datetime import datetime
 
 # threshold is for the mouse movement, this determine whether it not it can record data and if the mouse has moved within a certain oiubt
-THRESHOLD = 10
+THRESHOLD = 100
 PREV_XPOS = 0
 PREV_YPOS = 0
 
 listener = None
+tasks_name = None
 
 
 def on_move(x, y):
-    global PREV_XPOS, PREV_YPOS
+    global PREV_XPOS, PREV_YPOS, tasks_name
     # distane will determine whether or not it should record the mouse movement
     # good technique is using the euclidian distance. Very well known in ML/AI and Robotics
     distance = euclidian_distance(x, y, PREV_XPOS, PREV_YPOS)
@@ -23,7 +24,7 @@ def on_move(x, y):
     # if the distance is larger than the threshold, then it can record
     if distance > THRESHOLD:
         # stole from the code vinh provided lol
-        with open('mouse_movment.txt', 'a') as f:
+        with open(f'mouse_movment_{tasks_name}.txt', 'a') as f:
             f.write(
                 f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: moved({x}, {y})\n")
         PREV_XPOS = x
@@ -43,8 +44,10 @@ def on_scroll(x, y, dx, dy):
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: scrolled({x}, {y})\n")
 
 
-def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=False):
-    global listener
+def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=False, task_name=None):
+    global listener, tasks_name
+
+    tasks_name = task_name
     if listener is None or not listener.running:
         listener = mouse.Listener(
             on_move=on_move if move_flag else None,
