@@ -9,6 +9,7 @@ import threading
 from features.mouse_tracking import get_mouse_ps
 from features.keyboard_tracking import get_keyboard_ps
 import ctypes  # lib for pop up
+import random
 
 
 def set_available_features(task_measurments):
@@ -50,27 +51,29 @@ def start_tracking():
     # num will be whatever we set it as in vue
     # default for now will be on 10
     submissionData = request.get_json()
-    tasks = submissionData.get('tasks', [])
+    default_tasks = submissionData.get('tasks', [])
 
-    for i in range(len(tasks)):
+    # randominzing dataset for tasks (come back to this once we have factors added to the frontend)
+    rand_tasks = sorted(default_tasks, key=lambda x: random.random())
+    app.logger.debug(rand_tasks)
+
+    for i in range(len(rand_tasks)):
         app.logger.debug(i)
-        task_name.append(tasks[i]['taskName'])
-        task_duration.append(int(tasks[i]['taskDuration']))
-        task_measurements.append(tasks[i]['measurementTypes'])
+        task_name.append(rand_tasks[i]['taskName'])
+        task_duration.append(int(rand_tasks[i]['taskDuration']))
+        task_measurements.append(rand_tasks[i]['measurementTypes'])
 
-    # checks to see what tasks were selected
+    # checks to see what rand_tasks were selected
     for task_amount in range(len(task_measurements)):
-        tasks = set_available_features(task_measurements[task_amount])
-        user_Task.append(tasks)
-    app.logger.debug('user task: ')
-    app.logger.debug(user_Task)
+        rand_tasks = set_available_features(task_measurements[task_amount])
+        user_Task.append(rand_tasks)
 
     # Start experiment
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
 
         # pop up
-        Mbox(f'Task {task_id + 1}', 'Start Next Task', 0)
+        Mbox(f'{task_name[task_id]}', 'Start Next Task', 0)
 
         '''************************* MOUSE TRACKING  *************************'''
         if True in user_Task[task_id].values():
@@ -96,7 +99,7 @@ def start_tracking():
                 app.logger.debug("no keyboard foo")
 
             # pop up
-            Mbox(f'Task {task_id + 1}', 'Task Ended', 0)
+            Mbox(f'{task_name[task_id]}', 'Task Ended', 0)
 
             app.logger.debug('')
             app.logger.debug('*************Switching tasks*************')
