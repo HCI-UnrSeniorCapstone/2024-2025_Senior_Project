@@ -11,6 +11,10 @@ from features.keyboard_tracking import get_keyboard_ps
 import ctypes  # lib for pop up
 import random
 
+# global variables
+mouse_tracking_thread = None
+keyboard_tracking_thread = None
+
 
 def set_available_features(task_measurments):
     # makes sures the default taks are false
@@ -30,53 +34,20 @@ def Mbox(title, text, style):
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
 
-# creating app
-app = Flask(__name__)
-app.config.from_object(__name__)
-
-# enable CORS w/ specific routes
-CORS(app, resources={r'/*': {'origins': '*'}})
-# flask code for now
-mouse_tracking_thread = None
-keyboard_tracking_thread = None
-
-
-@app.route("/start_tracking", methods=["POST", "GET"])
-def start_tracking():
-    task_name = []
-    task_duration = []
-    task_measurements = []
-    user_Task = []
-
-    # num will be whatever we set it as in vue
-    # default for now will be on 10
-    submissionData = request.get_json()
-    default_tasks = submissionData.get('tasks', [])
-
-    # randominzing dataset for tasks (come back to this once we have factors added to the frontend)
-    rand_tasks = sorted(default_tasks, key=lambda x: random.random())
-    app.logger.debug(rand_tasks)
-
-    for i in range(len(rand_tasks)):
-        app.logger.debug(i)
-        task_name.append(rand_tasks[i]['taskName'])
-        task_duration.append(int(rand_tasks[i]['taskDuration']))
-        task_measurements.append(rand_tasks[i]['measurementTypes'])
-
-    # checks to see what rand_tasks were selected
-    for task_amount in range(len(task_measurements)):
-        rand_tasks = set_available_features(task_measurements[task_amount])
-        user_Task.append(rand_tasks)
-
-    # Start experiment
+def get_measurments(user_Task, task_name, task_duration):
+    # Start getting measurements from task
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
 
         # pop up
-        Mbox(f'{task_name[task_id]}', 'Start Next Task', 0)
+        if task_id == 0:
+            Mbox(f'{task_name[task_id]}', 'Start Task', 0)
+        else:
+            Mbox(f'{task_name[task_id]}', 'Start Next Task', 0)
 
-        '''************************* MOUSE TRACKING  *************************'''
+        # checks to see if any task was added
         if True in user_Task[task_id].values():
+            '''************************* MOUSE TRACKING  *************************'''
             # try changing this or looking into a different way of doing this that doesn't add more complexity time, it looks a little ugly
             if user_Task[task_id]['Mouse Tracking'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False:
                 mouse_tracking_thread = threading.Thread(target=get_mouse_ps, args=(
@@ -100,13 +71,46 @@ def start_tracking():
 
             # pop up
             Mbox(f'{task_name[task_id]}', 'Task Ended', 0)
-
-            app.logger.debug('')
-            app.logger.debug('*************Switching tasks*************')
-            app.logger.debug('')
         else:
             app.logger.debug('No Task added')
 
+
+# creating app
+app = Flask(__name__)
+app.config.from_object(__name__)
+
+# enable CORS w/ specific routes
+CORS(app, resources={r'/*': {'origins': '*'}})
+# flask code for now
+
+
+@app.route("/start_tracking", methods=["POST", "GET"])
+def start_tracking():
+    task_name = []
+    task_duration = []
+    task_measurements = []
+    user_Task = []
+
+    # num will be whatever we set it as in vue
+    # default for now will be on 10
+    submissionData = request.get_json()
+    default_tasks = submissionData.get('tasks', [])
+
+    # randominzing dataset for tasks (come back to this once we have factors added to the frontend)
+    rand_tasks = sorted(default_tasks, key=lambda x: random.random())
+
+    for i in range(len(rand_tasks)):
+        task_name.append(rand_tasks[i]['taskName'])
+        task_duration.append(int(rand_tasks[i]['taskDuration']))
+        task_measurements.append(rand_tasks[i]['measurementTypes'])
+
+    # checks to see what rand_tasks were selected
+    for task_amount in range(len(task_measurements)):
+        rand_tasks = set_available_features(task_measurements[task_amount])
+        user_Task.append(rand_tasks)
+
+    # RECORDS EXPERIMENTS
+    get_measurments(user_Task, task_name, task_duration)
     return "finished"
 
 

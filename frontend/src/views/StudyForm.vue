@@ -155,7 +155,7 @@
         measurementTypes: [...task.measurementTypes]
       }))
     };
-    alert(JSON.stringify(submissionData, null, 2));
+    // alert(JSON.stringify(submissionData, null, 2));
 
     const response = await axios.post('http://localhost:5000/start_tracking', submissionData);
     console.log('Response:', response.data);
