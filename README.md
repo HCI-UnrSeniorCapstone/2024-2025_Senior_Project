@@ -1,6 +1,6 @@
-# HCI Solutions Platform
+# Fulcrum Platform
 
-**HCI Solutions** is a web-based platform designed to provide HCI researchers with a standardized interface and integrated tools for conducting studies. It streamlines the setup and operation of studies, centralizing many common tasks and reducing reliance on external tools like Excel or custom scripts.
+**Fulcrum** is a web-based platform designed to provide HCI researchers with a standardized interface and integrated tools for conducting studies. It streamlines the setup and operation of studies, centralizing many common tasks and reducing reliance on external tools like Excel or custom scripts.
 
 ## Key Features
 
