@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 
 # threshold is for the mouse movement, this determine whether it not it can record data and if the mouse has moved within a certain oiubt
-THRESHOLD = 500
+THRESHOLD = 10 # We have to change this incase we dont want the record every point
 PREV_XPOS = 0
 PREV_YPOS = 0
 TIME_TRACKER = 0
@@ -61,13 +61,13 @@ def on_move(x, y):
 
 # not needed now, but this is from the original functions given
 def on_click(x, y, button, pressed):
-    with open('mouse_clicks.txt', 'a') as f:
+    with open('mouse_clicks_{tasks_name}.txt', 'a') as f:
         f.write(
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: clicked({x}, {y})\n")
 
 
 def on_scroll(x, y, dx, dy):
-    with open('mouse_scroll.txt', 'a') as f:
+    with open('mouse_scroll_{tasks_name}.txt', 'a') as f:
         f.write(
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: scrolled({x}, {y})\n")
 
