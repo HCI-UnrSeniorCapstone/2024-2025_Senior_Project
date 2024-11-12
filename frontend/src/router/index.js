@@ -1,10 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
 import Dashboard from '../views/Dashboard.vue'
-import StudyReporting from '../views/StudyReporting.vue'
+import UserStudies from '../views/UserStudies.vue'
 import StudyForm from '../views/StudyForm.vue'
 import SessionReporting from '../views/SessionReporting.vue'
-import SessionForm from '../views/SessionForm.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
 
 
@@ -23,9 +22,9 @@ const router = createRouter({
           component: Dashboard
         },
         {
-          path: '/StudyReporting',
-          name: 'StudyReporting',
-          component: StudyReporting
+          path: '/UserStudies',
+          name: 'UserStudies',
+          component: UserStudies
         },
         {
           path: '/StudyForm',
@@ -36,11 +35,6 @@ const router = createRouter({
           path: '/SessionReporting',
           name: 'SessionReporting',
           component: SessionReporting
-        },
-        {
-          path: '/SessionForm',
-          name: 'SessionForm',
-          component: SessionForm
         },
         {
           path: '/DataAnalytics',
