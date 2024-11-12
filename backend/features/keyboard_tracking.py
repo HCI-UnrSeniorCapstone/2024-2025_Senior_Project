@@ -3,25 +3,23 @@ import time
 from datetime import datetime
 
 listener = None
+tasks_name = None
+
 
 def on_press(key):
-    with open('keyboard_press.txt', 'a') as f:
+    global tasks_name
+    with open(f'keyboard_press_{tasks_name}.txt', 'a') as f:
         try:
-            f.write(f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key.char} pressed\n")
+            f.write(
+                f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key.char} pressed\n")
         except AttributeError:
-            f.write(f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key} pressed\n")
+            f.write(
+                f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key} pressed\n")
 
 
-'''dont need this since we just want to get the keys that were pressed, but good to have for now, my delete later '''
-# def on_release(key):
-#     print('{0} released'.format(
-#         key))
-#     if key == keyboard.Key.esc:
-#         # Stop listener
-#         return False
-
-def get_keyboard_ps(run_time=10, key_input_flag=False):
-    global listener
+def get_keyboard_ps(run_time=10, key_input_flag=False, task_name=None):
+    global listener, tasks_name
+    tasks_name = task_name
     if listener is None or not listener.running:
         listener = keyboard.Listener(
             on_press=on_press if key_input_flag else None,
@@ -32,7 +30,7 @@ def get_keyboard_ps(run_time=10, key_input_flag=False):
         # time of execution
         start_time = time.time()
         while listener.running and (time.time() - start_time) < run_time:
-            time.sleep(1)
+            None
 
         stop_keyboard_ps()
 
