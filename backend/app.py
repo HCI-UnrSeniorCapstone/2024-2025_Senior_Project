@@ -146,6 +146,15 @@ def get_measurments(user_Task, task_name, task_duration):
             app.logger.debug('No Task added')
 
 
+def get_study_detail(subData):
+    study_name = subData.get('studyName')
+    study_desc = subData.get('studyDescription')
+    study_design = subData.get('studyDesignType')
+    people_count = subData.get('participantCount')
+
+    return study_name, study_desc, study_design, people_count
+
+
 # creating app
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -153,6 +162,35 @@ app.config.from_object(__name__)
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
 # flask code for now
+
+
+# *********************** FOR DEMO USE ONLY ***********************
+@app.route("/testing", methods=["POST", "GET"])
+def test():
+    task_name = []
+    task_duration = []
+    task_measurements = []
+    user_Task = []
+    submissionData = request.get_json()
+    default_tasks = submissionData.get('tasks', [])
+
+    rand_tasks = sorted(default_tasks, key=lambda x: random.random())
+
+    for i in range(len(rand_tasks)):
+        task_name.append(rand_tasks[i]['taskName'])
+        task_duration.append(int(rand_tasks[i]['taskDuration']))
+        task_measurements.append(rand_tasks[i]['measurementOptions'])
+
+    # checks to see what rand_tasks were selected
+    for task_amount in range(len(task_measurements)):
+        rand_tasks = set_available_features(task_measurements[task_amount])
+        user_Task.append(rand_tasks)
+
+    # RECORDS EXPERIMENTS
+    get_measurments(user_Task, task_name, task_duration)
+
+    return "finished"
+# ****************************************************************************
 
 
 @app.route("/start_tracking", methods=["POST", "GET"])
@@ -166,8 +204,9 @@ def start_tracking():
     # default for now will be on 10
     submissionData = request.get_json()
     default_tasks = submissionData.get('tasks', [])
+    # study_name, study_desc, study_design, people_count = get_study_detail(submissionData)
 
-    app.logger.debug(submissionData)
+    # app.logger.debug(submissionData)
 
     # randominzing dataset for tasks (come back to this once we have factors added to the frontend)
     rand_tasks = sorted(default_tasks, key=lambda x: random.random())
@@ -181,6 +220,10 @@ def start_tracking():
     for task_amount in range(len(task_measurements)):
         rand_tasks = set_available_features(task_measurements[task_amount])
         user_Task.append(rand_tasks)
+
+    # with open(f'{study_name}.csv', 'a') as f:
+    #     f.write(f"study_name,study_desc,study_design,people_count,\n")
+    #     f.write(f"{study_name},{study_desc},{study_design},{people_count},\n")
 
     # RECORDS EXPERIMENTS
     get_measurments(user_Task, task_name, task_duration)

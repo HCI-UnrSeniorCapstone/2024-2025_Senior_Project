@@ -61,13 +61,13 @@ def on_move(x, y):
 
 # not needed now, but this is from the original functions given
 def on_click(x, y, button, pressed):
-    with open('mouse_clicks_{tasks_name}.txt', 'a') as f:
+    with open(f'mouse_clicks_{tasks_name}.txt', 'a') as f:
         f.write(
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: clicked({x}, {y})\n")
 
 
 def on_scroll(x, y, dx, dy):
-    with open('mouse_scroll_{tasks_name}.txt', 'a') as f:
+    with open(f'mouse_scroll_{tasks_name}.txt', 'a') as f:
         f.write(
             f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: scrolled({x}, {y})\n")
 

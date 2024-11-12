@@ -49,7 +49,6 @@
           </v-card>
         </v-col>
       </v-row>
-
       <v-navigation-drawer
         v-model="drawer"
         location="right"
@@ -61,7 +60,7 @@
         </v-toolbar>
         <v-row justify="center">
           <v-col cols="auto">
-            <v-btn class="start-session" color="red">Start Session</v-btn>
+              <v-btn @click="startSession" class="start-session" type="startSession" color="red">Start Session</v-btn>
           </v-col>
         </v-row>
       </v-navigation-drawer>
@@ -70,6 +69,8 @@
 </template>
 
 <script>
+  import axios from 'axios'
+
   export default {
     data () {
       return {
@@ -137,7 +138,44 @@
       openDrawer(studyName) {
         this.drawerTitle = studyName;
         this.drawer = true;
-      }
+      },
+      // **********************FOR DEMO USE ONLY****************
+      async startSession() {
+        const submissionData = {
+          studyName: "sup foo",
+          studyDescription: "",
+          studyDesignType: "",
+          participantCount: "",
+          tasks: [{
+            taskName: "Tracking mouse",
+            taskDescription: "",
+            taskDuration: 5,
+            measurementOptions: ["Mouse Movement", "Mouse Click", "Mouse Scrolls"]
+          },
+          {
+            taskName: "Keyboard Tracking",
+            taskDescription: "",
+            taskDuration: 5,
+            measurementOptions: ["Keyboard Inputs"]
+          }],
+          // factors: this.factors.map(factor => ({
+          //   factorName:"",
+          //   factorDescription: ""
+          // }
+          // )),
+        };
+
+        // alert('test');
+        alert(JSON.stringify(submissionData, null, 2));
+
+        try {
+          const response = await axios.post('http://localhost:5000/testing', submissionData);
+          console.log('Response:', response.data);
+        } catch (error) {
+          console.error("Error: ", error)
+        }
+      },
+      // ************************************************************
     }
   }
 </script>
