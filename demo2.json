@@ -1,0 +1,23 @@
+{
+    "studyName": "demo2",
+    "studyDescription": "",
+    "studyDesignType": "Between",
+    "participantCount": "5",
+    "tasks": [
+        {
+            "taskName": "bru",
+            "taskDescription": "",
+            "taskDuration": "5",
+            "measurementOptions": [
+                "Mouse Movement",
+                "Mouse Clicks"
+            ]
+        }
+    ],
+    "factors": [
+        {
+            "factorName": "LOL",
+            "factorDescription": ""
+        }
+    ]
+}

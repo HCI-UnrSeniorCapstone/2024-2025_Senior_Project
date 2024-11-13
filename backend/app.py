@@ -15,6 +15,7 @@ from PIL import ImageGrab
 import cv2
 import numpy as np
 import time  # temp for now
+import json
 
 
 def extract_mouse_movements(log_file):
@@ -204,7 +205,8 @@ def start_tracking():
     # default for now will be on 10
     submissionData = request.get_json()
     default_tasks = submissionData.get('tasks', [])
-    # study_name, study_desc, study_design, people_count = get_study_detail(submissionData)
+    study_name, study_desc, study_design, people_count = get_study_detail(
+        submissionData)
 
     # app.logger.debug(submissionData)
 
@@ -221,12 +223,13 @@ def start_tracking():
         rand_tasks = set_available_features(task_measurements[task_amount])
         user_Task.append(rand_tasks)
 
-    # with open(f'{study_name}.csv', 'a') as f:
-    #     f.write(f"study_name,study_desc,study_design,people_count,\n")
-    #     f.write(f"{study_name},{study_desc},{study_design},{people_count},\n")
-
+    # This is reading and writing to a json file
+        # https://www.geeksforgeeks.org/reading-and-writing-json-to-a-file-in-python/
+    json_object = json.dumps(submissionData, indent=4)
+    with open(f'demo2.json', 'w') as f:
+        f.write(json_object)
     # RECORDS EXPERIMENTS
-    get_measurments(user_Task, task_name, task_duration)
+    # get_measurments(user_Task, task_name, task_duration)
     return "finished"
 
 

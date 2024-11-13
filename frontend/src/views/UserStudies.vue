@@ -70,6 +70,8 @@
 
 <script>
   import axios from 'axios'
+  import userData from 'C:/Users/jairo/OneDrive/Desktop/capstone/2024-2025_Senior_Project/demo2.json'
+
 
   export default {
     data () {
@@ -166,10 +168,12 @@
         };
 
         // alert('test');
-        alert(JSON.stringify(submissionData, null, 2));
+
+        // const json_data = require("./2024-2025_Senior_Project/demo2.json")
+        alert(JSON.stringify(userData, null, 2));
 
         try {
-          const response = await axios.post('http://localhost:5000/testing', submissionData);
+          const response = await axios.post('http://localhost:5000/testing', userData);
           console.log('Response:', response.data);
         } catch (error) {
           console.error("Error: ", error)
