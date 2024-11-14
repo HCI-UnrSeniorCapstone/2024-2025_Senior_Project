@@ -1,22 +1,21 @@
 {
-    "studyName": "demo2",
+    "studyName": "fdsg",
     "studyDescription": "",
     "studyDesignType": "Between",
-    "participantCount": "5",
+    "participantCount": "6",
     "tasks": [
         {
-            "taskName": "bru",
+            "taskName": "gfs",
             "taskDescription": "",
             "taskDuration": "5",
             "measurementOptions": [
-                "Mouse Movement",
-                "Mouse Clicks"
+                "Mouse Movement"
             ]
         }
     ],
     "factors": [
         {
-            "factorName": "LOL",
+            "factorName": "gg",
             "factorDescription": ""
         }
     ]

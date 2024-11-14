@@ -70,7 +70,7 @@
 
 <script>
   import axios from 'axios'
-  import userData from 'C:/Users/jairo/OneDrive/Desktop/capstone/2024-2025_Senior_Project/demo2.json'
+  // import userData from 'C:/Users/jairo/OneDrive/Desktop/capstone/2024-2025_Senior_Project/demo2.json'
 
 
   export default {
@@ -143,33 +143,11 @@
       },
       // **********************FOR DEMO USE ONLY****************
       async startSession() {
-        const submissionData = {
-          studyName: "sup foo",
-          studyDescription: "",
-          studyDesignType: "",
-          participantCount: "",
-          tasks: [{
-            taskName: "Tracking mouse",
-            taskDescription: "",
-            taskDuration: 5,
-            measurementOptions: ["Mouse Movement", "Mouse Click", "Mouse Scrolls"]
-          },
-          {
-            taskName: "Keyboard Tracking",
-            taskDescription: "",
-            taskDuration: 5,
-            measurementOptions: ["Keyboard Inputs"]
-          }],
-          // factors: this.factors.map(factor => ({
-          //   factorName:"",
-          //   factorDescription: ""
-          // }
-          // )),
-        };
 
-        // alert('test');
+                        // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
+        const response = await fetch('/demo2.json');
+        const userData = await response.json();
 
-        // const json_data = require("./2024-2025_Senior_Project/demo2.json")
         alert(JSON.stringify(userData, null, 2));
 
         try {

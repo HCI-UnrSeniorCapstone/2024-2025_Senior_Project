@@ -226,7 +226,7 @@ def start_tracking():
     # This is reading and writing to a json file
         # https://www.geeksforgeeks.org/reading-and-writing-json-to-a-file-in-python/
     json_object = json.dumps(submissionData, indent=4)
-    with open(f'demo2.json', 'w') as f:
+    with open(f'./frontend/public/demo2.json', 'w') as f:
         f.write(json_object)
     # RECORDS EXPERIMENTS
     # get_measurments(user_Task, task_name, task_duration)
