@@ -6,6 +6,7 @@ import StudyForm from '../views/StudyForm.vue'
 import SessionReporting from '../views/SessionReporting.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
+import TestDB from '../views/TestDB.vue'
 import axios from 'axios'
 
 const router = createRouter({
@@ -47,6 +48,12 @@ const router = createRouter({
           path: '/PingServer',
           name: 'Ping',
           component: PingServer,
+        },
+        // TEMP to show reading database using router
+        {
+          path: '/Test',
+          name: 'TestDB',
+          component: TestDB,
         },
       ],
     },
