@@ -1,0 +1,22 @@
+{
+    "studyName": "fdsg",
+    "studyDescription": "",
+    "studyDesignType": "Between",
+    "participantCount": "6",
+    "tasks": [
+        {
+            "taskName": "gfs",
+            "taskDescription": "",
+            "taskDuration": "5",
+            "measurementOptions": [
+                "Mouse Movement"
+            ]
+        }
+    ],
+    "factors": [
+        {
+            "factorName": "gg",
+            "factorDescription": ""
+        }
+    ]
+}

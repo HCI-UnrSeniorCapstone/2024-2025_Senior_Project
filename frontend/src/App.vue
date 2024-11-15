@@ -1,18 +1,12 @@
 <script setup>
-import { RouterLink, RouterView } from 'vue-router'
+    import { RouterLink, RouterView } from 'vue-router'
 </script>
 
 <template>
-  <div id= "app">
-    <router-view>
-    </router-view>
-  </div>
+    <div id= "app">
+        <router-view/>
+    </div>
 </template>
 
-<style>
-#app {
-  margin-top: 60px
-}
-</style>
 
 
