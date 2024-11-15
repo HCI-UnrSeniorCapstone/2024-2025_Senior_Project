@@ -6,7 +6,7 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 
 # enable CORS w/ specific routes
-CORS(app, resources={r'/*': {'origins': 'http://localhost:5000'}})  # Allow requests from Vue on localhost:5000
+CORS(app, resources={r'/*': {'origins': '*'}})
 
 
 # Basic ping
