@@ -233,10 +233,5 @@ def start_tracking():
     # get_measurments(user_Task, task_name, task_duration)
     return "finished"
 
-# Example route for testing (local backend)
-@app.route("/ping", methods=["GET"])
-def ping():
-    return jsonify({"message": "Local Backend is working!"})
-
 if __name__ == "__main__":
     app.run(host='localhost', port=5000, debug=True)

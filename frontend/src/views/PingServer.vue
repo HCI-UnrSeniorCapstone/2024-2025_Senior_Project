@@ -1,18 +1,25 @@
+<template>
+  <div>
+    <v-btn color="primary" @click="getMessage">{{ msg }}</v-btn>
+  </div>
+</template>
 <script>
+/*
+NOTE: This is TEMP to show the connection to the server
+*/
 import axios from 'axios'
-
 export default {
-  name: 'Ping',
+  name: 'PingServer',
   data() {
     return {
       msg: 'Hello!',
       // Default backend URL points to the server_backend
-      backendUrl: 'http://100.91.135.16:5001', // Server Backend for /ping route
+      backendUrl: 'http://100.91.135.16:5001',
     }
   },
   methods: {
     getMessage() {
-      const path = `${this.backendUrl}/ping` // Always use the server_backend URL
+      const path = `${this.backendUrl}/ping`
       axios
         .get(path)
         .then(res => {
@@ -24,13 +31,7 @@ export default {
     },
   },
   created() {
-    this.getMessage() // Call the server's ping route when the component is created
+    this.getMessage()
   },
 }
 </script>
-
-<template>
-  <div>
-    <v-btn color="primary" @click="getMessage">{{ msg }}</v-btn>
-  </div>
-</template>
