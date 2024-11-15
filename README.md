@@ -36,43 +36,36 @@ For experiments conducted outside the platform (e.g., VR, web-based, PowerPoint)
 - **Platform Compatibility**:  
    Due to hardware access needs, development will proceed on Windows to ensure native support for device permissions, rather than WSL.
 
-- **Installing/Updating Dependencies**:
-  When developing, dependencies must be installed, but this process normally must be repeated by each developer on their own machine. For the Python code, every developer should [create their own venv virtual environment](https://realpython.com/python-virtual-environments-a-primer/) for `local_backend` and `server_backend`. These venvs should NOT be pushed to GitHub.
+- **Installing/Updating Dependencies**:  
+   When developing, dependencies must be installed, but this process normally must be repeated by each developer on their own machine. For the Python code, every developer should [create their own venv virtual environment](https://realpython.com/python-virtual-environments-a-primer/) for `local_backend` and `server_backend`. These venvs should NOT be pushed to GitHub.
 
-  To ensure dependency control, run these commands.
+   1. **Frontend**  
+      - **_Installing_**  
+        - Go to the **frontend** folder  
+        - Run `npm install`  
 
-  1. **Frontend**
-     **_Installing_**
+      - **_Updating_**  
+        - This is automatically handled by npm :)  
 
-     - Go to the **frontend** folder
-     - Run `npm install`
+   3. **Local_Backend**  
+      - **_Installing_**  
+        - Activate your **local_backend** venv  
+        - Run `pip install -r requirements.txt`  
 
-     **_Updating_**
+      - **_Updating_**  
+        - Activate your **local_backend** venv  
+        - Run `pip freeze > requirements.txt`  
 
-     - This is automatically handled by npm :)
+   4. **Server_Backend**  
+      - **_Installing_**  
+        - Activate your **server_backend** venv  
+        - Run `pip install -r requirements.txt`  
 
-  2. **Local_Backend**
-     **_Installing_**
-
-     - Activate your **local_backend** venv
-     - Run `pip install -r requirements.txt`
-
-     **_Updating_**
-
-     - Activate your **local_backend** venv
-     - Run `pip freeze > requirements.txt`
-
-  3. **Server_Backend**
-     **_Installing_**
-
-     - Activate your **server_backend** venv
-     - Run `pip install -r requirements.txt`
-
-     **_Updating_**
-
-     - Activate your **server_backend** venv
-     - Run `pip freeze > requirements.txt`
-
+      - **_Updating_**  
+        - Activate your **server_backend** venv  
+        - Run `pip freeze > requirements.txt`  
+  
+  
 - **Creating an Issue or Feature Request**:
 
   1.  **Navigate to the Project Board**
