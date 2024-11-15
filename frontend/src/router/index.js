@@ -5,7 +5,8 @@ import UserStudies from '../views/UserStudies.vue'
 import StudyForm from '../views/StudyForm.vue'
 import SessionReporting from '../views/SessionReporting.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
-
+import PingServer from '../views/PingServer.vue'
+import axios from 'axios'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,31 +20,37 @@ const router = createRouter({
         {
           path: '/Dashboard',
           name: 'Dashboard',
-          component: Dashboard
+          component: Dashboard,
         },
         {
           path: '/UserStudies',
           name: 'UserStudies',
-          component: UserStudies
+          component: UserStudies,
         },
         {
           path: '/StudyForm',
           name: 'StudyForm',
-          component: StudyForm
+          component: StudyForm,
         },
         {
           path: '/SessionReporting',
           name: 'SessionReporting',
-          component: SessionReporting
+          component: SessionReporting,
         },
         {
           path: '/DataAnalytics',
           name: 'DataAnalytics',
-          component: DataAnalytics
+          component: DataAnalytics,
         },
-      ]
-    }
-  ]
+        // TEMP to show pinging server using router
+        {
+          path: '/PingServer',
+          name: 'Ping',
+          component: PingServer,
+        },
+      ],
+    },
+  ],
 })
 
 export default router

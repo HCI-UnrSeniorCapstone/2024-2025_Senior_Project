@@ -162,6 +162,7 @@ app.config.from_object(__name__)
 
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
+
 # flask code for now
 
 
@@ -232,6 +233,5 @@ def start_tracking():
     # get_measurments(user_Task, task_name, task_duration)
     return "finished"
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='localhost', port=5000, debug=True)
