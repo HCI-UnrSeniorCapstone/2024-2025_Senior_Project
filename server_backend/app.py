@@ -5,9 +5,7 @@ from flask_cors import CORS
 app = Flask(__name__)
 app.config.from_object(__name__)
 
-# enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
-
 
 # Basic ping
 @app.route('/ping', methods=['GET'])
