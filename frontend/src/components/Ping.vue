@@ -6,19 +6,20 @@ export default {
   data() {
     return {
       msg: 'Hello!',
-      backendUrl: 'http://100.91.135.16:5001', // Always point to the server_backend
+      // Default backend URL points to the server_backend
+      backendUrl: 'http://100.91.135.16:5001', // Server Backend for /ping route
     }
   },
   methods: {
     getMessage() {
-      const path = `${this.backendUrl}/ping` // Always use server_backend
+      const path = `${this.backendUrl}/ping` // Always use the server_backend URL
       axios
         .get(path)
         .then(res => {
-          this.msg = res.data.message // Display the response message
+          this.msg = res.data.message // Display the response message from server
         })
         .catch(error => {
-          console.error(error)
+          console.error('Error fetching ping:', error)
         })
     },
   },
