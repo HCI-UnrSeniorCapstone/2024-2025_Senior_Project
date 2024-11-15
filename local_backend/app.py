@@ -161,7 +161,8 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 
 # enable CORS w/ specific routes
-CORS(app, resources={r'/*': {'origins': '*'}})
+CORS(app, resources={r'/*': {'origins': 'http://localhost:5000'}})  # Allow requests from Vue on localhost:5000
+
 # flask code for now
 
 
@@ -234,4 +235,4 @@ def start_tracking():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='localhost', port=5000, debug=True)
