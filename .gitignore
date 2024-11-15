@@ -32,6 +32,9 @@ coverage
 venv-windows/
 venv/
 
+# Passwords for database
+.env
+
 generated_data/
 
 # Other backend-related directories (e.g., cache, compiled files)
