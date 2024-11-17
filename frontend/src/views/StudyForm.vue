@@ -62,7 +62,11 @@
               <v-btn @click="addTaskFactor('task')" color="grey" class="add-rmv-btn">
                 +
               </v-btn>
-              <v-btn @click="removeTaskFactor('task')" :disabled="!canRemoveTask" color="grey" class="add-rmv-btn">
+              <v-btn
+              @click="displayDialog({ title: 'Remove Confirmation', text: 'Are you sure you want to remove this task?', source: 'task'})"
+              :disabled="!canRemoveTask"
+              color="grey"
+              class="add-rmv-btn">
                 -
               </v-btn>
             </div>
@@ -93,19 +97,52 @@
               <v-btn @click="addTaskFactor('factor')" color="grey" class="add-rmv-btn">
                 +
               </v-btn>
-              <v-btn @click="removeTaskFactor('factor')" :disabled="!canRemoveFactor" color="grey" class="add-rmv-btn">
+              <v-btn
+                @click="displayDialog({ title: 'Remove Confirmation', text: 'Are you sure you want to remove this factor?', source: 'factor'})"
+                :disabled="!canRemoveFactor"
+                color="grey"
+                class="add-rmv-btn">
                 -
               </v-btn>
             </div>
 
             <v-row class="btn-row" justify="center">
-              <v-btn class="me-4 save-exit-btn" @click="exit">Exit</v-btn>
+              <v-btn
+                class="me-4 save-exit-btn"
+                @click="displayDialog({ title: 'Exit Confirmation', text: 'Are you sure you want to exit before saving?', source: 'exit'})"
+              >Exit</v-btn>
               <v-btn class="me-4 save-exit-btn" type="submit" :disabled="!isFormValid">Save</v-btn>
             </v-row>
 
           </form>
         </v-col>
       </v-row>
+
+      <div class="text-center pa-4">
+        <v-dialog
+          v-model="dialog"
+          max-width="400"
+          persistent
+        >
+          <v-card
+            prepend-icon="mdi-alert-outline"
+            :text = "dialogDetails.text"
+            :title = "dialogDetails.title"
+          >
+            <template v-slot:actions>
+              <v-spacer></v-spacer>
+
+              <v-btn @click="closeDialog()">
+                Cancel
+              </v-btn>
+
+              <v-btn @click="closeDialog(dialogDetails.source)">
+                Agree
+              </v-btn>
+            </template>
+          </v-card>
+        </v-dialog>
+      </div>
     </v-container>
   </v-main>
 </template>
@@ -157,7 +194,14 @@
         ],
         participantCountRules: [
           v=> v > 0 || 'Need at least 1 participant.'
-        ]
+        ],
+        // dialog box for user confirmation
+        dialog: false,
+        dialogDetails: {
+          title: '',
+          text: '',
+          source: ''
+        }
       };
     },
 
@@ -262,6 +306,23 @@
         else if (factorRef && factorRef.validateFactorFields()) {
             this.expandedFPanels = this.expandedFPanels.filter((i) => i !== index);
         }
+      },
+
+      // dynamic confirmation based on what button/action triggered it
+      displayDialog(details) {
+        this.dialogDetails = details;
+        this.dialog = true;
+      },
+
+      // specialized action based on source of the dialog pop-up if "agree" is selected
+      closeDialog(action) {
+        if (action == 'task' || action == 'factor') {
+          this.removeTaskFactor(action);
+        }
+        else if (action == 'exit') {
+          this.exit();
+        }
+        this.dialog = false;
       },
 
       async submit() {
