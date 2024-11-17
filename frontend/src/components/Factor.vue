@@ -7,17 +7,13 @@
       :rules="factorNameRules"
     ></v-text-field>
 
-    <div class="flex-row">
+    <div>
       <v-text-field
         v-model="factor.factorDescription"
         :counter="250"
         label="Factor Description"
         :rules="factorDescriptionRules"
       ></v-text-field>
-
-      <v-btn icon @click="$emit('remove')" color="White" class="v-trash">
-        <v-icon>mdi-delete</v-icon>
-      </v-btn>
     </div>
   </div>
 </template>
@@ -38,6 +34,7 @@
 
     data() {
       return {
+        // validation rules for factor-specific inputs
         factorNameRules: [
           v => !!v || 'Factor name is required.',
           v => v.length >= 2 || 'Factor name must be at least 2 characters.',
@@ -59,17 +56,3 @@
     }
   };
 </script>
-
-<style scoped>
-  .flex-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .v-btn {
-    margin-bottom: 25px;
-  }
-  .v-trash {
-    margin-left: 25px;
-  }
-</style>

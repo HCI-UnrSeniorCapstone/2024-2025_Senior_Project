@@ -21,7 +21,7 @@
       :rules="taskDurationRules"
     ></v-text-field>
 
-    <div class="flex-row">
+    <div>
       <v-select
         v-model="task.measurementOptions"
         :items="['Mouse Movement', 'Mouse Scrolls', 'Mouse Clicks', 'Keyboard Inputs']"
@@ -29,10 +29,6 @@
         chips
         multiple
       ></v-select>
-
-      <v-btn icon @click="$emit('remove')" color="White" class="v-trash">
-        <v-icon>mdi-delete</v-icon>
-      </v-btn>
     </div>
   </div>
 </template>
@@ -55,6 +51,7 @@
 
     data() {
       return {
+        // validation rules for task-related inputs
         taskNameRules: [
           v => !!v || 'Task name is required.',
           v => v.length >= 2 || 'Task name must be at least 2 characters.',
@@ -80,17 +77,3 @@
     }
   };
 </script>
-
-<style scoped>
-  .flex-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .v-btn {
-    margin-bottom: 25px;
-  }
-  .v-trash {
-    margin-left: 25px;
-  }
-</style>
