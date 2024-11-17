@@ -29,135 +29,140 @@
               :headers="headers"
               :items="studies"
               :search="search"
+              class="table-background"
             >
               <template v-slot:item.studyName="{ item }">
                 <div class="study-name">
                   {{ item.studyName }}
-                  <v-icon class="expand-study" size="small" @click.stop="openDrawer(item.studyName)">mdi-arrow-expand</v-icon>
+                </div>
+              </template>
+              <template v-slot:item.studyDesc="{ item }">
+                <div>
+                  {{ item.studyDesc.length > 100 ? item.studyDesc.substring(0, 100) + '...' : item.studyDesc }}
+                </div>
+              </template>
+              <template v-slot:item.sessionCount="{ item }">
+                <div>
+                  {{ item.sessionCount + '/' + item.expectedNumParticipants }}
                 </div>
               </template>
               <template v-slot:item.progress="{ item }">
                 <v-progress-linear
-                  :model-value="calculateProgress(item.completedSessions, item.expectedSessions)"
+                  :model-value="calculateProgress(item.sessionCount, item.expectedNumParticipants)"
                   height="15"
                   color="primary"
                 >
-                  <strong>{{ calculateProgress(item.completedSessions, item.expectedSessions) }}%</strong>
                 </v-progress-linear>
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-icon
+                  class="me-2"
+                  size="small"
+                  @click.stop="openDrawer(item)"
+                >
+                  mdi-arrow-expand
+                </v-icon>
+                <v-icon
+                  size="small"
+                >
+                  mdi-delete
+                </v-icon>
               </template>
             </v-data-table>
           </v-card>
         </v-col>
       </v-row>
-      <v-navigation-drawer
-        v-model="drawer"
-        location="right"
-        temporary
-        :width="1000"
-      >
-        <v-toolbar flat dense>
-          <v-toolbar-title>{{ drawerTitle }}</v-toolbar-title>
-        </v-toolbar>
-        <v-row justify="center">
-          <v-col cols="auto">
-              <v-btn @click="startSession" class="start-session" type="startSession" color="red">Start Session</v-btn>
-          </v-col>
-        </v-row>
-      </v-navigation-drawer>
+
+      <StudyPanel
+        :drawer="drawer"
+        :study="selectedStudy"
+        @update:drawer="drawer = $event"
+        @close="drawer = false"
+      />
+
     </v-container>
   </v-main>
 </template>
 
 <script>
-  import axios from 'axios'
-  // import userData from 'C:/Users/jairo/OneDrive/Desktop/capstone/2024-2025_Senior_Project/demo2.json'
-
+  import StudyPanel from './StudyPanel.vue';
 
   export default {
+
+    components: { StudyPanel },
+
     data () {
       return {
         search: '',
         drawer: false,
-        drawerTitle: '',
+        selectedStudy: {},
         headers: [
           {
             align: 'start',
-            key: 'studyName',
+            key: 'dateCreated',
             sortable: false,
-            title: 'User Study Name',
+            title: 'Date Created',
           },
+          { key: 'studyName', title: 'User Study Name', sortable: false, width: "250px" },
           { key: 'studyDesc', title: 'Description', sortable: false},
-          { key: 'completedSessions', title: '# Completed Sessions', sortable: false, width: "120px" },
-          { key: 'dateCreated', title: 'Date Created', sortable: false },
+          { key: 'sessionCount', title: 'Sessions', sortable: false },
           { key: 'progress', title: 'Progress', sortable: false, width: "200px" },
-          { key: 'permissions', title: 'Permissions', sortable: false },
+          { key: 'role', title: 'Role', sortable: false },
+          { key: 'actions', title: 'Actions', sortable: false },
         ],
+        // sample data until the db is connected 
         studies: [
           {
-            studyName: 'User Interface Friendliness for Elderly People',
+            studyName: 'UI Elderly Friendliness',
             studyDesc: 'Explores the usability of interfaces designed for older adults.',
-            completedSessions: 10,
-            expectedSessions: 15,
-            dateCreated: '2024-04-05',
-            permissions: 'Read/Write',
+            sessionCount: 10,
+            expectedNumParticipants: 15,
+            dateCreated: '04/04/2024',
+            role: 'Author',
           },
           {
-            studyName: 'Virtual Reality in Educational Environments',
-            studyDesc: 'Investigates how VR can enhance learning experiences in classrooms.',
-            completedSessions: 8,
-            expectedSessions: 10,
-            dateCreated: '2024-02-20',
-            permissions: 'Read/Write',
+            studyName: 'VR in Educational',
+            studyDesc: 'Investigates how VR can enhance learning experiences in classrooms by conducting tests with teenagers...',
+            sessionCount: 8,
+            expectedNumParticipants: 10,
+            dateCreated: '02/20/2024',
+            role: 'Author',
           },
           {
-            studyName: 'Eye-Tracking for User Attention Analysis',
+            studyName: 'Attention Analysis',
             studyDesc: 'Uses eye-tracking technology to assess user attention on e-commerce sites.',
-            completedSessions: 16,
-            expectedSessions: 17,
-            dateCreated: '2023-12-09',
-            permissions: 'Read/Write',
+            sessionCount: 16,
+            expectedNumParticipants: 17,
+            dateCreated: '12/09/2023',
+            role: 'Editor',
           },
           {
-            studyName: 'Voice Interface Usability in Noisy Environments',
+            studyName: 'Voice Interface Usability',
             studyDesc: 'Examines the usability of voice-activated systems in high-noise settings.',
-            completedSessions: 15,
-            expectedSessions: 15,
-            dateCreated: '2023-10-10',
-            permissions: 'Read/Write',
+            sessionCount: 15,
+            expectedNumParticipants: 15,
+            dateCreated: '10/10/2023',
+            role: 'Viewer',
           },
         ],
       }
     },
 
     methods : {
+      // route to an empty study form page
       openNewStudy () {
         this.$router.push('/StudyForm')
       },
+      // used to display progress in the table progress bars 
       calculateProgress(completed, expected) {
         let percentVal = Math.floor((completed / expected) * 100);
         return percentVal
       },
-      openDrawer(studyName) {
-        this.drawerTitle = studyName;
+      // toggle drawer open and bind study-specific info to populate the right panel 
+      openDrawer(study) {
+        this.selectedStudy = { ...study};
         this.drawer = true;
       },
-      // **********************FOR DEMO USE ONLY****************
-      async startSession() {
-
-                        // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
-        const response = await fetch('/demo2.json');
-        const userData = await response.json();
-
-        alert(JSON.stringify(userData, null, 2));
-
-        try {
-          const response = await axios.post('http://localhost:5000/testing', userData);
-          console.log('Response:', response.data);
-        } catch (error) {
-          console.error("Error: ", error)
-        }
-      },
-      // ************************************************************
     }
   }
 </script>
@@ -171,10 +176,10 @@
     display: flex;
     align-items: center;
   }
-  .start-session {
-    margin-top: 300px;
-  }
   .expand-study {
     margin-left: 5px;
+  }
+  .table-background {
+    background-color: #ffffff !important; 
   }
 </style>
