@@ -37,78 +37,70 @@
             </div>
 
             <h3>Tasks</h3>
-            <v-expansion-panels multiple>
+            <v-expansion-panels
+              multiple
+              v-model="expandedTPanels"
+            >
               <v-expansion-panel v-for="(task,index) in tasks" :key="index">
-                <v-expansion-panel-title>
+                <v-expansion-panel-title @click="toggleTaskPanel(index)">
                   <template v-slot:default= "{ }">
                     <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                      <span>{{ 'Task ' + (index+1) + ': ' + task.taskName }}</span>
-                      <div class="move-arrows">
-                        <v-btn icon @click.stop="slideTaskUp(index)" :disabled="index === 0" size="x-small" class="individual-arrow">
-                          <v-icon icon="mdi-arrow-up" size="x-small"></v-icon>
-                        </v-btn>
-                        <v-btn icon @click.stop="slideTaskDown(index)" :disabled="index === tasks.length - 1" size="x-small" class="individual-arrow">
-                          <v-icon icon="mdi-arrow-down" size="x-small"></v-icon>
-                        </v-btn>
-                      </div>
+                      <span>{{ 'Task ' + (index+1) }}</span>
                     </div>
                   </template>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
                   <Task
-                    ref = "taskRefs"
-                    :task="task"
-                    @remove="() => removeTask(index)"
+                    :ref = "el => taskRefs[index] = el"
+                    :task="task"                    
                   />
                 </v-expansion-panel-text>
               </v-expansion-panel>
             </v-expansion-panels>
 
-            <v-container>
-              <v-btn @click="addTask" color="grey" class="add-btn">
-                <v-icon left>mdi-plus</v-icon>
-                Add Task
+            <div class="action-btns">
+              <v-btn @click="addTaskFactor('task')" color="grey" class="add-rmv-btn">
+                +
               </v-btn>
-            </v-container>
+              <v-btn @click="removeTaskFactor('task')" :disabled="!canRemoveTask" color="grey" class="add-rmv-btn">
+                -
+              </v-btn>
+            </div>
 
             <h3>Factors</h3>
-            <v-expansion-panels multiple>
+            <v-expansion-panels
+            multiple
+            v-model="expandedFPanels"
+            >
               <v-expansion-panel v-for="(factor,index) in factors" :key="index">
-                <v-expansion-panel-title>
+                <v-expansion-panel-title @click="toggleFactorPanel(index)">
                   <template v-slot:default= "{ }">
                     <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                      <span>{{ 'Factor ' + (index+1) + ': ' + factor.factorName }}</span>
-                      <div class="move-arrows">
-                        <v-btn icon @click.stop="slideFactorUp(index)" :disabled="index === 0" size="x-small" class="individual-arrow">
-                          <v-icon icon="mdi-arrow-up" size="x-small"></v-icon>
-                        </v-btn>
-                        <v-btn icon @click.stop="slideFactorDown(index)" :disabled="index === factors.length - 1" size="x-small" class="individual-arrow">
-                          <v-icon icon="mdi-arrow-down" size="x-small"></v-icon>
-                        </v-btn>
-                      </div>
+                      <span>{{ 'Factor ' + String.fromCharCode(65 + index) }}</span>
                     </div>
                   </template>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
                   <Factor
-                      ref="factorRefs"
+                      :ref="el => factorRefs[index] = el"
                       :factor="factor"
-                      @remove="() => removeFactor(index)"
                   />
                 </v-expansion-panel-text>
               </v-expansion-panel>
             </v-expansion-panels>
             
-            <v-container>
-              <v-btn @click="addFactor" color="grey" class="add-btn">
-                <v-icon left>mdi-plus</v-icon>
-                Add Factor
+            <div class="action-btns">
+              <v-btn @click="addTaskFactor('factor')" color="grey" class="add-rmv-btn">
+                +
               </v-btn>
-            </v-container>
+              <v-btn @click="removeTaskFactor('factor')" :disabled="!canRemoveFactor" color="grey" class="add-rmv-btn">
+                -
+              </v-btn>
+            </div>
 
-            <v-row class="btn-row">
-              <v-btn class="me-4 btn-exit" @click="exit">Exit</v-btn>
-              <v-btn class="me-4 btn-submit" type="submit" :disabled="!isFormValid">Save</v-btn>
+            <v-row class="btn-row" justify="center">
+              <v-btn class="me-4 save-exit-btn" @click="exit">Exit</v-btn>
+              <v-btn class="me-4 save-exit-btn" type="submit" :disabled="!isFormValid">Save</v-btn>
             </v-row>
 
           </form>
@@ -135,13 +127,8 @@
       };
       const factorRefs = ref([]);
       const taskRefs = ref([]);
-      const validateFactors = () => {
-        return factorRefs.value.every(factorRef => factorRef?.validateFactorFields());
-      }
-      const validateTasks = () => {
-        return taskRefs.value.every(taskRef => taskRef?.validateTaskFields());
-      }
-      return { exit, factorRefs, validateFactors, taskRefs, validateTasks };
+
+      return { exit, taskRefs, factorRefs};
     },
 
     data() {
@@ -150,8 +137,13 @@
         studyDescription: '',
         studyDesignType: null,
         participantCount: '',
+        // handle dynamic number of tasks/factors 
         tasks: [],
         factors: [],
+        // used to track the state of task & factor expansion panels 
+        expandedTPanels: [0],
+        expandedFPanels: [0],
+        // input validation for form fields (not tasks or factors)
         studyNameRules: [
           v => !!v || 'Study name is required.',
           v => v.length >= 2 || 'Study name must be at least 2 characters.',
@@ -169,75 +161,106 @@
       };
     },
 
+    // view will load with 1 task and flask populated automatically 
+    mounted() {
+      this.addTaskFactor('task');
+      this.addTaskFactor('factor');
+    },
+
     computed: {
+      // fxn constantly checking if ALL fields are valid and used to disable save button until true 
       isFormValid() {
         const studyNameCheck = this.studyNameRules.every(rule => rule(this.studyName) === true);
         const studyDescCheck = this.studyDescriptionRules.every(rule => rule(this.studyDescription) === true);
         const studyDesignCheck = this.studyDesignTypeRules.every(rule => rule(this.studyDesignType) === true);
         const pCountCheck = this.participantCountRules.every(rule => rule(this.participantCount) === true);
-        if(this.tasks.length === 0 || this.factors.length === 0) return false;
-        const tasksCheck = this.validateTasks();
-        const factorsCheck = this.validateFactors();
+        
+        // only validates expanded task panels since closed ones must already be in a valid state to collapse
+        const tasksValid = this.expandedTPanels.every(index => {
+          const taskRef = this.taskRefs[index];
+          return taskRef?.validateTaskFields() ?? true;
+        });
+        // same as above but for factors 
+        const factorsValid = this.expandedFPanels.every(index => {
+          const factorRef = this.factorRefs[index];
+          return factorRef?.validateFactorFields() ?? true;
+        });
 
-        return studyNameCheck && studyDescCheck && tasksCheck && factorsCheck && studyDesignCheck && pCountCheck;
+        return studyNameCheck && studyDescCheck && studyDesignCheck && pCountCheck && tasksValid && factorsValid;
+      },
+
+      // min of 1 task required at all times, should disable delete/minus button if only 1 task currently
+      canRemoveTask() {
+        return this.tasks.length > 1;
+      },
+      // min of 1 factor required 
+      canRemoveFactor() {
+        return this.factors.length > 1;
       }
     },
 
     methods: {
 
-      addTask() {
-        this.tasks.push({
+      addTaskFactor(type) {
+        if (type == 'task') {
+          this.tasks.push({
           taskName: '',
           taskDescription: '',
           taskDuration: '',
           measurementOptions: []
-        });
-      },
-
-      removeTask(index) { 
-        this.tasks.splice(index, 1);
-      },
-
-      slideTaskDown(index) {
-        if(index < this.tasks.length - 1){
-          const tempTask = this.tasks[index];
-          this.tasks[index] = this.tasks[index + 1];
-          this.tasks[index + 1] = tempTask;    
+          });
+          // update expansion states and configuring new additions to start expanded
+          const tIndex = this.tasks.length - 1;
+          this.expandedTPanels.push(tIndex);
+        }
+        else {
+          this.factors.push({
+            factorName: '',
+            factorDescription: ''
+          });
+          // same expansion handling as above but for factors 
+          const fIndex = this.factors.length - 1;
+          this.expandedFPanels.push(fIndex);
         }
       },
 
-      slideTaskUp(index) {
-        if(index > 0){
-          const tempTask = this.tasks[index];
-          this.tasks[index] = this.tasks[index - 1];
-          this.tasks[index - 1] = tempTask;    
+      removeTaskFactor(type) { 
+        if (type == 'task') {
+          const tIndex = this.tasks.length - 1;
+          this.tasks.pop();
+          this.expandedTPanels = this.expandedTPanels.filter(i => i !== tIndex);
+
+        }
+        else if (type == 'factor') {
+          const fIndex = this.factors.length - 1;
+          this.factors.pop();
+          this.expandedFPanels = this.expandedFPanels.filter(i => i !== fIndex);
         }
       },
 
-      addFactor() {
-        this.factors.push({
-          factorName: '',
-          factorDescription: ''
-        });
-      },
-
-      removeFactor(index) { 
-        this.factors.splice(index, 1);
-      },
-
-      slideFactorDown(index) {
-        if(index < this.factors.length - 1){
-          const tempFactor = this.factors[index];
-          this.factors[index] = this.factors[index + 1];
-          this.factors[index + 1] = tempFactor;    
+      // prevent task expansion panels from collapsing while input is invalid 
+      toggleTaskPanel(index) {
+        const taskRef = this.taskRefs[index];
+        if (taskRef && !taskRef.validateTaskFields()) { // if exists and input is invalid
+          if(!this.expandedTPanels.includes(index)) { // and not already accounted for
+            this.expandedTPanels.push(index); // add to array that tracks open task panels
+          }
+        }
+        else if (taskRef && taskRef.validateTaskFields()) {
+            this.expandedTPanels = this.expandedTPanels.filter((i) => i !== index); // remove if valid, allowing panel to collapse
         }
       },
 
-      slideFactorUp(index) {
-        if(index > 0){
-          const tempFactor = this.factors[index];
-          this.factors[index] = this.factors[index - 1];
-          this.factors[index - 1] = tempFactor;    
+      // same as toggleTaskPanel() but for factors 
+      toggleFactorPanel(index) {
+        const factorRef = this.factorRefs[index];
+        if (factorRef && !factorRef.validateFactorFields()) {
+          if(!this.expandedFPanels.includes(index)) {
+            this.expandedFPanels.push(index);
+          }
+        }
+        else if (factorRef && factorRef.validateFactorFields()) {
+            this.expandedFPanels = this.expandedFPanels.filter((i) => i !== index);
         }
       },
 
@@ -274,25 +297,24 @@
 </script>
 
 <style scoped>
-  .move-arrows {
-    margin-right: 20px;
-  }
-  .individual-arrow {
-    margin-left: 2px;
-    margin-right: 2px;
-  }
-  .btn-exit, .btn-submit {
-    flex: 1;
-    margin: 5px;
-  }
   .btn-row {
     display: flex;
-    justify-content: space-between;
-    padding: 10px 100px;
+    margin-top: 50px;  
   }
-  .add-btn {
-    max-height: 22px;
-    min-width: 150px;
+  .save-exit-btn {
+    min-height: 40px;
+    min-width: 125px;
+  }
+  .action-btns {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+    gap: 1px;
+  }
+  .add-rmv-btn {
+    max-height: 25px;
+    min-width: 25px;
+    font-size: larger;
   }
   .flex-row {
     display: flex;
