@@ -325,7 +325,7 @@
         this.dialog = false;
       },
 
-      async submit() {
+      submit() {
         const submissionData = {
           studyName: this.studyName,
           studyDescription: this.studyDescription,
@@ -347,7 +347,7 @@
         alert(JSON.stringify(submissionData, null, 2));
 
         try {
-          const response = await axios.post('http://localhost:5000/start_tracking', submissionData);
+          const response = axios.post('http://100.91.135.16:5001/create_study', submissionData);
           console.log('Response:', response.data);
         } catch (error) {
           console.error("Error: ", error)
