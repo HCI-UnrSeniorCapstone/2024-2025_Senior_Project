@@ -50,4 +50,4 @@ def test_db():
 
 # CHANGE THE HOST AND DEBUG WHEN PRODUCTION TIME
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', debug=True)

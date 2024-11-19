@@ -13,13 +13,12 @@ export default {
   data() {
     return {
       msg: 'Hello!',
-      // Default backend URL points to the server_backend
-      backendUrl: 'http://100.91.135.16:5001',
     }
   },
   methods: {
     getMessage() {
-      const path = `${this.backendUrl}/ping`
+      const backendUrl = this.$backendUrl
+      const path = `${backendUrl}/ping`
       axios
         .get(path)
         .then(res => {
