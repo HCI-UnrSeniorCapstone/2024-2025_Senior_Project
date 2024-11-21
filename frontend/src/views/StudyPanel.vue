@@ -181,7 +181,7 @@
       const userData = await response.json();
       alert(JSON.stringify(userData, null, 2));
       try {
-        const response = await axios.post('http://localhost:5000/testing', userData);
+        const response = await axios.post('http://localhost:5000/run_study', userData);
         console.log('Response:', response.data);
       } catch (error) {
         console.error("Error: ", error)

@@ -1,21 +1,22 @@
 {
-    "studyName": "fdsg",
+    "studyName": "bru",
     "studyDescription": "",
-    "studyDesignType": "Between",
-    "participantCount": "6",
+    "studyDesignType": "Within",
+    "participantCount": "2",
     "tasks": [
         {
-            "taskName": "gfs",
+            "taskName": "sf",
             "taskDescription": "",
             "taskDuration": "5",
             "measurementOptions": [
+                "Mouse Scrolls",
                 "Mouse Movement"
             ]
         }
     ],
     "factors": [
         {
-            "factorName": "gg",
+            "factorName": "ds",
             "factorDescription": ""
         }
     ]
