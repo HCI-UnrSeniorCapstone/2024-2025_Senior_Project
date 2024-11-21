@@ -34,7 +34,8 @@ venv/
 
 # Passwords for database
 .env
-
+# URL / Port for Server Flask. Every developer should have a different port for development. Production wll be 1 port.
+frontend/src/config.json
 generated_data/
 
 # Other backend-related directories (e.g., cache, compiled files)
