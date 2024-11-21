@@ -9,7 +9,7 @@ def ping():
     return jsonify({"message": "Pong!"})
 
 # Test Database Connection and Fetch Data from 'user' table
-@app.route('/test_db')
+@bp.route('/test_db')
 def test_db():
     try:
         conn = get_db_connection()

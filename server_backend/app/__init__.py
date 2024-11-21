@@ -27,9 +27,7 @@ def create_app():
     # Register blueprints
     from app.routes.general import bp as general_bp
     from app.routes.studies import bp as studies_bp
-    from app.routes.db_routes import bp as db_routes_bp
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
-    app.register_blueprint(db_routes_bp)
 
     return app

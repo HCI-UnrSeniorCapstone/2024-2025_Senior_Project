@@ -3,9 +3,12 @@ from flask import Blueprint, request, jsonify
 import json
 from app.utility.studies import set_available_features, get_study_detail
 
+
+bp = Blueprint('studies', __name__)
+
 # Gets and saves data from study form page and stores it into a json file. The json file is stored in
     # ./frontend/public/demo2.json
-@app.route("/create_study", methods=["POST", "GET"])
+@bp.route("/create_study", methods=["POST", "GET"])
 def create_study():
     task_name = []
     task_duration = []
