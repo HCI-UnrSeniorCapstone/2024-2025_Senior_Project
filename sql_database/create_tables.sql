@@ -39,12 +39,12 @@ CREATE TABLE study (
     study_description VARCHAR(255),
     expected_participants INT
 );
---Read, Write, Read/Write. No None cuz they just wouldn't be in the table
+-- Read, Write, Read/Write. No None cuz they just wouldn't be in the table
 CREATE TABLE study_user_access_type (
     study_user_access_type_id INT PRIMARY KEY,
     description VARCHAR(255)
 );
---All users who have access to a study and their permission types
+-- All users who have access to a study and their permission types
 CREATE TABLE study_user_access (
     user_id INT,
     study_id INT,
@@ -54,7 +54,7 @@ CREATE TABLE study_user_access (
     FOREIGN KEY (study_id) REFERENCES study(study_id),
     FOREIGN KEY (access_type) REFERENCES study_user_access_type(study_user_access_type_id)
 );
---This assumes every task has the same factors. need to double-check
+-- This assumes every task has the same factors. need to double-check
 CREATE TABLE study_task_factor (
     study_id INT,
     task_id INT,

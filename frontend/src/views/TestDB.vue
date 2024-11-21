@@ -19,17 +19,17 @@
 import axios from 'axios'
 
 export default {
-  name: 'PingServer',
+  name: 'TestDatabase',
   data() {
     return {
       msg: 'Hello!',
-      backendUrl: 'http://100.91.135.16:5001', // Backend server URL
       results: [], // Store the results from the database query
     }
   },
   methods: {
     getMessage() {
-      const path = `${this.backendUrl}/test_db`
+      const backendUrl = this.$backendUrl
+      const path = `${backendUrl}/test_db`
       axios
         .get(path)
         .then(res => {
