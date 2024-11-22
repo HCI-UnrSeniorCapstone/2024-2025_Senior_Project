@@ -1,13 +1,12 @@
 name: Update Server and Restart Flask on PR Merge
 
 on:
-  pull_request:
-    types:
-      - closed
+  push:
+    branches:
+      - 6-automate-workflow-to-update-vm-with-latest-github-build
 
 jobs:
   if_merged:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
@@ -16,11 +15,14 @@ jobs:
         uses: actions/checkout@v3
         continue-on-error: false  # If this fails, stop the workflow.
 
+
       # Step 2: Connect to Tailscale
-      - name: Connect to Tailscale Network
+      - name: Tailscale
         uses: tailscale/github-action@v2
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:server-backend
         continue-on-error: false  # If Tailscale connection fails, stop the workflow.
 
       # Step 3: Check Tailscale Status and add echo if Tailscale fails
@@ -34,10 +36,11 @@ jobs:
 
       # Step 4: SSH into Server and Check for Updates
       - name: SSH into Server and Restart Flask
-        uses: appleboy/ssh-action@v0.1.0
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "Checking server's current branch..."
