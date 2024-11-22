@@ -89,6 +89,8 @@
 </template>
 
 <script>
+import axios from 'axios';
+
   export default {
     props: {
       drawer: {
@@ -174,20 +176,21 @@
         }
       },
 
-      // **********************FOR DEMO USE ONLY****************
       async startSession() {
-      // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
-      const response = await fetch('/demo2.json');
-      const userData = await response.json();
-      alert(JSON.stringify(userData, null, 2));
-      try {
-        const response = await axios.post('http://localhost:5000/run_study', userData);
-        console.log('Response:', response.data);
-      } catch (error) {
-        console.error("Error: ", error)
-      }
+        // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
+        //https://testdriven.io/blog/combine-flask-vue/
+        const response = await fetch('http://100.82.85.28:5004/get_data'); //server flask
+        const userData = await response.json();
+        // console.log(userData);
+        alert(JSON.stringify(userData, null, 2));
+
+        try {
+          const response = axios.post('http://127.0.0.1:5000/run_study', userData); //local flask 
+          console.log('Response:', response.data);
+        } catch (error) {
+          console.error("Error: ", error)
+        }
       },
-      // ************************************************************
     }
 
   };
