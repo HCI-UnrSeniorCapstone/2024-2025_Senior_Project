@@ -32,6 +32,8 @@ coverage
 venv-windows/
 venv/
 
+config.json
+
 # Passwords for database
 .env
 # URL / Port for Server Flask. Every developer should have a different port for development. Production wll be 1 port.

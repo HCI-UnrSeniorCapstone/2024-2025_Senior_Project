@@ -347,7 +347,7 @@
         alert(JSON.stringify(submissionData, null, 2));
 
         try {
-          const response = axios.post('http://100.91.135.16:5001/create_study', submissionData);
+          const response = axios.post('http://100.82.85.28:5004/create_study', submissionData);
           console.log('Response:', response.data);
         } catch (error) {
           console.error("Error: ", error)
