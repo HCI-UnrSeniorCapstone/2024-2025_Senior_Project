@@ -1,12 +1,13 @@
 name: Update Server and Restart Flask on PR Merge
 
 on:
-  push:
-    branches:
-      - 6-automate-workflow-to-update-vm-with-latest-github-build
+  pull_request:
+    types:
+      - closed
 
 jobs:
   if_merged:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
