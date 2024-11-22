@@ -145,6 +145,16 @@
       </div>
     </v-container>
   </v-main>
+
+  <v-snackbar
+    v-model="collapseError"
+    :timeout="2000"
+    color="red"
+    variant="tonal"
+  >
+    {{ collapseErrorMsg }}
+  </v-snackbar>
+
 </template>
   
 <script>
@@ -201,7 +211,10 @@
           title: '',
           text: '',
           source: ''
-        }
+        },
+        // warning when trying to collapse improperly fileld panel
+        collapseError: false,
+        collapseErrorMsg: 'Cannot collapse with improperly filled field(s)'
       };
     },
 
@@ -250,6 +263,7 @@
           this.tasks.push({
           taskName: '',
           taskDescription: '',
+          taskDirections: '',
           taskDuration: '',
           measurementOptions: []
           });
@@ -288,6 +302,7 @@
         if (taskRef && !taskRef.validateTaskFields()) { // if exists and input is invalid
           if(!this.expandedTPanels.includes(index)) { // and not already accounted for
             this.expandedTPanels.push(index); // add to array that tracks open task panels
+            this.collapseError = true;
           }
         }
         else if (taskRef && taskRef.validateTaskFields()) {
@@ -301,6 +316,7 @@
         if (factorRef && !factorRef.validateFactorFields()) {
           if(!this.expandedFPanels.includes(index)) {
             this.expandedFPanels.push(index);
+            this.collapseError = true;
           }
         }
         else if (factorRef && factorRef.validateFactorFields()) {
@@ -334,6 +350,7 @@
           tasks: this.tasks.map(task => ({
             taskName: task.taskName,
             taskDescription: task.taskDescription,
+            taskDirections: task.taskDirections,
             taskDuration: task.taskDuration,
             measurementOptions: [...task.measurementOptions]
           })),

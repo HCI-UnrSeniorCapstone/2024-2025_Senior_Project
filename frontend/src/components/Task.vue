@@ -15,6 +15,13 @@
     ></v-text-field>
 
     <v-text-field
+      v-model="task.taskDirections"
+      :counter="250"
+      label="Task Directions"
+      :rules="taskDirectionsRules"
+    ></v-text-field>
+
+    <v-text-field
       v-model="task.taskDuration"
       type="number"
       label="Duration (min)"
@@ -43,6 +50,7 @@
         default: () => ({
           taskName: '',
           taskDescription: '',
+          taskDirections: '',
           taskDuration: '',
           measurementOptions: []
         })
@@ -60,6 +68,9 @@
         taskDescriptionRules: [
           v => v.length <= 250 || 'Task description must be less than 250 characters.'
         ],
+        taskDirectionsRules: [
+          v => v.length <= 250 || 'Task directions must be less than 250 characters.'
+        ],
         taskDurationRules: [
           v => v === '' || Number(v) > 0 || 'A set duration must be greater than 0 min.'
         ]
@@ -71,8 +82,9 @@
       validateTaskFields() {
         const taskNameCheck = this.taskNameRules.every(rule => rule(this.task.taskName) === true);
         const taskDescCheck = this.taskDescriptionRules.every(rule => rule(this.task.taskDescription) === true);
+        const taskDirCheck = this.taskDirectionsRules.every(rule => rule(this.task.taskDirections) === true);
         const taskDurCheck = this.taskDurationRules.every(rule => rule(this.task.taskDuration) === true);
-        return taskNameCheck && taskDescCheck && taskDurCheck;
+        return taskNameCheck && taskDescCheck && taskDirCheck && taskDurCheck;
       }
     }
   };
