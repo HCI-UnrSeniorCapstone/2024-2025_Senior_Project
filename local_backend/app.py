@@ -163,9 +163,7 @@ app.config.from_object(__name__)
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
 
-# flask code for now
-
-# Make this better
+# gets parameters from server and runs
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
     task_name = []
@@ -173,7 +171,9 @@ def run_study():
     task_measurements = []
     user_Task = []
     submissionData = request.get_json()
+    
     default_tasks = submissionData.get('tasks', [])
+    app.logger.debug(f'{default_tasks}')
 
     rand_tasks = sorted(default_tasks, key=lambda x: random.random())
 
