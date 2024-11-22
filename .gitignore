@@ -46,3 +46,6 @@ generated_data/
 *.pyo
 *.pyd
 *.egg-info/
+
+# front-end
+config.json
