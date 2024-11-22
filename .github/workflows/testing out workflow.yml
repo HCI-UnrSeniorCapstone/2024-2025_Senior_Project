@@ -50,8 +50,8 @@ jobs:
             git fetch --all
             git reset --hard origin/main
             source venv/bin/activate || { echo "Failed to activate virtual environment"; exit 1; }
-            echo "Stopping any running Flask processes..."
-            pkill -f "flask run" || echo "No Flask process found."
+            echo "Stopping Flask gracefully..."
+            flask restart || echo "Failed to restart Flask, attempting to stop manually."
             echo "Starting Flask..."
             nohup flask run --host=0.0.0.0 --port=5001 --debug &
       # Step 5: Verify Flask is running
