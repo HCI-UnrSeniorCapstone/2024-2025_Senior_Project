@@ -69,7 +69,7 @@ def on_click(x, y, button, pressed):
 
 
 def on_scroll(x, y, dx, dy):
-    mouse_click_csv.append([int(time.mktime(datetime.now().timetuple())), x, y])
+    mouse_scroll_csv.append([int(time.mktime(datetime.now().timetuple())), x, y])
 
 
 def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=False, task_name=None):
