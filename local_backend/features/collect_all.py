@@ -143,7 +143,7 @@ def create_csv(task_name, measur_name, feature, arr_data, is_used):
     
     if is_used and (feature == 'keyboard'):
         df = pd.DataFrame(arr_data, columns=['Time', 'running_time', 'keys'])
-        df.to_csv(f'{task_name}_measur_name_data.csv', index=False)
+        df.to_csv(f'{task_name}_{measur_name}_data.csv', index=False)
 
 def euclidian_distance(x1, y1, x2, y2):
     ed = ((x1-x2)**2 + (y1-y2)**2)**.5
