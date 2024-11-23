@@ -7,8 +7,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import threading
-from features.mouse_tracking import get_mouse_ps
-from features.keyboard_tracking import get_keyboard_ps
+from features.collect_all import get_all_measurements
 import ctypes  # lib for pop up
 import random
 from PIL import ImageGrab
@@ -25,9 +24,10 @@ def extract_mouse_movements(log_file):
         next(reader)  # skips the header
         for row in reader:
             # row[0] = time
-            # row[1] = x
-            # row[2] = y
-            x, y = int(row[1]), int(row[2])
+            # row[1] = running_time
+            # row[2] = x
+            # row[3] = y
+            x, y = int(row[2]), int(row[3])
             coordinates.append((x, y))
     return coordinates
 
@@ -60,7 +60,6 @@ def overlay_heatmap(heatmap, screenshot):
 mouse_tracking_thread = None
 keyboard_tracking_thread = None
 
-
 def set_available_features(task_measurments):
     # makes sures the default taks are false
     default_tasks = {'Mouse Movement': False, 'Mouse Scrolls': False,
@@ -73,11 +72,9 @@ def set_available_features(task_measurments):
 
     return default_tasks
 
-
 def Mbox(title, text, style):
     # pop up function (https://stackoverflow.com/questions/2963263/how-can-i-create-a-simple-message-box-in-python)
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
-
 
 def get_measurments(user_Task, task_name, task_duration):
     # Start getting measurements from task
@@ -92,27 +89,16 @@ def get_measurments(user_Task, task_name, task_duration):
 
         # checks to see if any task was added
         if True in user_Task[task_id].values():
-            '''************************* MOUSE Movement  *************************'''
-            # try changing this or looking into a different way of doing this that doesn't add more complexity time, it looks a little ugly
-            if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False:
-                mouse_tracking_thread = threading.Thread(target=get_mouse_ps, args=(
-                    task_duration[task_id], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], task_name[task_id]))
-                mouse_tracking_thread.start()
-                app.logger.debug("tracking mouse")
-                mouse_tracking_thread.join()
-            else:
-                app.logger.debug("not tracking mouse foo")
+            start_time = time.time()  # when exeriment starts
 
-            '''************************* KEYBOARD TRACKING  *************************'''
-            # keyboard_tracking_thread is None or not keyboard_tracking_thread.is_alive() and
-            if user_Task[task_id]['Keyboard Inputs'] is not False:
-                keyboard_tracking_thread = threading.Thread(
-                    target=get_keyboard_ps, args=(task_duration[task_id], user_Task[task_id]['Keyboard Inputs'], task_name[task_id]))
-                keyboard_tracking_thread.start()
-                app.logger.debug("tracking keyboard")
-                keyboard_tracking_thread.join()
+            if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False or user_Task[task_id]['Keyboard Inputs'] is not False:
+                tracking_thread = threading.Thread(target=get_all_measurements, args=(
+                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls']))
+                tracking_thread.start()
+                app.logger.debug("tracking")
+                tracking_thread.join()
             else:
-                app.logger.debug("no keyboard foo")
+                app.logger.debug("not tracking foo")
 
             # pop up
             Mbox(f'{task_name[task_id]}', 'Task Ended', 0)
@@ -156,7 +142,6 @@ def get_study_detail(subData):
 
     return study_name, study_desc, study_design, people_count
 
-
 # creating app
 app = Flask(__name__)
 app.config.from_object(__name__)
@@ -165,8 +150,6 @@ app.config.from_object(__name__)
 CORS(app, resources={r'/*': {'origins': '*'}})
 
 # gets parameters from server and runs
-
-
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
     task_name = []
