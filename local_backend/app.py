@@ -15,19 +15,20 @@ from PIL import ImageGrab
 import cv2
 import numpy as np
 import time  # temp for now
-import json
+import csv
 
 
 def extract_mouse_movements(log_file):
     coordinates = []
     with open(log_file, 'r') as f:
-        for line in f:
-            parts = line.split('|')
-            if len(parts) > 1 and 'moved(' in parts[1]:
-                # Extracting the coordinates
-                coord_part = parts[1].split('moved(')[1].split(')')[0]
-                x, y = map(int, coord_part.split(','))
-                coordinates.append((x, y))
+        reader = csv.reader(f)
+        next(reader)  # skips the header
+        for row in reader:
+            # row[0] = time
+            # row[1] = x
+            # row[2] = y
+            x, y = int(row[1]), int(row[2])
+            coordinates.append((x, y))
     return coordinates
 
 
@@ -129,7 +130,7 @@ def get_measurments(user_Task, task_name, task_duration):
 
                 # Extract mouse movement coordinates
                 coordinates = extract_mouse_movements(
-                    f"mouse_movment_{task_name[task_id]}.txt")
+                    f"{task_name[task_id]}_mouse_movement_data.csv")
 
                 # Create the heatmap
                 heatmap = create_heatmap(coordinates, screenshot.shape)
@@ -164,6 +165,8 @@ app.config.from_object(__name__)
 CORS(app, resources={r'/*': {'origins': '*'}})
 
 # gets parameters from server and runs
+
+
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
     task_name = []
@@ -171,7 +174,7 @@ def run_study():
     task_measurements = []
     user_Task = []
     submissionData = request.get_json()
-    
+
     default_tasks = submissionData.get('tasks', [])
     app.logger.debug(f'{default_tasks}')
 
@@ -192,5 +195,6 @@ def run_study():
 
     return "finished"
 
+
 if __name__ == "__main__":
-    app.run(host='localhost', port=5000, debug=True)
+    app.run(host='localhost', port=5001, debug=True)

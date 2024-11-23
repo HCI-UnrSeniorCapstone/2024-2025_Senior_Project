@@ -1,25 +1,25 @@
 from pynput import keyboard
+import pandas as pd
 import time
 from datetime import datetime
 
 listener = None
-tasks_name = None
+keyboard_data = []
 
 
 def on_press(key):
-    global tasks_name
-    with open(f'keyboard_press_{tasks_name}.txt', 'a') as f:
-        try:
-            f.write(
-                f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key.char} pressed\n")
-        except AttributeError:
-            f.write(
-                f"{int(time.mktime(datetime.now().timetuple()))}|keyboard: {key} pressed\n")
+    global keyboard_data
+    try:
+        keyboard_data.append(
+            [int(time.mktime(datetime.now().timetuple())), key.char])
+    except AttributeError:
+        keyboard_data.append(
+            [int(time.mktime(datetime.now().timetuple())), key])
 
 
 def get_keyboard_ps(run_time=10, key_input_flag=False, task_name=None):
-    global listener, tasks_name
-    tasks_name = task_name
+    global listener
+
     if listener is None or not listener.running:
         listener = keyboard.Listener(
             on_press=on_press if key_input_flag else None,
@@ -33,6 +33,10 @@ def get_keyboard_ps(run_time=10, key_input_flag=False, task_name=None):
             None
 
         stop_keyboard_ps()
+
+        # makes csv and inserts the data to the csv
+        df = pd.DataFrame(keyboard_data, columns=["Time", "Key_Press"])
+        df.to_csv(f"{task_name}_keyboard_data.csv", index=False)
 
 
 def stop_keyboard_ps():

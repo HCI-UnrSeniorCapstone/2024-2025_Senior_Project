@@ -5,6 +5,7 @@ https://pynput.readthedocs.io/en/latest/
 from pynput import mouse
 import time
 from datetime import datetime
+import pandas as pd
 
 # threshold is for the mouse movement, this determine whether it not it can record data and if the mouse has moved within a certain oiubt
 THRESHOLD = 10  # We have to change this incase we dont want the record every point
@@ -13,7 +14,10 @@ PREV_YPOS = 0
 TIME_TRACKER = 0
 
 listener = None
-tasks_name = None
+mouse_move_csv = []
+mouse_click_csv = []
+mouse_scroll_csv = []
+
 curr_time = 0
 prev_time = 0
 
@@ -40,7 +44,7 @@ Couple ways of doing this:
 
 
 def on_move(x, y):
-    global PREV_XPOS, PREV_YPOS, tasks_name, curr_time, prev_time
+    global PREV_XPOS, PREV_YPOS, curr_time, prev_time
 
     # distane will determine whether or not it should record the mouse movement
     # good technique is using the euclidian distance. Very well known in ML/AI and Robotics
@@ -48,10 +52,10 @@ def on_move(x, y):
     curr_time = int(time.mktime(datetime.now().timetuple()))
     # if the distance is larger than the threshold, then it can record
     if distance > THRESHOLD:  # and curr_time != prev_time:
-        # stole from the code vinh provided lol
-        with open(f'mouse_movment_{tasks_name}.txt', 'a') as f:
-            f.write(
-                f"{curr_time}|Mouse: moved({x}, {y})\n")
+
+        # inserts data into array
+        mouse_move_csv.append([curr_time, x, y])
+
         PREV_XPOS = x
         PREV_YPOS = y
 
@@ -61,15 +65,11 @@ def on_move(x, y):
 
 # not needed now, but this is from the original functions given
 def on_click(x, y, button, pressed):
-    with open(f'mouse_clicks_{tasks_name}.txt', 'a') as f:
-        f.write(
-            f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: clicked({x}, {y})\n")
+    mouse_click_csv.append([int(time.mktime(datetime.now().timetuple())), x, y])
 
 
 def on_scroll(x, y, dx, dy):
-    with open(f'mouse_scroll_{tasks_name}.txt', 'a') as f:
-        f.write(
-            f"{int(time.mktime(datetime.now().timetuple()))}|Mouse: scrolled({x}, {y})\n")
+    mouse_click_csv.append([int(time.mktime(datetime.now().timetuple())), x, y])
 
 
 def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=False, task_name=None):
@@ -91,12 +91,22 @@ def get_mouse_ps(run_time=10, move_flag=False, click_flag=False, scroll_flag=Fal
 
         stop_mouse_ps()
 
+        # makes csv and inserts the data to the csv
+        create_csv(task_name, 'mouse_movement', mouse_move_csv)
+        create_csv(task_name, 'mouse_clicks', mouse_click_csv)
+        create_csv(task_name, 'mouse_scroll', mouse_scroll_csv)
+
 
 def stop_mouse_ps():
     global listener
     if listener is not None:
         listener.stop()
         listener = None
+
+
+def create_csv(task_name, measur_name, arr_data):
+    df = pd.DataFrame(arr_data, columns=["Time", "x", "y"])
+    df.to_csv(f"{task_name}_{measur_name}_data.csv", index=False)
 
 
 def euclidian_distance(x1, y1, x2, y2):
