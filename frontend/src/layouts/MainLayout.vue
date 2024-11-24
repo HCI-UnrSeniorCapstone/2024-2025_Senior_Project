@@ -9,13 +9,13 @@
 </template>
 
 <script>
-  import GlobalNavBar from '../components/GlobalNavBar.vue'
-  import GlobalTopBar from '../components/GlobalTopBar.vue'
+import GlobalNavBar from '../components/GlobalNavBar.vue'
+import GlobalTopBar from '../components/GlobalTopBar.vue'
 
-  export default {
-    components: {
-      GlobalNavBar,
-      GlobalTopBar,
-    },
-  };
+export default {
+  components: {
+    GlobalNavBar,
+    GlobalTopBar,
+  },
+}
 </script>

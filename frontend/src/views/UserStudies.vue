@@ -19,7 +19,9 @@
         </v-col>
         <v-spacer></v-spacer>
         <v-col cols="2">
-          <v-btn class="create-study" @click="openNewStudy">+ Create New Study</v-btn>
+          <v-btn class="create-study" @click="openNewStudy"
+            >+ Create New Study</v-btn
+          >
         </v-col>
       </v-row>
       <v-row>
@@ -38,7 +40,11 @@
               </template>
               <template v-slot:item.studyDesc="{ item }">
                 <div>
-                  {{ item.studyDesc.length > 100 ? item.studyDesc.substring(0, 100) + '...' : item.studyDesc }}
+                  {{
+                    item.studyDesc.length > 100
+                      ? item.studyDesc.substring(0, 100) + '...'
+                      : item.studyDesc
+                  }}
                 </div>
               </template>
               <template v-slot:item.sessionCount="{ item }">
@@ -48,7 +54,12 @@
               </template>
               <template v-slot:item.progress="{ item }">
                 <v-progress-linear
-                  :model-value="calculateProgress(item.sessionCount, item.expectedNumParticipants)"
+                  :model-value="
+                    calculateProgress(
+                      item.sessionCount,
+                      item.expectedNumParticipants,
+                    )
+                  "
                   height="15"
                   color="primary"
                 >
@@ -64,6 +75,12 @@
                 </v-icon>
                 <v-icon
                   size="small"
+                  @click="
+                    displayDialog({
+                      title: 'Delete Study?',
+                      text: 'Are you sure you want to delete this study?',
+                    })
+                  "
                 >
                   mdi-delete
                 </v-icon>
@@ -80,106 +97,151 @@
         @close="drawer = false"
       />
 
+      <div class="text-center pa-4">
+        <v-dialog v-model="dialog" max-width="400" persistent>
+          <v-card
+            prepend-icon="mdi-alert-outline"
+            :text="dialogDetails.text"
+            :title="dialogDetails.title"
+          >
+            <template v-slot:actions>
+              <v-spacer></v-spacer>
+
+              <v-btn @click="closeDialog('no')"> Cancel </v-btn>
+
+              <v-btn @click="closeDialog('yes')"> Agree </v-btn>
+            </template>
+          </v-card>
+        </v-dialog>
+      </div>
     </v-container>
   </v-main>
 </template>
 
 <script>
-  import StudyPanel from './StudyPanel.vue';
+import StudyPanel from './StudyPanel.vue'
 
-  export default {
+export default {
+  components: { StudyPanel },
 
-    components: { StudyPanel },
+  data() {
+    return {
+      search: '',
+      drawer: false,
+      selectedStudy: {},
+      headers: [
+        {
+          align: 'start',
+          key: 'dateCreated',
+          sortable: false,
+          title: 'Date Created',
+        },
+        {
+          key: 'studyName',
+          title: 'User Study Name',
+          sortable: false,
+          width: '250px',
+        },
+        { key: 'studyDesc', title: 'Description', sortable: false },
+        { key: 'sessionCount', title: 'Sessions', sortable: false },
+        { key: 'progress', title: 'Progress', sortable: false, width: '200px' },
+        { key: 'role', title: 'Role', sortable: false },
+        { key: 'actions', title: 'Actions', sortable: false },
+      ],
+      // dialog box for user confirmation
+      dialog: false,
+      dialogDetails: {
+        title: '',
+        text: '',
+      },
+      // sample data until the db is connected
+      studies: [
+        {
+          studyName: 'UI Elderly Friendliness',
+          studyDesc:
+            'Explores the usability of interfaces designed for older adults.',
+          sessionCount: 10,
+          expectedNumParticipants: 15,
+          dateCreated: '04/04/2024',
+          role: 'Author',
+        },
+        {
+          studyName: 'VR in Educational',
+          studyDesc:
+            'Investigates how VR can enhance learning experiences in classrooms by conducting tests with teenagers...',
+          sessionCount: 8,
+          expectedNumParticipants: 10,
+          dateCreated: '02/20/2024',
+          role: 'Author',
+        },
+        {
+          studyName: 'Attention Analysis',
+          studyDesc:
+            'Uses eye-tracking technology to assess user attention on e-commerce sites.',
+          sessionCount: 16,
+          expectedNumParticipants: 17,
+          dateCreated: '12/09/2023',
+          role: 'Editor',
+        },
+        {
+          studyName: 'Voice Interface Usability',
+          studyDesc:
+            'Examines the usability of voice-activated systems in high-noise settings.',
+          sessionCount: 15,
+          expectedNumParticipants: 15,
+          dateCreated: '10/10/2023',
+          role: 'Viewer',
+        },
+      ],
+    }
+  },
 
-    data () {
-      return {
-        search: '',
-        drawer: false,
-        selectedStudy: {},
-        headers: [
-          {
-            align: 'start',
-            key: 'dateCreated',
-            sortable: false,
-            title: 'Date Created',
-          },
-          { key: 'studyName', title: 'User Study Name', sortable: false, width: "250px" },
-          { key: 'studyDesc', title: 'Description', sortable: false},
-          { key: 'sessionCount', title: 'Sessions', sortable: false },
-          { key: 'progress', title: 'Progress', sortable: false, width: "200px" },
-          { key: 'role', title: 'Role', sortable: false },
-          { key: 'actions', title: 'Actions', sortable: false },
-        ],
-        // sample data until the db is connected 
-        studies: [
-          {
-            studyName: 'UI Elderly Friendliness',
-            studyDesc: 'Explores the usability of interfaces designed for older adults.',
-            sessionCount: 10,
-            expectedNumParticipants: 15,
-            dateCreated: '04/04/2024',
-            role: 'Author',
-          },
-          {
-            studyName: 'VR in Educational',
-            studyDesc: 'Investigates how VR can enhance learning experiences in classrooms by conducting tests with teenagers...',
-            sessionCount: 8,
-            expectedNumParticipants: 10,
-            dateCreated: '02/20/2024',
-            role: 'Author',
-          },
-          {
-            studyName: 'Attention Analysis',
-            studyDesc: 'Uses eye-tracking technology to assess user attention on e-commerce sites.',
-            sessionCount: 16,
-            expectedNumParticipants: 17,
-            dateCreated: '12/09/2023',
-            role: 'Editor',
-          },
-          {
-            studyName: 'Voice Interface Usability',
-            studyDesc: 'Examines the usability of voice-activated systems in high-noise settings.',
-            sessionCount: 15,
-            expectedNumParticipants: 15,
-            dateCreated: '10/10/2023',
-            role: 'Viewer',
-          },
-        ],
-      }
+  methods: {
+    // route to an empty study form page
+    openNewStudy() {
+      this.$router.push('/StudyForm')
+    },
+    // used to display progress in the table progress bars
+    calculateProgress(completed, expected) {
+      let percentVal = Math.floor((completed / expected) * 100)
+      return percentVal
+    },
+    // toggle drawer open and bind study-specific info to populate the right panel
+    openDrawer(study) {
+      this.selectedStudy = { ...study }
+      this.drawer = true
     },
 
-    methods : {
-      // route to an empty study form page
-      openNewStudy () {
-        this.$router.push('/StudyForm')
-      },
-      // used to display progress in the table progress bars 
-      calculateProgress(completed, expected) {
-        let percentVal = Math.floor((completed / expected) * 100);
-        return percentVal
-      },
-      // toggle drawer open and bind study-specific info to populate the right panel 
-      openDrawer(study) {
-        this.selectedStudy = { ...study};
-        this.drawer = true;
-      },
-    }
-  }
+    // dynamic confirmation for study deletion
+    displayDialog(details) {
+      this.dialogDetails = details
+      this.dialog = true
+    },
+
+    // impacts whether we actually delete the study or not based on the user input
+    closeDialog(choice) {
+      if (choice == 'yes') {
+        console.log('will delete')
+      }
+      this.dialog = false
+    },
+  },
+}
 </script>
 
 <style>
-  .create-study {
-    min-width: 100px;
-    min-height: 50px;
-  }
-  .study-name {
-    display: flex;
-    align-items: center;
-  }
-  .expand-study {
-    margin-left: 5px;
-  }
-  .table-background {
-    background-color: #ffffff !important; 
-  }
+.create-study {
+  min-width: 100px;
+  min-height: 50px;
+}
+.study-name {
+  display: flex;
+  align-items: center;
+}
+.expand-study {
+  margin-left: 5px;
+}
+.table-background {
+  background-color: #ffffff !important;
+}
 </style>

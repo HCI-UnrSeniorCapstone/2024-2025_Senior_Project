@@ -179,6 +179,15 @@
       </div>
     </v-container>
   </v-main>
+
+  <v-snackbar
+    v-model="collapseError"
+    :timeout="2000"
+    color="red"
+    variant="tonal"
+  >
+    {{ collapseErrorMsg }}
+  </v-snackbar>
 </template>
 
 <script>
@@ -234,6 +243,9 @@ export default {
         text: '',
         source: '',
       },
+      // warning when trying to collapse improperly fileld panel
+      collapseError: false,
+      collapseErrorMsg: 'Cannot collapse with improperly filled field(s)',
     }
   },
 
@@ -296,6 +308,7 @@ export default {
         this.tasks.push({
           taskName: '',
           taskDescription: '',
+          taskDirections: '',
           taskDuration: '',
           measurementOptions: [],
         })
@@ -333,6 +346,7 @@ export default {
         if (!this.expandedTPanels.includes(index)) {
           // and not already accounted for
           this.expandedTPanels.push(index) // add to array that tracks open task panels
+          this.collapseError = true
         }
       } else if (taskRef && taskRef.validateTaskFields()) {
         this.expandedTPanels = this.expandedTPanels.filter(i => i !== index) // remove if valid, allowing panel to collapse
@@ -345,6 +359,7 @@ export default {
       if (factorRef && !factorRef.validateFactorFields()) {
         if (!this.expandedFPanels.includes(index)) {
           this.expandedFPanels.push(index)
+          this.collapseError = true
         }
       } else if (factorRef && factorRef.validateFactorFields()) {
         this.expandedFPanels = this.expandedFPanels.filter(i => i !== index)
@@ -376,6 +391,7 @@ export default {
         tasks: this.tasks.map(task => ({
           taskName: task.taskName,
           taskDescription: task.taskDescription,
+          taskDirections: task.taskDirections,
           taskDuration: task.taskDuration,
           measurementOptions: [...task.measurementOptions],
         })),
@@ -388,9 +404,10 @@ export default {
       alert(JSON.stringify(submissionData, null, 2))
 
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/create_study`
-        const response = axios.post(path, submissionData)
+        const response = axios.post(
+          'http://100.82.85.28:5004/create_study',
+          submissionData,
+        )
         console.log('Response:', response.data)
       } catch (error) {
         console.error('Error: ', error)
