@@ -39,33 +39,40 @@ For experiments conducted outside the platform (e.g., VR, web-based, PowerPoint)
 - **Installing/Updating Dependencies**:  
    When developing, dependencies must be installed, but this process normally must be repeated by each developer on their own machine. For the Python code, every developer should [create their own venv virtual environment](https://realpython.com/python-virtual-environments-a-primer/) for `local_backend` and `server_backend`. These venvs should NOT be pushed to GitHub.
 
-   1. **Frontend**  
-      - **_Installing_**  
-        - Go to the **frontend** folder  
-        - Run `npm install`  
+  1.  **Frontend**
 
-      - **_Updating_**  
-        - This is automatically handled by npm :)  
+      - **_Installing_**
 
-   3. **Local_Backend**  
-      - **_Installing_**  
-        - Activate your **local_backend** venv  
-        - Run `pip install -r requirements.txt`  
+        - Go to the **frontend** folder
+        - Run `npm install`
+        - Run `npm install chart.js`
+        - Run `npm install papaparse`
 
-      - **_Updating_**  
-        - Activate your **local_backend** venv  
-        - Run `pip freeze > requirements.txt`  
+      - **_Updating_**
+        - This is automatically handled by npm :)
 
-   4. **Server_Backend**  
-      - **_Installing_**  
-        - Activate your **server_backend** venv  
-        - Run `pip install -r requirements.txt`  
+  2.  **Local_Backend**
 
-      - **_Updating_**  
-        - Activate your **server_backend** venv  
-        - Run `pip freeze > requirements.txt`  
-  
-  
+      - **_Installing_**
+
+        - Activate your **local_backend** venv
+        - Run `pip install -r requirements.txt`
+
+      - **_Updating_**
+        - Activate your **local_backend** venv
+        - Run `pip freeze > requirements.txt`
+
+  3.  **Server_Backend**
+
+      - **_Installing_**
+
+        - Activate your **server_backend** venv
+        - Run `pip install -r requirements.txt`
+
+      - **_Updating_**
+        - Activate your **server_backend** venv
+        - Run `pip freeze > requirements.txt`
+
 - **Creating an Issue or Feature Request**:
 
   1.  **Navigate to the Project Board**
