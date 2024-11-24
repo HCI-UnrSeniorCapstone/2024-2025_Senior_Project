@@ -12,7 +12,7 @@ import ctypes  # lib for pop up
 import random
 from PIL import ImageGrab
 import cv2
-import numpy as np
+import numpy as np # type: ignore
 import time  # temp for now
 import csv
 
@@ -132,15 +132,6 @@ def get_measurments(user_Task, task_name, task_duration):
 
         else:
             app.logger.debug('No Task added')
-
-
-def get_study_detail(subData):
-    study_name = subData.get('studyName')
-    study_desc = subData.get('studyDescription')
-    study_design = subData.get('studyDesignType')
-    people_count = subData.get('participantCount')
-
-    return study_name, study_desc, study_design, people_count
 
 # creating app
 app = Flask(__name__)
