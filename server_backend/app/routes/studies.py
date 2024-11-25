@@ -2,13 +2,14 @@ import random
 from flask import Blueprint, request, jsonify
 import json
 from app.utility.studies import set_available_features, get_study_detail
+from server_backend.app.utility.db_connection import get_db_connection
 
 
 bp = Blueprint('studies', __name__)
 
-# Gets and saves data from study form page and stores it into a json file. The json file is stored in
-    # ./frontend/public/demo2.json
-@bp.route("/create_study", methods=["POST", "GET"])
+# Gets and saves data from study form page and stores it into a json file. Then uploads data into db
+# The query will need to be UPDATED since the user is hardcoded rn
+@bp.route("/create_study", methods=["POST"])
 def create_study():
     submissionData = request.get_json()
 
@@ -20,12 +21,26 @@ def create_study():
 
     return 'finished'
 
-@bp.route("/get_data", methods=["POST", "GET"])
+@bp.route("/get_data", methods=["GET"])
 def get_data():
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
-    # gets the json data from the folder (db in the future)
-    with open('../frontend/public/demo2.json', 'r') as file:
-        data = json.load(file)
+    # gets the json data from the db
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-    return data
+        # Test query
+        cur.execute("SELECT study_name, study_description, study_design_type,expected participants, FROM user")
+
+        # Get all rows
+        results = cur.fetchall()
+
+        # Close the cursor
+        cur.close()
+
+        return jsonify(results)
+
+    except Exception as e:
+        # Error message
+        return jsonify({"error": str(e)})

@@ -404,10 +404,9 @@ export default {
       alert(JSON.stringify(submissionData, null, 2))
 
       try {
-        const response = axios.post(
-          'http://100.82.85.28:5004/create_study',
-          submissionData,
-        )
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/create_study`
+        const response = axios.post(path, submissionData)
         console.log('Response:', response.data)
       } catch (error) {
         console.error('Error: ', error)
