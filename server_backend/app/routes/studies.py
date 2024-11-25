@@ -21,7 +21,7 @@ def create_study():
 
     return 'finished'
 
-@bp.route("/get_data", methods=["GET"])
+@bp.route("/get_data/<int:user_id>", methods=["GET"])
 def get_data():
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
