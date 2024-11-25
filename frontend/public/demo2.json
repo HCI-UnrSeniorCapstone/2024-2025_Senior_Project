@@ -1,20 +1,26 @@
 {
-  "studyName": "bru",
-  "studyDescription": "",
+  "studyName": "Study Name",
+  "studyDescription": "Study Des",
   "studyDesignType": "Within",
   "participantCount": "2",
   "tasks": [
     {
-      "taskName": "sf",
-      "taskDescription": "",
+      "taskName": "Task1 Name",
+      "taskDescription": "Task1 Des",
+      "taskDuration": "5",
+      "measurementOptions": ["Mouse Scrolls", "Mouse Movement"]
+    },
+    {
+      "taskName": "Task2 Name",
+      "taskDescription": "Task2 Des",
       "taskDuration": "5",
       "measurementOptions": ["Mouse Scrolls", "Mouse Movement"]
     }
   ],
   "factors": [
     {
-      "factorName": "ds",
-      "factorDescription": ""
+      "factorName": "Factor Name",
+      "factorDescription": "Factor Des"
     }
   ]
 }

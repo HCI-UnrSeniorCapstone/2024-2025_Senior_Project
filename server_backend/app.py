@@ -24,10 +24,16 @@ mysql = MySQL(app)
 
 CORS(app, resources={r'/*': {'origins': '*'}})
 
+def parse_json(subData):
+    study_name = subData.get('studyName')
+    study_desc = subData.get('studyDescription')
+    study_design = subData.get('studyDesignType')
+    people_count = subData.get('participantCount')
+    
+    tasks = subData.get('tasks', [])
+    factors = subData.get('factors', [])
 
-@app.route('/ping', methods=['GET'])
-def ping():
-    return jsonify({"message": "Pong!"})
+    return study_name, study_desc, study_design, people_count, tasks, factors
 
 # Test Database Connection and Fetch Data from 'user' table
 @app.route('/test_db')
@@ -36,7 +42,7 @@ def test_db():
         cur = mysql.connection.cursor()
 
         # Test query
-        cur.execute("SELECT * FROM user")
+        cur.execute("SELECT * FROM study")
 
         # Get all rows
         results = cur.fetchall()
@@ -49,6 +55,40 @@ def test_db():
     except Exception as e:
         # Error message
         return jsonify({"error": str(e)})
+
+@app.route('/insert')
+def insert_db(subdata=None):
+        # this is going to be the from the server
+        # submissionData = request.get_json()
+
+        #temp
+    with open('../frontend/public/demo2.json', 'r') as file:
+        data = json.load(file)
+
+    study_name, study_desc, study_design, people_count, tasks, factors = parse_json(data)
+
+    cur = mysql.connection.cursor()
+
+    # gets the latest id_number for study_id
+    cur.execute("SELECT MAX(study_id) FROM study")
+    result = cur.fetchone()
+    study_id = (result[0] or 0) + 1 # we dont need this if the study_id is auto incremeting on the db
+    
+    #inserting to study table
+    sql = "INSERT INTO study (study_id, study_name, study_description, expected_participants) VALUES (%s, %s, %s, %s)"
+    val = (study_id, study_name, study_desc, people_count)    
+    cur.execute(sql, val)
+
+    # #inserting to task table
+    for task_id, task in enumerate(tasks, start=1):
+        cur.execute("INSERT INTO ")
+
+
+
+    mysql.connection.commit()
+    cur.close()
+
+    return 'finished'
 
 # Gets and saves data from study form page and stores it into a json file. The json file is stored in
     # ./frontend/public/demo2.json
@@ -75,7 +115,6 @@ def get_data():
 
     return data
 
-
 # CHANGE THE HOST AND DEBUG WHEN PRODUCTION TIME
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', port=5004, debug=True)
