@@ -2,7 +2,7 @@ import random
 from flask import Blueprint, request, jsonify
 import json
 from app.utility.studies import set_available_features, get_study_detail
-from server_backend.app.utility.db_connection import get_db_connection
+from app.utility.db_connection import get_db_connection
 
 
 bp = Blueprint('studies', __name__)
