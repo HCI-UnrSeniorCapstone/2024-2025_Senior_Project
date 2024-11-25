@@ -1,21 +1,21 @@
 {
-    "studyName": "asdfasdf",
-    "studyDescription": "",
-    "studyDesignType": "Between",
-    "participantCount": "23",
-    "tasks": [
-        {
-            "taskName": "asdf",
-            "taskDescription": "",
-            "taskDirections": "",
-            "taskDuration": "",
-            "measurementOptions": []
-        }
-    ],
-    "factors": [
-        {
-            "factorName": "asdfasdf",
-            "factorDescription": ""
-        }
-    ]
+  "studyName": "asdfasdf",
+  "studyDescription": "",
+  "studyDesignType": "Between",
+  "participantCount": "23",
+  "tasks": [
+    {
+      "taskName": "asdf",
+      "taskDescription": "",
+      "taskDirections": "",
+      "taskDuration": "",
+      "measurementOptions": []
+    }
+  ],
+  "factors": [
+    {
+      "factorName": "asdfasdf",
+      "factorDescription": ""
+    }
+  ]
 }
