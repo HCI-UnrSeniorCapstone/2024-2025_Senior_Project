@@ -180,7 +180,8 @@ export default {
       //https://testdriven.io/blog/combine-flask-vue/
       const backendUrl = this.$backendUrl
       const path = `${backendUrl}/get_data`
-      const response = await fetch(path) //server flask
+      // NOTE: this user_id is hardcoded in the config.json for now but need to be updated
+      const response = await fetch(path / '${this.user_id}') //server flask
       const userData = await response.json()
       // console.log(userData);
       alert(JSON.stringify(userData, null, 2))
