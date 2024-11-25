@@ -89,7 +89,7 @@ INSERT INTO task (
         task_id,
         task_name,
         task_description,
-        task_advice,
+        task_directions,
         duration
     )
 VALUES (
@@ -233,13 +233,13 @@ VALUES (
         12.000
     );
 -- Measurement Types
-INSERT INTO measurement_type (measurement_type_id, measurement_type_name)
+INSERT INTO measurement_option (measurement_option_id, measurement_option_name)
 VALUES (1, 'Mouse Movement'),
     (2, 'Mouse Scrolls'),
     (3, 'Mouse Clicks'),
     (4, 'Keyboard Inputs');
 -- Task Measurement
-INSERT INTO task_measurement (task_id, measurement_type_id)
+INSERT INTO task_measurement (task_id, measurement_option_id)
 VALUES (1, 1),
     -- Memory Test (Mouse Movement)
     (1, 2),
@@ -353,27 +353,29 @@ VALUES (1, 1),
     (20, 4);
 -- Verbal Fluency (Keyboard Inputs)
 -- Factors
-INSERT INTO factor (factor_id, factor_description)
-VALUES (1, 'Blindfolded'),
-    (2, 'One-Handed'),
-    (3, 'Time-Limited'),
-    (4, 'Standing'),
-    (5, 'Distraction Present'),
-    (6, 'Opposite-Handed'),
-    (7, 'Dim Lighting'),
-    (8, 'Multitasking'),
-    (9, 'No Instructions'),
-    (10, 'Dominant Hand Only'),
-    (11, 'Distracted with Music'),
-    (12, 'Cold Room'),
-    (13, 'Fast-Paced'),
-    (14, 'Low Energy'),
-    (15, 'Partner-Assisted'),
-    (16, 'Simulated Stress'),
-    (17, 'Noisy Environment'),
-    (18, 'Handicap Access'),
-    (19, 'Virtual Reality'),
-    (20, 'Remote Collaboration');
+INSERT INTO factor (factor_id, factor_name, factor_description)
+VALUES
+    (1, 'Blindfolded', 'Participants are blindfolded to limit their visual perception.'),
+    (2, 'One-Handed', 'Participants are required to complete tasks using only one hand.'),
+    (3, 'Time-Limited', 'Tasks must be completed within a specified time limit.'),
+    (4, 'Standing', 'Participants must complete the task while standing, no sitting allowed.'),
+    (5, 'Distraction Present', 'Participants will be exposed to distractions during the task.'),
+    (6, 'Opposite-Handed', 'Participants must perform the task using their non-dominant hand.'),
+    (7, 'Dim Lighting', 'The environment is dimly lit, limiting visual clarity.'),
+    (8, 'Multitasking', 'Participants are asked to handle multiple tasks simultaneously.'),
+    (9, 'No Instructions', 'Participants are not given instructions and must figure out the task on their own.'),
+    (10, 'Dominant Hand Only', 'Only the participant’s dominant hand can be used to complete the task.'),
+    (11, 'Distracted with Music', 'Participants will be listening to music while performing the task.'),
+    (12, 'Cold Room', 'The room temperature is set to be uncomfortably cold during the task.'),
+    (13, 'Fast-Paced', 'The task requires participants to complete actions quickly, with a high tempo.'),
+    (14, 'Low Energy', 'Participants are expected to complete the task with limited energy or stamina.'),
+    (15, 'Partner-Assisted', 'Participants work alongside a partner to complete the task.'),
+    (16, 'Simulated Stress', 'The environment is designed to induce a sense of stress or pressure during the task.'),
+    (17, 'Noisy Environment', 'Participants are exposed to a noisy environment during the task.'),
+    (18, 'Handicap Access', 'The task is designed to accommodate participants with physical disabilities.'),
+    (19, 'Virtual Reality', 'Participants engage with the task in a virtual reality setting.'),
+    (20, 'Remote Collaboration', 'Participants complete the task in collaboration with others remotely.');
+
 -- Study Design Types
 INSERT INTO study_design_type (
         study_design_type_id,

@@ -382,7 +382,7 @@ export default {
       this.dialog = false
     },
 
-    submit() {
+    async submit() {
       const submissionData = {
         studyName: this.studyName,
         studyDescription: this.studyDescription,
@@ -406,10 +406,10 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_study`
-        const response = axios.post(path, submissionData)
-        console.log('Response:', response.data)
+        const response = await axios.post(path, submissionData)
+        console.log('Response:', response)
       } catch (error) {
-        console.error('Error: ', error)
+        console.error('Error:', error.response?.data || error.message)
       }
     },
   },
