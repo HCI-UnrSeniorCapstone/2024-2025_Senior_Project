@@ -1,20 +1,21 @@
 {
-  "studyName": "bru",
-  "studyDescription": "",
-  "studyDesignType": "Within",
-  "participantCount": "2",
-  "tasks": [
-    {
-      "taskName": "sf",
-      "taskDescription": "",
-      "taskDuration": "5",
-      "measurementOptions": ["Mouse Scrolls", "Mouse Movement"]
-    }
-  ],
-  "factors": [
-    {
-      "factorName": "ds",
-      "factorDescription": ""
-    }
-  ]
+    "studyName": "asdfasdf",
+    "studyDescription": "",
+    "studyDesignType": "Between",
+    "participantCount": "23",
+    "tasks": [
+        {
+            "taskName": "asdf",
+            "taskDescription": "",
+            "taskDirections": "",
+            "taskDuration": "",
+            "measurementOptions": []
+        }
+    ],
+    "factors": [
+        {
+            "factorName": "asdfasdf",
+            "factorDescription": ""
+        }
+    ]
 }
