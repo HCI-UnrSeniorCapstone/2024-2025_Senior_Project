@@ -112,3 +112,21 @@ CREATE TABLE participant_study_session (
     FOREIGN KEY (task_id) REFERENCES task(task_id),
     FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
 );
+
+CREATE TABLE deleted_study (
+    study_id INT NOT NULL PRIMARY KEY,
+    invalidated_by_user_id INT NOT NULL,
+    invalidation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (study_id) REFERENCES study(study_id),
+    FOREIGN KEY (invalidated_by_user_id) REFERENCES user(user_id)
+);
+
+CREATE TABLE deleted_study_role (
+    study_id INT NOT NULL,
+    user_id INT NOT NULL,
+    study_user_role_type_id INT NOT NULL,
+    PRIMARY KEY (study_id, user_id),
+    FOREIGN KEY (study_id) REFERENCES deleted_study(study_id),
+    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (study_user_role_type_id) REFERENCES study_user_role_type(study_user_role_type_id)
+);
