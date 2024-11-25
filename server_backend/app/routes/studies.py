@@ -168,7 +168,7 @@ def create_study():
 
 
 @bp.route("/get_data/<int:user_id>", methods=["GET"])
-def get_data():
+def get_data(user_id):
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
     # gets the json data from the db
