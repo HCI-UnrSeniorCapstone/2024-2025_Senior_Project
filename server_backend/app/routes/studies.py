@@ -111,6 +111,46 @@ def create_study():
             """
             cur.execute(insert_study_factor_query, (study_id, factor_id))
 
+        # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
+        select_user_query = """
+        SELECT user_id FROM user WHERE first_name = 'TEST' AND last_name = 'TEST' AND email = 'broYrUreadingThis@example.com'
+        """
+
+        cur.execute(select_user_query)
+
+        # If None then user doesn't exist
+        existing_user = cur.fetchone()
+
+        if existing_user: 
+            user_id = existing_user[0]
+        # Make user
+        else:
+            insert_user_query = """
+            INSERT INTO user (first_name, last_name, email)
+            VALUES ('TEST', 'TEST', 'broYrUreadingThis@example.com')
+            """
+    
+            cur.execute(insert_user_query)
+    
+            # Get new user_id
+            user_id = cur.lastrowid
+
+        # Get owner id
+        select_study_user_role_type = """
+        SELECT study_user_role_type_id FROM study_user_role_type WHERE study_user_role_description = 'Owner'
+        """
+        cur.execute(select_study_user_role_type)
+        result = cur.fetchone()
+        study_user_role_type_id = result[0]
+        
+        # study_user_role
+        insert_study_user_role_query = """
+        INSERT INTO study_user_role (user_id, study_id, study_user_role_type_id)
+        VALUES (%s, %s, %s)
+        """
+        cur.execute(insert_study_user_role_query, (user_id, study_id, study_user_role_type_id))
+
+
         # Commit changes to the database
         conn.commit()
 
