@@ -178,7 +178,10 @@ export default {
     async startSession() {
       // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
       //https://testdriven.io/blog/combine-flask-vue/
-      const response = await fetch('http://100.82.85.28:5004/get_data') //server flask
+      const backendUrl = this.$backendUrl
+      const path = `${backendUrl}/get_data`
+      // NOTE: this user_id is hardcoded in the config.json for now but need to be updated
+      const response = await fetch(path / '${this.user_id}') //server flask
       const userData = await response.json()
       // console.log(userData);
       alert(JSON.stringify(userData, null, 2))

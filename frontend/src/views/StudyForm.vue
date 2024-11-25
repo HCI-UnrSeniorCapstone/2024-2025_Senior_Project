@@ -382,7 +382,7 @@ export default {
       this.dialog = false
     },
 
-    submit() {
+    async submit() {
       const submissionData = {
         studyName: this.studyName,
         studyDescription: this.studyDescription,
@@ -402,15 +402,14 @@ export default {
       }
 
       alert(JSON.stringify(submissionData, null, 2))
-
+      console.log(JSON.stringify(submissionData, null, 2))
       try {
-        const response = axios.post(
-          'http://100.82.85.28:5004/create_study',
-          submissionData,
-        )
-        console.log('Response:', response.data)
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/create_study`
+        const response = await axios.post(path, submissionData)
+        console.log('Response:', response)
       } catch (error) {
-        console.error('Error: ', error)
+        console.error('Error:', error.response?.data || error.message)
       }
     },
   },

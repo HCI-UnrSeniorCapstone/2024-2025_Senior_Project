@@ -1,26 +1,21 @@
 {
-  "studyName": "Study Name",
-  "studyDescription": "Study Des",
-  "studyDesignType": "Within",
-  "participantCount": "2",
+  "studyName": "asdfasdf",
+  "studyDescription": "",
+  "studyDesignType": "Between",
+  "participantCount": "23",
   "tasks": [
     {
-      "taskName": "Task1 Name",
-      "taskDescription": "Task1 Des",
-      "taskDuration": "5",
-      "measurementOptions": ["Mouse Scrolls", "Mouse Movement"]
-    },
-    {
-      "taskName": "Task2 Name",
-      "taskDescription": "Task2 Des",
-      "taskDuration": "5",
-      "measurementOptions": ["Mouse Scrolls", "Mouse Movement"]
+      "taskName": "asdf",
+      "taskDescription": "",
+      "taskDirections": "",
+      "taskDuration": "",
+      "measurementOptions": []
     }
   ],
   "factors": [
     {
-      "factorName": "Factor Name",
-      "factorDescription": "Factor Des"
+      "factorName": "asdfasdf",
+      "factorDescription": ""
     }
   ]
 }
