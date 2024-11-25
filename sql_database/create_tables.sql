@@ -1,19 +1,19 @@
 USE DEVELOP_fulcrum;
 CREATE TABLE user (
-    user_id INT PRIMARY KEY,
+    user_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     email VARCHAR(255),
     created_at TIMESTAMP
 );
 CREATE TABLE admin_user (
-    admin_user_id INT,
+    admin_user_id INT NOT NULL AUTO_INCREMENT,
     user_id INT,
     PRIMARY KEY (admin_user_id, user_id),
     FOREIGN KEY (user_id) REFERENCES user(user_id)
 );
 CREATE TABLE task (
-    task_id INT PRIMARY KEY,
+    task_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     task_name VARCHAR(255),
     task_description VARCHAR(255),
     -- Tells participant what to do
@@ -22,7 +22,7 @@ CREATE TABLE task (
 );
 -- Different tracking types
 CREATE TABLE measurement_type (
-    measurement_type_id INT PRIMARY KEY,
+    measurement_type_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     measurement_type_name VARCHAR(255)
 );
 CREATE TABLE task_measurement (
@@ -33,16 +33,16 @@ CREATE TABLE task_measurement (
     FOREIGN KEY (measurement_type_id) REFERENCES measurement_type(measurement_type_id)
 );
 CREATE TABLE factor (
-    factor_id INT PRIMARY KEY,
+    factor_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     factor_description VARCHAR(255)
 );
 -- Within vs Between
 CREATE TABLE study_design_type (
-    study_design_type_id INT PRIMARY KEY,
+    study_design_type_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     study_design_type_description VARCHAR(255)
 );
 CREATE TABLE study (
-    study_id INT PRIMARY KEY,
+    study_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     study_name VARCHAR(255),
     study_description VARCHAR(255),
     expected_participants INT,
@@ -52,12 +52,12 @@ CREATE TABLE study (
 );
 -- Read, Read/Write. No None cuz they just wouldn't be in the table
 CREATE TABLE study_user_access_type (
-    study_user_access_type_id INT PRIMARY KEY,
+    study_user_access_type_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     study_user_access_type_description VARCHAR(255)
 );
 -- Owner, Viewer, Editor
 CREATE TABLE study_user_role_type (
-    study_user_role_type_id INT PRIMARY KEY,
+    study_user_role_type_id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     study_user_role_description VARCHAR(255),
     study_user_access_type_id INT,
     FOREIGN KEY (study_user_access_type_id) REFERENCES study_user_access_type (study_user_access_type_id)

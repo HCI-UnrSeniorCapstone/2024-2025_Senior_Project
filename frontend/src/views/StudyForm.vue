@@ -402,7 +402,7 @@ export default {
       }
 
       alert(JSON.stringify(submissionData, null, 2))
-
+      console.log(JSON.stringify(submissionData, null, 2))
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_study`
