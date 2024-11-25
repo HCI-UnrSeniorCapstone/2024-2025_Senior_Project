@@ -21,6 +21,7 @@ app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
 
 mysql = MySQL(app)
 
+# next task send the csv files to the server
 
 CORS(app, resources={r'/*': {'origins': '*'}})
 
@@ -82,8 +83,6 @@ def insert_db(subdata=None):
     # #inserting to task table
     for task_id, task in enumerate(tasks, start=1):
         cur.execute("INSERT INTO ")
-
-
 
     mysql.connection.commit()
     cur.close()

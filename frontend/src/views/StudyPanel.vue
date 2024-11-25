@@ -183,8 +183,22 @@ export default {
       // console.log(userData);
       alert(JSON.stringify(userData, null, 2))
       try {
-        const response = axios.post('http://127.0.0.1:5001/run_study', userData) //local flask
-        console.log('Response:', response.data)
+        const Runs_user_data = axios.post('http://127.0.0.1:5001/run_study', userData)
+        console.log('Response:', Runs_user_data.data)
+
+        // const response = await axios.get('http://127.0.0.1:5001/get_measurment', userData, {
+        //     responseType: 'blob', // Important to handle binary data
+        // });
+
+        // const formData = new FormData();
+        // formData.append('file', response.data, 'file.zip'); 
+
+        // const uploadResponse = await axios.post('http://100.82.85.28:5004/get_measurement', formData, {
+        //     headers: {
+        //         'Content-Type': 'multipart/form-data',
+        //     },
+        // });
+
       } catch (error) {
         console.error('Error: ', error)
       }

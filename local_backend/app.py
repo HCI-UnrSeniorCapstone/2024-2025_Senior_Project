@@ -4,7 +4,7 @@ https://testdriven.io/blog/developing-a-single-page-app-with-flask-and-vuejs/
 '''
 
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, send_file
 from flask_cors import CORS
 import threading
 from features.collect_all import get_all_measurements
@@ -15,6 +15,8 @@ import cv2
 import numpy as np # type: ignore
 import time  # temp for now
 import csv
+import zipfile
+import shutil # used to remove folder with stuff in it
 
 
 def extract_mouse_movements(log_file):
@@ -76,7 +78,16 @@ def Mbox(title, text, style):
     # pop up function (https://stackoverflow.com/questions/2963263/how-can-i-create-a-simple-message-box-in-python)
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
-def get_measurments(user_Task, task_name, task_duration):
+# from the internet
+def zip_folder(folder_path, zip_name):
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, folder_path)
+                zipf.write(file_path, arcname)  
+
+def get_measurments(study_Name, user_Task, task_name, task_duration):
     # Start getting measurements from task
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
@@ -92,7 +103,7 @@ def get_measurments(user_Task, task_name, task_duration):
             start_time = time.time()  # when exeriment starts
 
             if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False or user_Task[task_id]['Keyboard Inputs'] is not False:
-                tracking_thread = threading.Thread(target=get_all_measurements, args=(
+                tracking_thread = threading.Thread(target=get_all_measurements, args=(study_Name,
                     task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls']))
                 tracking_thread.start()
                 app.logger.debug("tracking")
@@ -116,7 +127,7 @@ def get_measurments(user_Task, task_name, task_duration):
 
                 # Extract mouse movement coordinates
                 coordinates = extract_mouse_movements(
-                    f"{task_name[task_id]}_mouse_movement_data.csv")
+                    f"./{study_Name}/{task_name[task_id]}/{task_name[task_id]}_mouse_movement_data.csv")
 
                 # Create the heatmap
                 heatmap = create_heatmap(coordinates, screenshot.shape)
@@ -140,6 +151,14 @@ app.config.from_object(__name__)
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
 
+@app.route('/get_measurment', methods=["POST", "GET"])
+def get_measurment():
+    submissionData = request.get_json()
+    study_Name = submissionData.get('studyName')
+
+    return send_file(f'./{study_Name}_measurments.zip)', as_attachment=True, attachment_filename='file.zip')
+
+
 # gets parameters from server and runs
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
@@ -149,6 +168,7 @@ def run_study():
     user_Task = []
     submissionData = request.get_json()
 
+    study_Name = submissionData.get('studyName')
     default_tasks = submissionData.get('tasks', [])
     app.logger.debug(f'{default_tasks}')
 
@@ -163,11 +183,14 @@ def run_study():
     for task_amount in range(len(task_measurements)):
         rand_tasks = set_available_features(task_measurements[task_amount])
         user_Task.append(rand_tasks)
-
+    
     # RECORDS EXPERIMENTS
-    get_measurments(user_Task, task_name, task_duration)
+    get_measurments(study_Name, user_Task, task_name, task_duration)
 
-    return "finished"
+    zip_folder(f'./{study_Name}', f'{study_Name}_measurments.zip')
+    shutil.rmtree(f'./{study_Name}')
+
+    return 'finished'
 
 
 if __name__ == "__main__":
