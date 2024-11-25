@@ -173,8 +173,61 @@ def get_data():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Test query
-        cur.execute("SELECT study_name, study_description, expected_participants, study_design_type, FROM user WHERE user.user_id = 1")
+        # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
+        select_user_query = """
+        SELECT user_id FROM user WHERE first_name = 'John' AND last_name = 'Doe' AND email = 'john.doe@example.com'
+        """
+
+        cur.execute(select_user_query)
+
+        # If None then user doesn't exist
+        existing_user = cur.fetchone()
+
+        if existing_user: 
+            user_id = existing_user[0]
+        # Make user
+        else:
+            insert_user_query = """
+            INSERT INTO user (first_name, last_name, email)
+            VALUES ('John', 'Doe', 'john.doe@example.com')
+            """
+    
+            cur.execute(insert_user_query)
+    
+            # Get new user_id
+            user_id = cur.lastrowid
+        
+        # Select query
+        select_user_studies_info_query = """
+        SELECT 
+            DATE_FORMAT(study.created_at, '%m/%d/%Y') AS 'Date Created',
+            study.study_name AS 'Study Name',
+            study.study_description AS 'Description',
+            CONCAT(
+                COALESCE(completed_sessions.completed_count, 0), 
+                ' / ', 
+                study.expected_participants
+            ) AS 'Sessions',
+            study_user_role_type.study_user_role_description AS 'Role'
+        FROM study
+        INNER JOIN user_study_role
+            ON user_study_role.study_id = study.study_id
+        INNER JOIN study_user_role_type
+            ON user_study_role.study_user_role_type_id = study_user_role_type.study_user_role_type_id
+        LEFT JOIN (
+            SELECT 
+                study_id, 
+                COUNT(*) AS completed_count
+            FROM participant_study_session
+            GROUP BY study_id
+        ) AS completed_sessions
+            ON study.study_id = completed_sessions.study_id
+        WHERE user_study_role.user_id = %s
+        """
+
+        
+        # Execute get
+        cur.execute(select_user_studies_info_query, (user_id))
 
         # Get all rows
         results = cur.fetchall()
@@ -186,4 +239,4 @@ def get_data():
 
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})
+        return  str(e)
