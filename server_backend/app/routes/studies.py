@@ -154,9 +154,12 @@ def create_study():
         # Commit changes to the database
         conn.commit()
 
-        # Close the cursor
+        # Close cursor
         cur.close()
 
+        # Close connection
+        conn.close()
+        
         return 'finished'
 
     except Exception as e:
@@ -165,25 +168,70 @@ def create_study():
 
 
 @bp.route("/get_data/<int:user_id>", methods=["GET"])
-def get_data():
+def get_data(user_id):
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
     # gets the json data from the db
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        
+        # Check if the user exists
+        check_user_query = """
+        SELECT COUNT(*) 
+        FROM user 
+        WHERE user_id = %s
+        """
+        cur.execute(check_user_query, (user_id,))
+        user_exists = cur.fetchone()[0]
 
-        # Test query
-        cur.execute("SELECT study_name, study_description, expected_participants, study_design_type, FROM user WHERE user.user_id = 1")
+        # Error Message
+        if user_exists == 0:
+            return jsonify({"error": "User not found"}), 404
+        
+        
+        # Select query
+        select_user_studies_info_query = """
+        SELECT 
+            DATE_FORMAT(study.created_at, '%m/%d/%Y') AS 'Date Created',
+            study.study_name AS 'User Study Name',
+            study.study_description AS 'Description',
+            CONCAT(
+                COALESCE(completed_sessions.completed_count, 0), 
+                ' / ', 
+                study.expected_participants
+            ) AS 'Sessions',
+            study_user_role_type.study_user_role_description AS 'Role'
+        FROM study
+        INNER JOIN study_user_role
+            ON study_user_role.study_id = study.study_id
+        INNER JOIN study_user_role_type
+            ON study_user_role.study_user_role_type_id = study_user_role_type.study_user_role_type_id
+        LEFT JOIN (
+            SELECT 
+                study_id, 
+                COUNT(*) AS completed_count
+            FROM participant_study_session
+            GROUP BY study_id
+        ) AS completed_sessions
+            ON study.study_id = completed_sessions.study_id
+        WHERE study_user_role.user_id = %s
+        """
+        
+        # Execute get
+        cur.execute(select_user_studies_info_query, (user_id,))
 
         # Get all rows
         results = cur.fetchall()
 
-        # Close the cursor
+        # Close cursor
         cur.close()
+        
+        # Close connection
+        conn.close()
 
         return jsonify(results)
 
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})
+        return  str(e)
