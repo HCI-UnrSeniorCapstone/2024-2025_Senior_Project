@@ -115,10 +115,10 @@ CREATE TABLE participant_study_session (
 
 CREATE TABLE deleted_study (
     study_id INT NOT NULL PRIMARY KEY,
-    invalidated_by_user_id INT NOT NULL,
-    invalidation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    deleted_by_user_id INT NOT NULL,
+    deletion_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (study_id) REFERENCES study(study_id),
-    FOREIGN KEY (invalidated_by_user_id) REFERENCES user(user_id)
+    FOREIGN KEY (deleted_by_user_id) REFERENCES user(user_id)
 );
 
 CREATE TABLE deleted_study_role (
