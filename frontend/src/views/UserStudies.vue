@@ -49,17 +49,12 @@
               </template>
               <template v-slot:item.sessionCount="{ item }">
                 <div>
-                  {{ item.sessionCount + '/' + item.expectedNumParticipants }}
+                  {{ item.sessionCount }}
                 </div>
               </template>
               <template v-slot:item.progress="{ item }">
                 <v-progress-linear
-                  :model-value="
-                    calculateProgress(
-                      item.sessionCount,
-                      item.expectedNumParticipants,
-                    )
-                  "
+                  :model-value="calculateProgress(item.sessionCount)"
                   height="15"
                   color="primary"
                 >
@@ -79,6 +74,7 @@
                     displayDialog({
                       title: 'Delete Study?',
                       text: 'Are you sure you want to delete this study?',
+                      studyID: item.studyID,
                     })
                   "
                 >
@@ -107,7 +103,7 @@
             <template v-slot:actions>
               <v-spacer></v-spacer>
 
-              <v-btn @click="closeDialog('no')"> Cancel </v-btn>
+              <v-btn @click="closeDialog()"> Cancel </v-btn>
 
               <v-btn @click="closeDialog('yes')"> Agree </v-btn>
             </template>
@@ -120,6 +116,7 @@
 
 <script>
 import StudyPanel from './StudyPanel.vue'
+import axios from 'axios'
 
 export default {
   components: { StudyPanel },
@@ -153,59 +150,53 @@ export default {
       dialogDetails: {
         title: '',
         text: '',
+        study: '',
       },
       // sample data until the db is connected
-      studies: [
-        {
-          studyName: 'UI Elderly Friendliness',
-          studyDesc:
-            'Explores the usability of interfaces designed for older adults.',
-          sessionCount: 10,
-          expectedNumParticipants: 15,
-          dateCreated: '04/04/2024',
-          role: 'Author',
-        },
-        {
-          studyName: 'VR in Educational',
-          studyDesc:
-            'Investigates how VR can enhance learning experiences in classrooms by conducting tests with teenagers...',
-          sessionCount: 8,
-          expectedNumParticipants: 10,
-          dateCreated: '02/20/2024',
-          role: 'Author',
-        },
-        {
-          studyName: 'Attention Analysis',
-          studyDesc:
-            'Uses eye-tracking technology to assess user attention on e-commerce sites.',
-          sessionCount: 16,
-          expectedNumParticipants: 17,
-          dateCreated: '12/09/2023',
-          role: 'Editor',
-        },
-        {
-          studyName: 'Voice Interface Usability',
-          studyDesc:
-            'Examines the usability of voice-activated systems in high-noise settings.',
-          sessionCount: 15,
-          expectedNumParticipants: 15,
-          dateCreated: '10/10/2023',
-          role: 'Viewer',
-        },
-      ],
+      studies: [],
     }
   },
 
+  //populate table on page load w/ a temporary hardcoded userID of 1
+  mounted() {
+    this.populateStudies(1)
+  },
+
   methods: {
+    // populating the studies table
+    async populateStudies(userID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_data/${userID}`
+        const response = await axios.get(path)
+
+        if (Array.isArray(response.data)) {
+          this.studies = response.data.map(study => ({
+            dateCreated: study[0],
+            studyID: study[1],
+            studyName: study[2],
+            studyDesc: study[3],
+            sessionCount: study[4],
+            role: study[5],
+          }))
+        }
+      } catch (error) {
+        console.error('Error retrieving studies: ', error)
+      }
+    },
+
     // route to an empty study form page
     openNewStudy() {
       this.$router.push('/StudyForm')
     },
+
     // used to display progress in the table progress bars
-    calculateProgress(completed, expected) {
+    calculateProgress(sessionCount) {
+      const [completed, expected] = sessionCount.split('/').map(Number)
       let percentVal = Math.floor((completed / expected) * 100)
       return percentVal
     },
+
     // toggle drawer open and bind study-specific info to populate the right panel
     openDrawer(study) {
       this.selectedStudy = { ...study }
@@ -214,14 +205,24 @@ export default {
 
     // dynamic confirmation for study deletion
     displayDialog(details) {
-      this.dialogDetails = details
+      this.dialogDetails = { ...details }
       this.dialog = true
     },
 
     // impacts whether we actually delete the study or not based on the user input
-    closeDialog(choice) {
+    async closeDialog(choice) {
       if (choice == 'yes') {
-        console.log('will delete')
+        const studyID = this.dialogDetails.studyID
+        const userID = 1 //temp
+
+        try {
+          const backendUrl = this.$backendUrl
+          const path = `${backendUrl}/delete_study/${studyID}/${userID}` // passing study and user id to tell what to "delete"
+          const response = await axios.post(path)
+          this.studies = this.studies.filter(study => study.studyID !== studyID) //removing from local studies list
+        } catch (error) {
+          console.error('Error:', error.response?.data || error.message)
+        }
       }
       this.dialog = false
     },

@@ -111,29 +111,29 @@ def create_study():
             """
             cur.execute(insert_study_factor_query, (study_id, factor_id))
 
-        # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
-        select_user_query = """
-        SELECT user_id FROM user WHERE first_name = 'TEST' AND last_name = 'TEST' AND email = 'broYrUreadingThis@example.com'
-        """
+        # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
+        # select_user_query = """
+        # SELECT user_id FROM user WHERE first_name = 'TEST' AND last_name = 'TEST' AND email = 'broYrUreadingThis@example.com'
+        # """
 
-        cur.execute(select_user_query)
+        # cur.execute(select_user_query)
 
-        # If None then user doesn't exist
-        existing_user = cur.fetchone()
+        # # If None then user doesn't exist
+        # existing_user = cur.fetchone()
 
-        if existing_user: 
-            user_id = existing_user[0]
-        # Make user
-        else:
-            insert_user_query = """
-            INSERT INTO user (first_name, last_name, email)
-            VALUES ('TEST', 'TEST', 'broYrUreadingThis@example.com')
-            """
+        # if existing_user: 
+        #     user_id = existing_user[0]
+        # # Make user
+        # else:
+        #     insert_user_query = """
+        #     INSERT INTO user (first_name, last_name, email)
+        #     VALUES ('TEST', 'TEST', 'broYrUreadingThis@example.com')
+        #     """
     
-            cur.execute(insert_user_query)
+        #     cur.execute(insert_user_query)
     
             # Get new user_id
-            user_id = cur.lastrowid
+            user_id = 1
 
         # Get owner id
         select_study_user_role_type = """
@@ -189,6 +189,7 @@ def get_data(user_id):
         select_user_studies_info_query = """
         SELECT 
             DATE_FORMAT(study.created_at, '%m/%d/%Y') AS 'Date Created',
+            study.study_id AS 'Study ID',
             study.study_name AS 'User Study Name',
             study.study_description AS 'Description',
             CONCAT(
