@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from app.utility.db_connection import get_db_connection
+from app.routes.studies import get_data
 
 bp = Blueprint('general', __name__)
 
