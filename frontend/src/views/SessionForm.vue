@@ -1,31 +1,47 @@
 <template>
-  <v-btn @click="startSession" color="green">Begin Session</v-btn>
+  <div class="container">
+    <v-btn @click="startSession" color="green">Begin Session</v-btn>
+  </div>
 </template>
 
 <script>
-// export default{
-//   data() {
-//     return [
+import axios from 'axios'
 
-//     ]
-//   }
+export default {
+  props: {
+    study: {
+      // this is where we need to save the study passed from the study panel
+      type: Object,
+      required: true,
+    },
+  },
 
-// }
-// async startSession() {
-//   // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
-//   //https://testdriven.io/blog/combine-flask-vue/
-//   const backendUrl = this.$backendUrl
-//   const path = `${backendUrl}/get_data`
-//   // NOTE: this user_id is hardcoded in the config.json for now but need to be updated
-//   const response = await fetch(path / '${this.user_id}') //server flask
-//   const userData = await response.json()
-//   // console.log(userData);
-//   alert(JSON.stringify(userData, null, 2))
-//   try {
-//     const response = axios.post('http://127.0.0.1:5001/run_study', userData) //local flask
-//     console.log('Response:', response.data)
-//   } catch (error) {
-//     console.error('Error: ', error)
-//   }
-// }
+  data() {
+    return {}
+  },
+
+  methods: {
+    // needs to be modified
+    async startSession() {
+      try {
+        const response = axios.post(
+          'http://127.0.0.1:5001/run_study',
+          this.study,
+        ) //local flask
+        console.log('Response:', response.data)
+      } catch (error) {
+        console.error('Error: ', error)
+      }
+    },
+  },
+}
 </script>
+
+<style scoped>
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+</style>
