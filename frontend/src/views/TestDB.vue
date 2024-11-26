@@ -5,7 +5,9 @@
       <h3>User Data:</h3>
       <ul>
         <li v-for="(user, index) in results" :key="index">
-          ID: {{ user[0] }} | Name: {{ user[1] }} | Email: {{ user[2] }}
+          Date Created: {{ user[0] }} | User Study Name: {{ user[1] }} |
+          Description: {{ user[2] }} | Sessions: {{ user[3] }} | Role:
+          {{ user[4] }}
         </li>
       </ul>
     </div>
@@ -35,6 +37,7 @@ export default {
         .then(res => {
           if (Array.isArray(res.data)) {
             this.results = res.data // If data is an array, display the results
+            console.log(this.results)
             this.msg = 'Data fetched successfully'
           } else {
             this.msg = 'Error: No data found or invalid response'

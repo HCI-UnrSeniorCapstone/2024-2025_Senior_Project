@@ -153,23 +153,14 @@ def create_study():
 
         # Commit changes to the database
         conn.commit()        
+        
+        # Close cursor
+        cur.close()  
         return 'finished'
 
     except Exception as e:
         # Error message
         return str(e)
-    
-    finally:
-        # Cleanup resources, ensuring they're closed regardless of success or failure
-        try:
-            # Close cursor
-            cur.close() 
-            # Close database connection
-            conn.close()
-        except:
-            # If closing the connection or cursor fails, suppress the error
-            pass
-
 
 @bp.route("/get_data/<int:user_id>", methods=["GET"])
 def get_data(user_id):
@@ -219,33 +210,28 @@ def get_data(user_id):
             GROUP BY study_id
         ) AS completed_sessions
             ON study.study_id = completed_sessions.study_id
-        WHERE study_user_role.user_id = %s
+        WHERE study_user_role.user_id = 1
         """
-        
         # Execute get
-        cur.execute(select_user_studies_info_query, (user_id,))
-
+        # cur.execute(select_user_studies_info_query, (user_id,))
+        cur.execute(select_user_studies_info_query)
         # Get all rows
         results = cur.fetchall()
+        
+        
+        #column_names = [desc[0] for desc in cur.description]  # Extract column names
+
+        # Format results as a list of dictionaries
+        #json_results = [dict(zip(column_names, row)) for row in results]
+        
+        # Close cursor
+        cur.close() 
 
         return jsonify(results)
 
     except Exception as e:
         # Error message
-        return  str(e)
-    
-    finally:
-        # Cleanup resources, ensuring they're closed regardless of success or failure
-        try:
-            # Close cursor
-            cur.close() 
-            # Close database connection
-            conn.close()
-        except:
-            # If closing the connection or cursor fails, suppress the error
-            pass
-
-    
+        return jsonify({"error": str(e)})   
     
     
 # Note, the study still exists in the database but not available to users
@@ -294,19 +280,10 @@ def delete_study(study_id, user_id):
 
         # Commit the transaction
         conn.commit()
-
+        
+        # Close cursor
+        cur.close() 
         return jsonify({"message": "Study deleted successfully"}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    finally:
-        # Cleanup resources, ensuring they're closed regardless of success or failure
-        try:
-            # Close cursor
-            cur.close() 
-            # Close database connection
-            conn.close()
-        except:
-            # If closing the connection or cursor fails, suppress the error
-            pass
