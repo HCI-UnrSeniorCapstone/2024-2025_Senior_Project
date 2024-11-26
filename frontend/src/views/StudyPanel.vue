@@ -23,6 +23,9 @@
           <h4>Description</h4>
           <p>{{ study.studyDesc }}</p>
           <v-divider class="mb-2"></v-divider>
+          <h4>Study ID</h4>
+          <p>{{ study.studyID }}</p>
+          <v-divider class="mb-2"></v-divider>
           <p><strong># Tasks: </strong>4</p>
           <p><strong># Factors: </strong>2</p>
           <v-divider class="mb-2"></v-divider>
@@ -76,9 +79,7 @@
 
       <v-row justify="center">
         <v-col cols="auto">
-          <v-btn @click="startSession" type="startSession" color="red"
-            >Start Session</v-btn
-          >
+          <v-btn @click="openNewSession" color="red">Start New Session</v-btn>
         </v-col>
       </v-row>
     </v-container>
@@ -86,8 +87,6 @@
 </template>
 
 <script>
-import axios from 'axios'
-
 export default {
   props: {
     drawer: {
@@ -175,22 +174,9 @@ export default {
       }
     },
 
-    async startSession() {
-      // gets demo2.json file from the public folder. This is temp, will be pushing this to the DB and soon fetch from the DB
-      //https://testdriven.io/blog/combine-flask-vue/
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/get_data`
-      // NOTE: this user_id is hardcoded in the config.json for now but need to be updated
-      const response = await fetch(path / '${this.user_id}') //server flask
-      const userData = await response.json()
-      // console.log(userData);
-      alert(JSON.stringify(userData, null, 2))
-      try {
-        const response = axios.post('http://127.0.0.1:5001/run_study', userData) //local flask
-        console.log('Response:', response.data)
-      } catch (error) {
-        console.error('Error: ', error)
-      }
+    // route to an empty study form page
+    openNewSession() {
+      this.$router.push('/SessionForm')
     },
   },
 }

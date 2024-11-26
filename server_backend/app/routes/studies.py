@@ -234,6 +234,85 @@ def get_data(user_id):
         # Error message
         return jsonify({"error": str(e)})   
     
+# This route is for loading ALL the detail on a study, essentially rebuilding to from how create_study deconstructs and saves
+# @bp.route("/load_study/<int:study_id>", methods=["GET"])
+def load_study(study_id = 1):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Check if the user exists
+        get_study_info = """
+        # Get Study Details
+        SELECT
+            DATE_FORMAT(s.created_at, '%m/%d/%Y') AS 'Date Created',
+            s.study_id AS 'Study ID',
+            s.study_name AS 'User Study Name',
+            s.study_description AS 'Description',
+            s.expected_participants AS '# Expected Participants',
+            surt.study_user_role_description AS 'Role',
+            sdt.study_design_type_description AS 'Study Design Type'
+        FROM study AS s
+        INNER JOIN study_user_role AS sur
+            ON sur.study_id = s.study_id
+        INNER JOIN study_user_role_type AS surt
+            ON sur.study_user_role_type_id = surt.study_user_role_type_id
+        INNER JOIN study_design_type AS sdt
+            ON s.study_design_type_id = sdt.study_design_type_id
+        WHERE s.study_id = %s
+        """
+        cur.execute(get_study_info, (study_id,))
+        study_res = cur.fetchone()[0]
+
+        get_factors = """
+        # Get all the factors under the study
+        SELECT
+            f.factor_name AS 'Factor Name',
+            f.factor_description AS 'Factor Description'
+        FROM study_factor AS  sf
+        JOIN factor AS f
+        ON f.factor_id = sf.factor_id
+        WHERE sf.study_id = %s;
+        
+        """
+        cur.execute(get_factors, (study_id,))
+        factor_res = cur.fetchall()
+
+        get_tasks = """
+        # Get all the tasks under the study
+        SELECT
+            t.task_id AS 'Task ID',
+            t.task_name AS 'Task Name',
+            t.task_description AS 'Task Description',
+            t.task_directions AS 'Task Directions',
+            t.duration AS 'Duration'
+        FROM study_task AS st
+        JOIN task AS t
+        ON st.task_id = t.task_id
+        WHERE st.study_id = %s;
+        """
+        cur.execute(get_tasks, (study_id,))
+        task_res = cur.fetchall()
+
+        get_task_measurements = """
+        # Get all the measurements under the task under the study
+        SELECT
+            tm.task_id AS 'Task ID',
+            mo.measurement_option_name AS 'Measurement Option'
+        FROM task_measurement AS tm
+        JOIN task AS t
+        ON tm.task_id = t.task_id
+        JOIN measurement_option AS mo
+        ON tm.measurement_option_id = mo.measurement_option_id
+        WHERE tm.task_id IN (SELECT task_id FROM study_task WHERE study_id = %s);
+        """
+        cur.execute(get_task_measurements, (study_id,))
+        measurement_res = cur.fetchall()
+        print("Measurements: ", measurement_res)
+
+    except Exception as e:
+        # Error message
+        return jsonify({"error": str(e)})
     
 # Note, the study still exists in the database but not available to users
 @bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
