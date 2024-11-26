@@ -152,19 +152,23 @@ def create_study():
 
 
         # Commit changes to the database
-        conn.commit()
-
-        # Close cursor
-        cur.close()
-
-        # Close connection
-        conn.close()
-        
+        conn.commit()        
         return 'finished'
 
     except Exception as e:
         # Error message
         return str(e)
+    
+    finally:
+        # Cleanup resources, ensuring they're closed regardless of success or failure
+        try:
+            # Close cursor
+            cur.close() 
+            # Close database connection
+            conn.close()
+        except:
+            # If closing the connection or cursor fails, suppress the error
+            pass
 
 
 @bp.route("/get_data/<int:user_id>", methods=["GET"])
@@ -224,14 +228,85 @@ def get_data(user_id):
         # Get all rows
         results = cur.fetchall()
 
-        # Close cursor
-        cur.close()
-        
-        # Close connection
-        conn.close()
-
         return jsonify(results)
 
     except Exception as e:
         # Error message
         return  str(e)
+    
+    finally:
+        # Cleanup resources, ensuring they're closed regardless of success or failure
+        try:
+            # Close cursor
+            cur.close() 
+            # Close database connection
+            conn.close()
+        except:
+            # If closing the connection or cursor fails, suppress the error
+            pass
+
+    
+    
+    
+# Note, the study still exists in the database but not available to users
+@bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
+def delete_study(study_id, user_id):
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if the user is the owner of the study
+        check_owner_query = """
+        SELECT COUNT(*)
+        FROM study_user_role
+        WHERE study_id = %s AND user_id = %s AND study_user_role_type_id = (
+            SELECT study_user_role_type_id
+            FROM study_user_role_type
+            WHERE study_user_role_description = 'Owner'
+        )
+        """
+        cur.execute(check_owner_query, (study_id, user_id))
+        is_owner = cur.fetchone()[0]
+
+        if is_owner == 0:
+            return jsonify({"error": "Only the owner can delete the study"}), 403
+
+        # Proceed with deletion if the user is the owner
+        insert_deletion_query = """
+        INSERT INTO deleted_study (study_id, deleted_by_user_id)
+        VALUES (%s, %s)
+        """
+        cur.execute(insert_deletion_query, (study_id, user_id))
+
+        # Copy study roles into deleted_study_role
+        copy_roles_query = """
+        INSERT INTO deleted_study_role (study_id, user_id, study_user_role_type_id)
+        SELECT study_id, user_id, study_user_role_type_id
+        FROM study_user_role
+        WHERE study_id = %s
+        """
+        cur.execute(copy_roles_query, (study_id,))
+
+        # Remove the study from study_user_role to prevent access
+        delete_study_roles_query = "DELETE FROM study_user_role WHERE study_id = %s"
+        cur.execute(delete_study_roles_query, (study_id,))
+
+        # Commit the transaction
+        conn.commit()
+
+        return jsonify({"message": "Study deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        # Cleanup resources, ensuring they're closed regardless of success or failure
+        try:
+            # Close cursor
+            cur.close() 
+            # Close database connection
+            conn.close()
+        except:
+            # If closing the connection or cursor fails, suppress the error
+            pass
