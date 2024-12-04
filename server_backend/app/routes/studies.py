@@ -43,8 +43,8 @@ def create_study():
 
         # Insert tasks
         insert_task_query = """
-        INSERT INTO task (task_name, task_description, task_directions, duration)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO task (task_name, study_id, task_description, task_directions, duration)
+        VALUES (%s, %s, %s, %s, %s)
         """
         for task in submissionData['tasks']:
             task_name = task['taskName']
@@ -53,10 +53,11 @@ def create_study():
             task_duration = task.get('taskDuration', None)
 
             # Error handling for bad duration inputs. Convert empty or invalid values to None
-            try:
-                task_duration = float(task_duration) if task_duration else None
-            except ValueError:
-                task_duration = None
+            if task_duration is not None:
+                try:
+                    task_duration = float(task_duration) if task_duration else None
+                except ValueError:
+                    task_duration = None
 
             # Execute insert for each task
             cur.execute(insert_task_query, (task_name, study_id, task_description, task_directions, task_duration))
@@ -87,8 +88,8 @@ def create_study():
         # Insert factors into the study_factor table
         for factor in submissionData['factors']:
             insert_factor_query = """
-            INSERT INTO factor (factor_name, factor_description)
-            VALUES (%s, %s)
+            INSERT INTO factor (study_id, factor_name, factor_description)
+            VALUES (%s, %s, %s)
             """
             factor_name = factor['factorName']
             factor_description = factor['factorDescription']
