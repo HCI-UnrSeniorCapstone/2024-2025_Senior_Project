@@ -59,7 +59,7 @@ def create_study():
                 task_duration = None
 
             # Execute insert for each task
-            cur.execute(insert_task_query, (task_name, task_description, task_directions, task_duration))
+            cur.execute(insert_task_query, (task_name, study_id, task_description, task_directions, task_duration))
 
             # Get the task_id of the newly inserted task
             task_id = cur.lastrowid
@@ -84,13 +84,6 @@ def create_study():
                     # Insert task-to-measurement
                     cur.execute(insert_measurement_query, (task_id, measurement_option_id))
 
-            # Insert tasks into study_task table
-            insert_study_task_query = """
-            INSERT INTO study_task (study_id, task_id)
-            VALUES (%s, %s)
-            """
-            cur.execute(insert_study_task_query, (study_id, task_id))
-
         # Insert factors into the study_factor table
         for factor in submissionData['factors']:
             insert_factor_query = """
@@ -99,17 +92,7 @@ def create_study():
             """
             factor_name = factor['factorName']
             factor_description = factor['factorDescription']
-            cur.execute(insert_factor_query, (factor_name, factor_description,))
-
-            # Get the factor_id of the newly inserted factor
-            factor_id = cur.lastrowid
-
-            # Insert study_factor 
-            insert_study_factor_query = """
-            INSERT INTO study_factor (study_id, factor_id)
-            VALUES (%s, %s)
-            """
-            cur.execute(insert_study_factor_query, (study_id, factor_id))
+            cur.execute(insert_factor_query, (study_id, factor_name, factor_description,))
 
         # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
         # select_user_query = """
