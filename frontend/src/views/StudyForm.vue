@@ -249,7 +249,7 @@ export default {
     }
   },
 
-  // view will load with 1 task and flask populated automatically
+  // view will load with 1 task and factor populated automatically
   mounted() {
     this.addTaskFactor('task')
     this.addTaskFactor('factor')
