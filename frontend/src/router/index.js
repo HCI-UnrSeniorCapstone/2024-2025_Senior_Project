@@ -7,6 +7,7 @@ import SessionReporting from '../views/SessionReporting.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
+import SessionForm from '../views/SessionForm.vue'
 import axios from 'axios'
 
 const router = createRouter({
@@ -54,6 +55,11 @@ const router = createRouter({
           path: '/Test',
           name: 'TestDB',
           component: TestDB,
+        },
+        {
+          path: '/SessionForm',
+          name: 'SessionForm',
+          component: SessionForm,
         },
       ],
     },

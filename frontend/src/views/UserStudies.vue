@@ -6,8 +6,9 @@
           <h2>Studies</h2>
         </v-col>
       </v-row>
-      <v-row>
-        <v-col cols="12" md="7">
+
+      <v-row justify="space-between" class="mb-4">
+        <v-col cols="12" md="8" lg="9">
           <v-text-field
             v-model="search"
             label="Search"
@@ -17,15 +18,15 @@
             single-line
           ></v-text-field>
         </v-col>
-        <v-spacer></v-spacer>
-        <v-col cols="2">
-          <v-btn class="create-study" @click="openNewStudy"
-            >+ Create New Study</v-btn
-          >
+        <v-col cols="12" md="4" lg="3" class="d-flex justify-end">
+          <v-btn class="create-study" color="primary" @click="openNewStudy">
+            + Create New Study
+          </v-btn>
         </v-col>
       </v-row>
+
       <v-row>
-        <v-col cols="12" md="12">
+        <v-col cols="12">
           <v-card flat>
             <v-data-table
               :headers="headers"
@@ -64,7 +65,7 @@
                 <v-icon
                   class="me-2"
                   size="small"
-                  @click.stop="openDrawer(item)"
+                  @click.stop="openDrawer(item.studyID)"
                 >
                   mdi-arrow-expand
                 </v-icon>
@@ -87,8 +88,9 @@
       </v-row>
 
       <StudyPanel
+        v-if="drawer && selectedStudy.studyID"
         :drawer="drawer"
-        :study="selectedStudy"
+        :studyID="selectedStudy.studyID"
         @update:drawer="drawer = $event"
         @close="drawer = false"
       />
@@ -198,8 +200,8 @@ export default {
     },
 
     // toggle drawer open and bind study-specific info to populate the right panel
-    openDrawer(study) {
-      this.selectedStudy = { ...study }
+    openDrawer(studyID) {
+      this.selectedStudy = { studyID }
       this.drawer = true
     },
 
@@ -230,19 +232,46 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 .create-study {
-  min-width: 100px;
-  min-height: 50px;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 10px 20px;
+  text-transform: none;
 }
+
 .study-name {
   display: flex;
   align-items: center;
 }
-.expand-study {
-  margin-left: 5px;
-}
+
 .table-background {
   background-color: #ffffff !important;
+}
+
+.v-text-field {
+  width: 100%;
+}
+
+.v-btn.block {
+  width: 100%;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.mb-4 {
+  margin-bottom: 16px !important;
+}
+
+.d-flex {
+  display: flex !important;
+}
+
+.justify-end {
+  justify-content: flex-end !important;
 }
 </style>

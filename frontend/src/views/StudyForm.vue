@@ -249,7 +249,7 @@ export default {
     }
   },
 
-  // view will load with 1 task and flask populated automatically
+  // view will load with 1 task and factor populated automatically
   mounted() {
     this.addTaskFactor('task')
     this.addTaskFactor('factor')
@@ -401,13 +401,13 @@ export default {
         })),
       }
 
-      alert(JSON.stringify(submissionData, null, 2))
       console.log(JSON.stringify(submissionData, null, 2))
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_study`
         const response = await axios.post(path, submissionData)
         console.log('Response:', response)
+        this.exit()
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }
