@@ -286,6 +286,7 @@ export default {
         this.focus_study = response.data
 
         // HAVE THE COMPLETE AND ENTIRE STUDY FORMED HERE (focus_study)
+        const response1 = await axios.post('http://127.0.0.1:5001/study_json', this.focus_study)
 
         console.log(this.focus_study)
 

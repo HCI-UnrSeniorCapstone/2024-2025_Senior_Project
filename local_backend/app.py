@@ -5,6 +5,7 @@ https://testdriven.io/blog/developing-a-single-page-app-with-flask-and-vuejs/
 
 import os
 from flask import Flask, request, jsonify
+import json
 from flask_cors import CORS
 import threading
 from features.collect_all import get_all_measurements
@@ -12,7 +13,7 @@ import ctypes  # lib for pop up
 import random
 from PIL import ImageGrab
 import cv2
-import numpy as np # type: ignore
+import numpy as np  # type: ignore
 import time  # temp for now
 import csv
 
@@ -140,6 +141,16 @@ app.config.from_object(__name__)
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
 
+@app.route("/study_json", methods=["POST", "GET"])
+def study_json():
+    submissionData = request.get_json()
+
+    json_object = json.dumps(submissionData, indent=4)
+    with open(f'../frontend/public/demo3.json', 'w') as f:
+        f.write(json_object)
+
+    return 'finished'
+
 # gets parameters from server and runs
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
@@ -147,16 +158,20 @@ def run_study():
     task_duration = []
     task_measurements = []
     user_Task = []
-    submissionData = request.get_json()
 
-    default_tasks = submissionData.get('tasks', [])
+    # gets the data from the json file
+    with open('../frontend/public/demo3.json', 'r') as file:
+        data = json.load(file)
+    # submissionData = request.get_json()
+
+    default_tasks = data.get('tasks', [])
     app.logger.debug(f'{default_tasks}')
 
     rand_tasks = sorted(default_tasks, key=lambda x: random.random())
 
     for i in range(len(rand_tasks)):
         task_name.append(rand_tasks[i]['taskName'])
-        task_duration.append(int(rand_tasks[i]['taskDuration']))
+        task_duration.append(float(rand_tasks[i]['taskDuration']))
         task_measurements.append(rand_tasks[i]['measurementOptions'])
 
     # checks to see what rand_tasks were selected
