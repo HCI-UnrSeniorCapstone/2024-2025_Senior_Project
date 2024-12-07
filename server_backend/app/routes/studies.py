@@ -218,6 +218,118 @@ def get_data(user_id):
         # Error message
         return jsonify({"error": str(e)})   
     
+# This route is for loading ALL the detail on a single study, essentially rebuilding in reverse of how create_study deconstructs and saves into db
+@bp.route("/load_study/<int:study_id>", methods=["GET"])
+def load_study(study_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Get Study Details
+        get_study_info = """
+        SELECT
+            s.study_name AS 'User Study Name',
+            s.study_description AS 'Description',
+            s.expected_participants AS '# Expected Participants',
+            surt.study_user_role_description AS 'Role',
+            sdt.study_design_type_description AS 'Study Design Type'
+        FROM study AS s
+        INNER JOIN study_user_role AS sur
+            ON sur.study_id = s.study_id
+        INNER JOIN study_user_role_type AS surt
+            ON sur.study_user_role_type_id = surt.study_user_role_type_id
+        INNER JOIN study_design_type AS sdt
+            ON s.study_design_type_id = sdt.study_design_type_id
+        WHERE s.study_id = %s
+        """
+        cur.execute(get_study_info, (study_id,))
+        study_res = cur.fetchone()
+
+        # Get all the tasks under the study
+        get_tasks = """
+        SELECT
+            t.task_id AS 'Task ID',
+            t.task_name AS 'Task Name',
+            t.task_description AS 'Task Description',
+            t.task_directions AS 'Task Directions',
+            t.duration AS 'Duration'
+        FROM study_task AS st
+        JOIN task AS t
+        ON st.task_id = t.task_id
+        WHERE st.study_id = %s;
+        """
+        cur.execute(get_tasks, (study_id,))
+        task_res = cur.fetchall()
+
+        # Get all the factors under the study        
+        get_factors = """
+        SELECT
+            f.factor_name AS 'Factor Name',
+            f.factor_description AS 'Factor Description'
+        FROM study_factor AS  sf
+        JOIN factor AS f
+        ON f.factor_id = sf.factor_id
+        WHERE sf.study_id = %s;
+        
+        """
+        cur.execute(get_factors, (study_id,))
+        factor_res = cur.fetchall()
+        
+        # Creating the study obj before adding measurement option info
+        study_data = {
+            "studyName": study_res[0],
+            "studyDescription": study_res[1] or "No study description provided",
+            "studyDesignType": study_res[4],
+            "participantCount": str(study_res[2]),
+            "tasks": [
+                {
+                    "taskID": task[0],
+                    "taskName": task[1],
+                    "taskDescription": task[2] or "No task description provided",
+                    "taskDirections": task[3] or "No task directions provided",
+                    "taskDuration": str(task[4]),
+                    "measurementOptions": []
+                }
+                for task in task_res
+            ],
+            "factors": [
+                {"factorName": factor[0], "factorDescription": factor[1] or "No factor description provided"}
+                for factor in factor_res
+            ]
+        }
+               
+        # Get all the measurements under the task under the study 
+        get_task_measurements = """
+        SELECT
+            tm.task_id AS 'Task ID',
+            mo.measurement_option_name AS 'Measurement Option'
+        FROM task_measurement AS tm
+        JOIN task AS t
+        ON tm.task_id = t.task_id
+        JOIN measurement_option AS mo
+        ON tm.measurement_option_id = mo.measurement_option_id
+        WHERE tm.task_id IN (SELECT task_id FROM study_task WHERE study_id = %s);
+        """
+        cur.execute(get_task_measurements, (study_id,))
+        measurement_res = cur.fetchall()
+        
+        # Use taskID to get the measurement types into the correct task measurement[]
+        for task in study_data["tasks"]:
+            task["measurementOptions"] = [
+                measurement[1] for measurement in measurement_res if measurement[0] == task["taskID"]
+            ]
+        # Discard the taskID's
+        for task in study_data["tasks"]:
+            del task["taskID"]
+        
+        
+        cur.close()
+        
+        return jsonify(study_data)
+        
+    except Exception as e:
+        # Error message
+        return jsonify({"error": str(e)})
     
 # Note, the study still exists in the database but not available to users
 @bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
@@ -268,6 +380,7 @@ def delete_study(study_id, user_id):
         
         # Close cursor
         cur.close() 
+        
         return jsonify({"message": "Study deleted successfully"}), 200
 
     except Exception as e:
