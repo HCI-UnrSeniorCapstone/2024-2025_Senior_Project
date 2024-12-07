@@ -23,7 +23,7 @@ def create_app():
     mysql.init_app(app)
 
     # Server CSV pathway configuration
-    app.config['RESULTS_BASE_DIR_PATH'] = os.get_env('RESULTS_BASE_DIR_PATH')
+    app.config['RESULTS_BASE_DIR_PATH'] = os.getenv('RESULTS_BASE_DIR_PATH')
 
     CORS(app, resources={r'/*': {'origins': '*'}})
 
