@@ -85,7 +85,7 @@ def create_study():
                     # Insert task-to-measurement
                     cur.execute(insert_measurement_query, (task_id, measurement_option_id))
 
-        # Insert factors into the study_factor table
+        # Insert factors
         for factor in submissionData['factors']:
             insert_factor_query = """
             INSERT INTO factor (study_id, factor_name, factor_description)
@@ -248,15 +248,13 @@ def load_study(study_id):
         # Get all the tasks under the study
         get_tasks = """
         SELECT
-            t.task_id AS 'Task ID',
-            t.task_name AS 'Task Name',
-            t.task_description AS 'Task Description',
-            t.task_directions AS 'Task Directions',
-            t.duration AS 'Duration'
-        FROM study_task AS st
-        JOIN task AS t
-        ON st.task_id = t.task_id
-        WHERE st.study_id = %s;
+            task_id AS 'Task ID',
+            task_name AS 'Task Name',
+            task_description AS 'Task Description',
+            task_directions AS 'Task Directions',
+            duration AS 'Duration'
+        FROM task
+        WHERE study_id = %s;
         """
         cur.execute(get_tasks, (study_id,))
         task_res = cur.fetchall()
@@ -264,12 +262,10 @@ def load_study(study_id):
         # Get all the factors under the study        
         get_factors = """
         SELECT
-            f.factor_name AS 'Factor Name',
-            f.factor_description AS 'Factor Description'
-        FROM study_factor AS  sf
-        JOIN factor AS f
-        ON f.factor_id = sf.factor_id
-        WHERE sf.study_id = %s;
+            factor_name AS 'Factor Name',
+            factor_description AS 'Factor Description'
+        FROM factor
+        WHERE study_id = %s;
         
         """
         cur.execute(get_factors, (study_id,))
@@ -308,7 +304,7 @@ def load_study(study_id):
         ON tm.task_id = t.task_id
         JOIN measurement_option AS mo
         ON tm.measurement_option_id = mo.measurement_option_id
-        WHERE tm.task_id IN (SELECT task_id FROM study_task WHERE study_id = %s);
+        WHERE tm.task_id IN (SELECT task_id FROM task WHERE study_id = %s);
         """
         cur.execute(get_task_measurements, (study_id,))
         measurement_res = cur.fetchall()
