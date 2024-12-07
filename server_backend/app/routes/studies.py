@@ -144,7 +144,14 @@ def create_study():
 
     except Exception as e:
         # Error message
-        return str(e)
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
 
 @bp.route("/get_data/<int:user_id>", methods=["GET"])
 def get_data(user_id):
@@ -191,7 +198,7 @@ def get_data(user_id):
             SELECT 
                 study_id, 
                 COUNT(*) AS completed_count
-            FROM participant_study_session
+            FROM participant_session
             GROUP BY study_id
         ) AS completed_sessions
             ON study.study_id = completed_sessions.study_id
@@ -216,7 +223,14 @@ def get_data(user_id):
 
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})   
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500  
     
 # This route is for loading ALL the detail on a single study, essentially rebuilding in reverse of how create_study deconstructs and saves into db
 @bp.route("/load_study/<int:study_id>", methods=["GET"])
@@ -325,7 +339,14 @@ def load_study(study_id):
         
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
     
 # Note, the study still exists in the database but not available to users
 @bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
@@ -380,4 +401,12 @@ def delete_study(study_id, user_id):
         return jsonify({"message": "Study deleted successfully"}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 

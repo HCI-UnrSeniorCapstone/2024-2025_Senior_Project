@@ -105,10 +105,12 @@ CREATE TABLE participant (
 CREATE TABLE participant_session (
     participant_session_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     participant_id INT,
+    study_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     -- Should be updated and no longer null when session done
     ended_at TIMESTAMP NULL,
-    FOREIGN KEY (participant_id) REFERENCES participant(participant_id)
+    FOREIGN KEY (participant_id) REFERENCES participant(participant_id),
+    FOREIGN KEY (study_id) REFERENCES study(study_id)
 );
 /*
  NOTE: A session can do the same task / factor instance multiple times
