@@ -92,14 +92,40 @@ CREATE TABLE factor (
 -- Recorded instance when study happens
 -- Will have to implement results to this however that is chosen
 -- Participant should be generated
-CREATE TABLE participant_study_session (
-    study_id INT,
+/*
+ Session Rules to ensure:
+ 1: A particpant may do many sessions
+ 2: Every session has 1 participant
+ 3: A session may have many instances of the same task / factor
+ */
+CREATE TABLE participant (
+    participant_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+-- NOTE: This is NOT an intersection. It's named this way since session is a SQL keyword
+CREATE TABLE participant_session (
+    participant_session_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     participant_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    -- Should be updated and no longer null when session done
+    ended_at TIMESTAMP NULL,
+    FOREIGN KEY (participant_id) REFERENCES participant(participant_id)
+);
+/*
+ NOTE: A session can do the same task / factor instance multiple times
+ SINCE they are not PKs. Need to double check, but since their values
+ are NOT unique, they should not be PKs
+ */
+CREATE TABLE session_data_instance (
+    session_data_instance_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    participant_session_id INT,
     task_id INT,
+    measurement_option_id INT,
     factor_id INT,
-    PRIMARY KEY (study_id, participant_id, task_id, factor_id),
-    FOREIGN KEY (study_id) REFERENCES study(study_id),
-    FOREIGN KEY (task_id) REFERENCES task(task_id),
+    -- This is where it is stored on hci
+    csv_results_path VARCHAR(255),
+    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
+    FOREIGN KEY (task_id) REFERENCES task_measurement(task_id),
+    FOREIGN KEY (measurement_option_id) REFERENCES task_measurement(measurement_option_id),
     FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
 );
 CREATE TABLE deleted_study (
