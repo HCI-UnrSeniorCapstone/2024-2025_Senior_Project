@@ -1,5 +1,7 @@
 import random
-from flask import Blueprint, request, jsonify
+import os
+import csv
+from flask import Blueprint, current_app, request, jsonify
 import json
 from app.utility.studies import set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
@@ -153,8 +155,8 @@ def create_study():
                 "error_message": error_message
             }), 500 
 
-@bp.route("/get_data/<int:user_id>", methods=["GET"])
-def get_data(user_id):
+@bp.route("/get_study_data/<int:user_id>", methods=["GET"])
+def get_study_data(user_id):
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
     # gets the json data from the db
@@ -410,3 +412,85 @@ def delete_study(study_id, user_id):
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
+        
+   
+# Saves tracked data to server file system, db will have a file path to the CSVs
+@bp.route("/save_session_data_instance/<int:participant_session_id>/<int:study_id>/<int:task_id>/<int:measurement_option_id>/<int:factor_id>", methods=["POST"])
+def save_session_data_instance(participant_session_id, study_id, task_id, measurement_option_id, factor_id): 
+
+    # Check if the request contains the file part
+    # pretty sure vue has to name is input_csv
+    if 'input_csv' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files['input_csv']
+
+    # Check if the file is a CSV by its MIME type
+    if not file.content_type == 'text/csv':
+        return jsonify({"error": "Invalid file type. Only CSV files are allowed."}), 400    
+    
+    try:     
+        
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Base directory for participant results
+        base_dir = current_app.config.get('RESULTS_BASE_DIR_PATH')
+             
+        # CSV path not included yet
+        create_session_data_instance = """
+        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
+        VALUES (%s, %s, %s, %s)
+        """
+        cur.execute(create_session_data_instance, (participant_session_id, task_id, measurement_option_id, factor_id,))
+        
+        # Get the session_data_instance_id of the newly inserted study
+        session_data_instance_id = cur.lastrowid
+        
+        # Construct file path
+        full_path = os.path.join(base_dir, str(study_id), str(participant_session_id))
+
+        # Create directory (this will also create parts of the directory that don't exist)
+        os.makedirs(full_path, exist_ok=True)
+
+        # Full file path with CSV
+        file_path = os.path.join(full_path, f"{session_data_instance_id}.csv")
+
+        # Check if CSV already exists
+        # Want to terminate early because we dont want to overwrite study data
+        if os.path.exists(file_path):
+            return jsonify({
+                    "error_type": "Duplicate session_data_instance",
+                    "error_message": "CSV with same name already exists"
+                }), 500 
+
+        # Save the file to the system (overwrite if exists)
+        file.save(file_path) 
+            
+        # Add pathway for database
+        update_path_session_data_instance = """
+        UPDATE session_data_instance
+        SET csv_results_path = %s
+        WHERE session_data_instance = %s
+        """
+        cur.execute(update_path_session_data_instance, (file_path,session_data_instance_id))    
+        
+        # Commit the transaction
+        conn.commit()
+        
+        # Close cursor
+        cur.close() 
+        
+        return jsonify({"message": "CSV saved successfully"}), 200
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
+   

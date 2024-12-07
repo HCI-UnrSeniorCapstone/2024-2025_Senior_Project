@@ -22,6 +22,9 @@ def create_app():
     app.config['MYSQL_DB'] = os.getenv('MYSQL_DB')
     mysql.init_app(app)
 
+    # Server CSV pathway configuration
+    app.config['RESULTS_BASE_DIR_PATH'] = os.get_env('RESULTS_BASE_DIR_PATH')
+
     CORS(app, resources={r'/*': {'origins': '*'}})
 
     # Register blueprints
