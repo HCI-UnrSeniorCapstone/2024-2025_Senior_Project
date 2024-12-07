@@ -624,3 +624,7 @@ VALUES (
         'Remote Collaboration',
         'Participants complete the task in collaboration with others remotely.'
     );
+INSERT INTO participant (participant_id)
+VALUES (NULL);
+INSERT INTO participant_session (participant_id, study_id, created_at, ended_at)
+VALUES (1, 1, NOW(), NULL);

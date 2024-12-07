@@ -437,7 +437,6 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
         
         # Base directory for participant results
         base_dir = current_app.config.get('RESULTS_BASE_DIR_PATH')
-             
         # CSV path not included yet
         create_session_data_instance = """
         INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
@@ -449,7 +448,7 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
         session_data_instance_id = cur.lastrowid
         
         # Construct file path
-        full_path = os.path.join(base_dir, str(study_id), str(participant_session_id))
+        full_path = os.path.join(base_dir, f"{study_id}_study_id", f"{participant_session_id}_participant_session_id", f"{session_data_instance_id}_session_data_instance_id")
 
         # Create directory (this will also create parts of the directory that don't exist)
         os.makedirs(full_path, exist_ok=True)
@@ -472,7 +471,7 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
         update_path_session_data_instance = """
         UPDATE session_data_instance
         SET csv_results_path = %s
-        WHERE session_data_instance = %s
+        WHERE session_data_instance_id = %s
         """
         cur.execute(update_path_session_data_instance, (file_path,session_data_instance_id))    
         
