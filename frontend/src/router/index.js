@@ -8,6 +8,7 @@ import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
 import SessionForm from '../views/SessionForm.vue'
+import TestSendCSV from '../views/TestCSVToServer.vue'
 import axios from 'axios'
 
 const router = createRouter({
@@ -60,6 +61,11 @@ const router = createRouter({
           path: '/SessionForm',
           name: 'SessionForm',
           component: SessionForm,
+        },
+        {
+          path: '/TestSendCSV',
+          name: 'TestSendCSV',
+          component: TestSendCSV,
         },
       ],
     },

@@ -12,31 +12,6 @@ CREATE TABLE admin_user (
     PRIMARY KEY (admin_user_id, user_id),
     FOREIGN KEY (user_id) REFERENCES user(user_id)
 );
-CREATE TABLE task (
-    task_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    task_name VARCHAR(255) NOT NULL,
-    task_description VARCHAR(255) NULL,
-    -- Tells participant what to do
-    task_directions VARCHAR(255) NULL,
-    duration DECIMAL(6, 3) NULL
-);
--- Different tracking types
-CREATE TABLE measurement_option (
-    measurement_option_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    measurement_option_name VARCHAR(255)
-);
-CREATE TABLE task_measurement (
-    task_id INT,
-    measurement_option_id INT,
-    PRIMARY KEY (task_id, measurement_option_id),
-    FOREIGN KEY (task_id) REFERENCES task(task_id),
-    FOREIGN KEY (measurement_option_id) REFERENCES measurement_option(measurement_option_id)
-);
-CREATE TABLE factor (
-    factor_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    factor_name VARCHAR(255) NOT NULL,
-    factor_description VARCHAR(255) NULL
-);
 -- Within vs Between
 CREATE TABLE study_design_type (
     study_design_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -73,6 +48,37 @@ CREATE TABLE study_user_role (
     FOREIGN KEY (study_id) REFERENCES study(study_id),
     FOREIGN KEY (study_user_role_type_id) REFERENCES study_user_role_type(study_user_role_type_id)
 );
+-- Study has many tasks
+CREATE TABLE task (
+    task_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    study_id INT,
+    task_name VARCHAR(255) NOT NULL,
+    task_description VARCHAR(255) NULL,
+    -- Tells participant what to do
+    task_directions VARCHAR(255) NULL,
+    duration DECIMAL(6, 3) NULL,
+    FOREIGN KEY (study_id) REFERENCES study(study_id)
+);
+-- Different tracking types
+CREATE TABLE measurement_option (
+    measurement_option_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    measurement_option_name VARCHAR(255)
+);
+CREATE TABLE task_measurement (
+    task_id INT,
+    measurement_option_id INT,
+    PRIMARY KEY (task_id, measurement_option_id),
+    FOREIGN KEY (task_id) REFERENCES task(task_id),
+    FOREIGN KEY (measurement_option_id) REFERENCES measurement_option(measurement_option_id)
+);
+-- Study has many factors
+CREATE TABLE factor (
+    factor_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    study_id INT,
+    factor_name VARCHAR(255) NOT NULL,
+    factor_description VARCHAR(255) NULL,
+    FOREIGN KEY (study_id) REFERENCES study(study_id)
+);
 -- This assumes every task has the same factors. need to double-check
 -- CREATE TABLE study_task_factor (
 --     study_id INT,
@@ -83,36 +89,47 @@ CREATE TABLE study_user_role (
 --     FOREIGN KEY (task_id) REFERENCES task(task_id),
 --     FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
 -- );
--- Study has many tasks
-CREATE TABLE study_task (
-    study_id INT,
-    task_id INT,
-    PRIMARY KEY (study_id, task_id),
-    FOREIGN KEY (study_id) REFERENCES study(study_id),
-    FOREIGN KEY (task_id) REFERENCES task(task_id)
-);
--- Study has many factors
-CREATE TABLE study_factor (
-    study_id INT,
-    factor_id INT,
-    PRIMARY KEY (study_id, factor_id),
-    FOREIGN KEY (study_id) REFERENCES study(study_id),
-    FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
-);
 -- Recorded instance when study happens
 -- Will have to implement results to this however that is chosen
 -- Participant should be generated
-CREATE TABLE participant_study_session (
-    study_id INT,
+/*
+ Session Rules to ensure:
+ 1: A particpant may do many sessions
+ 2: Every session has 1 participant
+ 3: A session may have many instances of the same task / factor
+ */
+CREATE TABLE participant (
+    participant_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+-- NOTE: This is NOT an intersection. It's named this way since session is a SQL keyword
+CREATE TABLE participant_session (
+    participant_session_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     participant_id INT,
+    study_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    -- Should be updated and no longer null when session done
+    ended_at TIMESTAMP NULL,
+    FOREIGN KEY (participant_id) REFERENCES participant(participant_id),
+    FOREIGN KEY (study_id) REFERENCES study(study_id)
+);
+/*
+ NOTE: A session can do the same task / factor instance multiple times
+ SINCE they are not PKs. Need to double check, but since their values
+ are NOT unique, they should not be PKs
+ */
+CREATE TABLE session_data_instance (
+    session_data_instance_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    participant_session_id INT,
     task_id INT,
+    measurement_option_id INT,
     factor_id INT,
-    PRIMARY KEY (study_id, participant_id, task_id, factor_id),
-    FOREIGN KEY (study_id) REFERENCES study(study_id),
-    FOREIGN KEY (task_id) REFERENCES task(task_id),
+    -- This is where it is stored on hci
+    csv_results_path VARCHAR(255) NULL,
+    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
+    FOREIGN KEY (task_id) REFERENCES task_measurement(task_id),
+    FOREIGN KEY (measurement_option_id) REFERENCES task_measurement(measurement_option_id),
     FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
 );
-
 CREATE TABLE deleted_study (
     study_id INT NOT NULL PRIMARY KEY,
     deleted_by_user_id INT NOT NULL,
@@ -120,7 +137,6 @@ CREATE TABLE deleted_study (
     FOREIGN KEY (study_id) REFERENCES study(study_id),
     FOREIGN KEY (deleted_by_user_id) REFERENCES user(user_id)
 );
-
 CREATE TABLE deleted_study_role (
     study_id INT NOT NULL,
     user_id INT NOT NULL,

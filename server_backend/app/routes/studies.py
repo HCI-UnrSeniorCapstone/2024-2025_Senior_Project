@@ -1,5 +1,7 @@
 import random
-from flask import Blueprint, request, jsonify
+import os
+import csv
+from flask import Blueprint, current_app, request, jsonify
 import json
 from app.utility.studies import set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
@@ -43,8 +45,8 @@ def create_study():
 
         # Insert tasks
         insert_task_query = """
-        INSERT INTO task (task_name, task_description, task_directions, duration)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO task (task_name, study_id, task_description, task_directions, duration)
+        VALUES (%s, %s, %s, %s, %s)
         """
         for task in submissionData['tasks']:
             task_name = task['taskName']
@@ -53,13 +55,14 @@ def create_study():
             task_duration = task.get('taskDuration', None)
 
             # Error handling for bad duration inputs. Convert empty or invalid values to None
-            try:
-                task_duration = float(task_duration) if task_duration else None
-            except ValueError:
-                task_duration = None
+            if task_duration is not None:
+                try:
+                    task_duration = float(task_duration) if task_duration else None
+                except ValueError:
+                    task_duration = None
 
             # Execute insert for each task
-            cur.execute(insert_task_query, (task_name, task_description, task_directions, task_duration))
+            cur.execute(insert_task_query, (task_name, study_id, task_description, task_directions, task_duration))
 
             # Get the task_id of the newly inserted task
             task_id = cur.lastrowid
@@ -84,32 +87,15 @@ def create_study():
                     # Insert task-to-measurement
                     cur.execute(insert_measurement_query, (task_id, measurement_option_id))
 
-            # Insert tasks into study_task table
-            insert_study_task_query = """
-            INSERT INTO study_task (study_id, task_id)
-            VALUES (%s, %s)
-            """
-            cur.execute(insert_study_task_query, (study_id, task_id))
-
-        # Insert factors into the study_factor table
+        # Insert factors
         for factor in submissionData['factors']:
             insert_factor_query = """
-            INSERT INTO factor (factor_name, factor_description)
-            VALUES (%s, %s)
+            INSERT INTO factor (study_id, factor_name, factor_description)
+            VALUES (%s, %s, %s)
             """
             factor_name = factor['factorName']
             factor_description = factor['factorDescription']
-            cur.execute(insert_factor_query, (factor_name, factor_description,))
-
-            # Get the factor_id of the newly inserted factor
-            factor_id = cur.lastrowid
-
-            # Insert study_factor 
-            insert_study_factor_query = """
-            INSERT INTO study_factor (study_id, factor_id)
-            VALUES (%s, %s)
-            """
-            cur.execute(insert_study_factor_query, (study_id, factor_id))
+            cur.execute(insert_factor_query, (study_id, factor_name, factor_description,))
 
         # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
         # select_user_query = """
@@ -160,10 +146,17 @@ def create_study():
 
     except Exception as e:
         # Error message
-        return str(e)
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
 
-@bp.route("/get_data/<int:user_id>", methods=["GET"])
-def get_data(user_id):
+@bp.route("/get_study_data/<int:user_id>", methods=["GET"])
+def get_study_data(user_id):
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
     # gets the json data from the db
@@ -207,7 +200,7 @@ def get_data(user_id):
             SELECT 
                 study_id, 
                 COUNT(*) AS completed_count
-            FROM participant_study_session
+            FROM participant_session
             GROUP BY study_id
         ) AS completed_sessions
             ON study.study_id = completed_sessions.study_id
@@ -232,7 +225,14 @@ def get_data(user_id):
 
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})   
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500  
     
 # This route is for loading ALL the detail on a single study, essentially rebuilding in reverse of how create_study deconstructs and saves into db
 @bp.route("/load_study/<int:study_id>", methods=["GET"])
@@ -264,15 +264,13 @@ def load_study(study_id):
         # Get all the tasks under the study
         get_tasks = """
         SELECT
-            t.task_id AS 'Task ID',
-            t.task_name AS 'Task Name',
-            t.task_description AS 'Task Description',
-            t.task_directions AS 'Task Directions',
-            t.duration AS 'Duration'
-        FROM study_task AS st
-        JOIN task AS t
-        ON st.task_id = t.task_id
-        WHERE st.study_id = %s;
+            task_id AS 'Task ID',
+            task_name AS 'Task Name',
+            task_description AS 'Task Description',
+            task_directions AS 'Task Directions',
+            duration AS 'Duration'
+        FROM task
+        WHERE study_id = %s;
         """
         cur.execute(get_tasks, (study_id,))
         task_res = cur.fetchall()
@@ -280,12 +278,10 @@ def load_study(study_id):
         # Get all the factors under the study        
         get_factors = """
         SELECT
-            f.factor_name AS 'Factor Name',
-            f.factor_description AS 'Factor Description'
-        FROM study_factor AS  sf
-        JOIN factor AS f
-        ON f.factor_id = sf.factor_id
-        WHERE sf.study_id = %s;
+            factor_name AS 'Factor Name',
+            factor_description AS 'Factor Description'
+        FROM factor
+        WHERE study_id = %s;
         
         """
         cur.execute(get_factors, (study_id,))
@@ -324,7 +320,7 @@ def load_study(study_id):
         ON tm.task_id = t.task_id
         JOIN measurement_option AS mo
         ON tm.measurement_option_id = mo.measurement_option_id
-        WHERE tm.task_id IN (SELECT task_id FROM study_task WHERE study_id = %s);
+        WHERE tm.task_id IN (SELECT task_id FROM task WHERE study_id = %s);
         """
         cur.execute(get_task_measurements, (study_id,))
         measurement_res = cur.fetchall()
@@ -345,7 +341,14 @@ def load_study(study_id):
         
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
     
 # Note, the study still exists in the database but not available to users
 @bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
@@ -400,4 +403,93 @@ def delete_study(study_id, user_id):
         return jsonify({"message": "Study deleted successfully"}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
+        
+   
+# Saves tracked data to server file system, db will have a file path to the CSVs
+@bp.route("/save_session_data_instance/<int:participant_session_id>/<int:study_id>/<int:task_id>/<int:measurement_option_id>/<int:factor_id>", methods=["POST"])
+def save_session_data_instance(participant_session_id, study_id, task_id, measurement_option_id, factor_id): 
+
+    # Check if the request contains the file part
+    # pretty sure vue has to name is input_csv
+    if 'input_csv' not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files['input_csv']
+
+    # Check if the file is a CSV by its MIME type
+    if not file.content_type == 'text/csv':
+        return jsonify({"error": "Invalid file type. Only CSV files are allowed."}), 400    
+    
+    try:     
+        
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Base directory for participant results
+        base_dir = current_app.config.get('RESULTS_BASE_DIR_PATH')
+        # CSV path not included yet
+        create_session_data_instance = """
+        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
+        VALUES (%s, %s, %s, %s)
+        """
+        cur.execute(create_session_data_instance, (participant_session_id, task_id, measurement_option_id, factor_id,))
+        
+        # Get the session_data_instance_id of the newly inserted study
+        session_data_instance_id = cur.lastrowid
+        
+        # Construct file path
+        full_path = os.path.join(base_dir, f"{study_id}_study_id", f"{participant_session_id}_participant_session_id", f"{session_data_instance_id}_session_data_instance_id")
+
+        # Create directory (this will also create parts of the directory that don't exist)
+        os.makedirs(full_path, exist_ok=True)
+
+        # Full file path with CSV
+        file_path = os.path.join(full_path, f"{session_data_instance_id}.csv")
+
+        # Check if CSV already exists
+        # Want to terminate early because we dont want to overwrite study data
+        if os.path.exists(file_path):
+            return jsonify({
+                    "error_type": "Duplicate session_data_instance",
+                    "error_message": "CSV with same name already exists"
+                }), 500 
+
+        # Save the file to the system (overwrite if exists)
+        file.save(file_path) 
+            
+        # Add pathway for database
+        update_path_session_data_instance = """
+        UPDATE session_data_instance
+        SET csv_results_path = %s
+        WHERE session_data_instance_id = %s
+        """
+        cur.execute(update_path_session_data_instance, (file_path,session_data_instance_id))    
+        
+        # Commit the transaction
+        conn.commit()
+        
+        # Close cursor
+        cur.close() 
+        
+        return jsonify({"message": "CSV saved successfully"}), 200
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
+   

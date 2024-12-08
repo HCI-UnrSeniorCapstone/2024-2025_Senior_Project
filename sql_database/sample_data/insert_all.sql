@@ -84,15 +84,141 @@ VALUES (
         'isabella.moore@example.com',
         '2024-11-10 17:40:00'
     );
+-- Study Design Types
+INSERT INTO study_design_type (
+        study_design_type_id,
+        study_design_type_description
+    )
+VALUES (1, 'Within'),
+    (2, 'Between');
+-- Studies
+INSERT INTO study (
+        study_id,
+        study_name,
+        study_description,
+        expected_participants,
+        study_design_type_id
+    )
+VALUES (
+        1,
+        'Memory and Attention',
+        'Study on memory retention and focus.',
+        50,
+        1
+    ),
+    (
+        2,
+        'Reaction Speed',
+        'Testing reaction times under various conditions.',
+        30,
+        2
+    ),
+    (
+        3,
+        'Cognitive Load',
+        'Exploring cognitive strain with multitasking.',
+        40,
+        1
+    ),
+    (
+        4,
+        'Visual Perception',
+        'Examining color and shape recognition.',
+        25,
+        2
+    ),
+    (
+        5,
+        'Decision Making',
+        'Study on how participants make decisions under pressure.',
+        45,
+        1
+    ),
+    (
+        6,
+        'Language Processing',
+        'Exploring how people process language in real-time.',
+        35,
+        2
+    ),
+    (
+        7,
+        'Memory Recall',
+        'Study on the accuracy of memory recall over time.',
+        50,
+        1
+    ),
+    (
+        8,
+        'Social Interactions',
+        'Exploring how people interact in group settings.',
+        60,
+        2
+    ),
+    (
+        9,
+        'Stress and Performance',
+        'Investigating the impact of stress on performance.',
+        40,
+        1
+    ),
+    (
+        10,
+        'Motor Skills',
+        'A study on fine and gross motor skills development.',
+        30,
+        2
+    );
+-- Read, Read/Write. No None cuz they just wouldn't be in the table
+INSERT INTO study_user_access_type (
+        study_user_access_type_id,
+        study_user_access_type_description
+    )
+VALUES (1, 'Read'),
+    (2, 'Read/Write');
+-- Owner, Viewer, Editor
+INSERT INTO study_user_role_type (
+        study_user_role_type_id,
+        study_user_role_description,
+        study_user_access_type_id
+    )
+VALUES (1, 'Owner', 2),
+    (2, 'Viewer', 1),
+    (3, 'Editor', 2);
+-- Study User Role
+INSERT INTO study_user_role (study_id, user_id, study_user_role_type_id)
+VALUES (1, 1, 1),
+    (2, 2, 1),
+    (3, 3, 1),
+    (4, 4, 1),
+    (5, 5, 1),
+    (6, 6, 1),
+    (7, 7, 1),
+    (8, 8, 1),
+    (9, 9, 1),
+    (10, 10, 1),
+    -- END OF OWNERS
+    (10, 1, 2),
+    (9, 2, 2),
+    (8, 3, 2),
+    (7, 4, 2),
+    (6, 5, 2),
+    -- END OF VIEWERS
+    (8, 1, 3),
+    (7, 2, 3),
+    (6, 3, 3) -- END OF EDITORS
+;
 -- Tasks
 INSERT INTO task (
         task_id,
+        study_id,
         task_name,
         task_description,
         task_directions,
         duration
     )
 VALUES (
+        1,
         1,
         'Memory Test',
         'A test to assess short-term memory retention',
@@ -101,6 +227,7 @@ VALUES (
     ),
     (
         2,
+        1,
         'Reaction Time',
         'A test to measure how quickly participants respond to stimuli',
         'Use only one hand to complete the task. Specify the hand based on the study setup.',
@@ -108,6 +235,7 @@ VALUES (
     ),
     (
         3,
+        2,
         'Math Problems',
         'A test involving solving simple math problems under time pressure',
         'Complete the task within a strict time constraint. Provide clear timing instructions.',
@@ -115,6 +243,7 @@ VALUES (
     ),
     (
         4,
+        2,
         'Shape Matching',
         'A task where participants match shapes based on predefined criteria',
         'Perform the task while standing upright. Ensure participants are comfortable.',
@@ -122,6 +251,7 @@ VALUES (
     ),
     (
         5,
+        3,
         'Color Recognition',
         'A task to identify colors in different environments',
         'Introduce background noise or visual distractions during the task.',
@@ -129,6 +259,7 @@ VALUES (
     ),
     (
         6,
+        3,
         'Word Search',
         'A task to identify words in a grid',
         'Use the non-dominant hand for the task. Provide clear instructions for participants.',
@@ -136,6 +267,7 @@ VALUES (
     ),
     (
         7,
+        4,
         'Puzzle Solving',
         'A task involving solving a jigsaw puzzle',
         'Perform the task in low-light conditions. Ensure safety and visibility of critical elements.',
@@ -143,6 +275,7 @@ VALUES (
     ),
     (
         8,
+        4,
         'Attention Focus',
         'A task to measure sustained attention during a period of inactivity',
         'Perform the task while simultaneously handling a secondary task. Provide clear secondary task details.',
@@ -150,6 +283,7 @@ VALUES (
     ),
     (
         9,
+        5,
         'Word Association',
         'Participants are given words and must respond with associated terms',
         'Complete the task without prior instructions. Observe natural responses.',
@@ -157,6 +291,7 @@ VALUES (
     ),
     (
         10,
+        5,
         'Spatial Awareness',
         'Test to evaluate awareness of surroundings without direct visual input',
         'Use only the dominant hand for all task interactions.',
@@ -164,6 +299,7 @@ VALUES (
     ),
     (
         11,
+        6,
         'Decision Making',
         'A task to assess decision-making skills under pressure',
         'Perform the task while listening to music. Specify volume and type of music.',
@@ -171,6 +307,7 @@ VALUES (
     ),
     (
         12,
+        6,
         'Hand-Eye Coordination',
         'A task to evaluate the ability to coordinate hand movements with visual input',
         'Conduct the task in a cooler-than-usual environment. Monitor participant comfort.',
@@ -178,6 +315,7 @@ VALUES (
     ),
     (
         13,
+        7,
         'Auditory Perception',
         'A task to measure the ability to identify and respond to sounds',
         'Participants should attempt the task as quickly as possible without sacrificing accuracy.',
@@ -185,6 +323,7 @@ VALUES (
     ),
     (
         14,
+        7,
         'Speed Reading',
         'A task to assess reading speed and comprehension',
         'Perform the task after an energy-draining activity. Assess performance under fatigue.',
@@ -192,6 +331,7 @@ VALUES (
     ),
     (
         15,
+        8,
         'Pattern Recognition',
         'A test to identify patterns in sequences of images or numbers',
         'Perform the task with guidance or assistance from a partner.',
@@ -199,6 +339,7 @@ VALUES (
     ),
     (
         16,
+        8,
         'Memory Recall',
         'A task to test long-term memory recall of specific information',
         'Introduce a stressor like a countdown timer or competitive scenario during the task.',
@@ -206,6 +347,7 @@ VALUES (
     ),
     (
         17,
+        9,
         'Multitasking',
         'A test to assess the ability to handle multiple tasks simultaneously',
         'Complete the task while exposed to ambient background noise.',
@@ -213,6 +355,7 @@ VALUES (
     ),
     (
         18,
+        9,
         'Problem Solving',
         'A task requiring the solving of complex problems under time pressure',
         'Task designed with accessibility in mind, such as larger buttons or on-screen cues.',
@@ -220,6 +363,7 @@ VALUES (
     ),
     (
         19,
+        10,
         'Logical Reasoning',
         'A test to assess the ability to think logically and reason through problems',
         'Perform the task in a virtual environment, simulating real-world conditions.',
@@ -227,6 +371,7 @@ VALUES (
     ),
     (
         20,
+        10,
         'Verbal Fluency',
         'A task to assess the ability to generate words based on specific criteria',
         'Complete the task while collaborating with others remotely via video or chat.',
@@ -353,194 +498,133 @@ VALUES (1, 1),
     (20, 4);
 -- Verbal Fluency (Keyboard Inputs)
 -- Factors
-INSERT INTO factor (factor_id, factor_name, factor_description)
-VALUES
-    (1, 'Blindfolded', 'Participants are blindfolded to limit their visual perception.'),
-    (2, 'One-Handed', 'Participants are required to complete tasks using only one hand.'),
-    (3, 'Time-Limited', 'Tasks must be completed within a specified time limit.'),
-    (4, 'Standing', 'Participants must complete the task while standing, no sitting allowed.'),
-    (5, 'Distraction Present', 'Participants will be exposed to distractions during the task.'),
-    (6, 'Opposite-Handed', 'Participants must perform the task using their non-dominant hand.'),
-    (7, 'Dim Lighting', 'The environment is dimly lit, limiting visual clarity.'),
-    (8, 'Multitasking', 'Participants are asked to handle multiple tasks simultaneously.'),
-    (9, 'No Instructions', 'Participants are not given instructions and must figure out the task on their own.'),
-    (10, 'Dominant Hand Only', 'Only the participant’s dominant hand can be used to complete the task.'),
-    (11, 'Distracted with Music', 'Participants will be listening to music while performing the task.'),
-    (12, 'Cold Room', 'The room temperature is set to be uncomfortably cold during the task.'),
-    (13, 'Fast-Paced', 'The task requires participants to complete actions quickly, with a high tempo.'),
-    (14, 'Low Energy', 'Participants are expected to complete the task with limited energy or stamina.'),
-    (15, 'Partner-Assisted', 'Participants work alongside a partner to complete the task.'),
-    (16, 'Simulated Stress', 'The environment is designed to induce a sense of stress or pressure during the task.'),
-    (17, 'Noisy Environment', 'Participants are exposed to a noisy environment during the task.'),
-    (18, 'Handicap Access', 'The task is designed to accommodate participants with physical disabilities.'),
-    (19, 'Virtual Reality', 'Participants engage with the task in a virtual reality setting.'),
-    (20, 'Remote Collaboration', 'Participants complete the task in collaboration with others remotely.');
-
--- Study Design Types
-INSERT INTO study_design_type (
-        study_design_type_id,
-        study_design_type_description
-    )
-VALUES (1, 'Within'),
-    (2, 'Between');
--- Studies
-INSERT INTO study (
+INSERT INTO factor (
+        factor_id,
         study_id,
-        study_name,
-        study_description,
-        expected_participants,
-        study_design_type_id
+        factor_name,
+        factor_description
     )
 VALUES (
         1,
-        'Memory and Attention',
-        'Study on memory retention and focus.',
-        50,
-        1
+        1,
+        'Blindfolded',
+        'Participants are blindfolded to limit their visual perception.'
     ),
     (
         2,
-        'Reaction Speed',
-        'Testing reaction times under various conditions.',
-        30,
-        2
+        1,
+        'One-Handed',
+        'Participants are required to complete tasks using only one hand.'
     ),
     (
         3,
-        'Cognitive Load',
-        'Exploring cognitive strain with multitasking.',
-        40,
-        1
+        2,
+        'Time-Limited',
+        'Tasks must be completed within a specified time limit.'
     ),
     (
         4,
-        'Visual Perception',
-        'Examining color and shape recognition.',
-        25,
-        2
+        2,
+        'Standing',
+        'Participants must complete the task while standing, no sitting allowed.'
     ),
     (
         5,
-        'Decision Making',
-        'Study on how participants make decisions under pressure.',
-        45,
-        1
+        3,
+        'Distraction Present',
+        'Participants will be exposed to distractions during the task.'
     ),
     (
         6,
-        'Language Processing',
-        'Exploring how people process language in real-time.',
-        35,
-        2
+        3,
+        'Opposite-Handed',
+        'Participants must perform the task using their non-dominant hand.'
     ),
     (
         7,
-        'Memory Recall',
-        'Study on the accuracy of memory recall over time.',
-        50,
-        1
+        4,
+        'Dim Lighting',
+        'The environment is dimly lit, limiting visual clarity.'
     ),
     (
         8,
-        'Social Interactions',
-        'Exploring how people interact in group settings.',
-        60,
-        2
+        4,
+        'Multitasking',
+        'Participants are asked to handle multiple tasks simultaneously.'
     ),
     (
         9,
-        'Stress and Performance',
-        'Investigating the impact of stress on performance.',
-        40,
-        1
+        5,
+        'No Instructions',
+        'Participants are not given instructions and must figure out the task on their own.'
     ),
     (
         10,
-        'Motor Skills',
-        'A study on fine and gross motor skills development.',
-        30,
-        2
+        5,
+        'Dominant Hand Only',
+        'Only the participant’s dominant hand can be used to complete the task.'
+    ),
+    (
+        11,
+        6,
+        'Distracted with Music',
+        'Participants will be listening to music while performing the task.'
+    ),
+    (
+        12,
+        6,
+        'Cold Room',
+        'The room temperature is set to be uncomfortably cold during the task.'
+    ),
+    (
+        13,
+        7,
+        'Fast-Paced',
+        'The task requires participants to complete actions quickly, with a high tempo.'
+    ),
+    (
+        14,
+        7,
+        'Low Energy',
+        'Participants are expected to complete the task with limited energy or stamina.'
+    ),
+    (
+        15,
+        8,
+        'Partner-Assisted',
+        'Participants work alongside a partner to complete the task.'
+    ),
+    (
+        16,
+        8,
+        'Simulated Stress',
+        'The environment is designed to induce a sense of stress or pressure during the task.'
+    ),
+    (
+        17,
+        9,
+        'Noisy Environment',
+        'Participants are exposed to a noisy environment during the task.'
+    ),
+    (
+        18,
+        9,
+        'Handicap Access',
+        'The task is designed to accommodate participants with physical disabilities.'
+    ),
+    (
+        19,
+        10,
+        'Virtual Reality',
+        'Participants engage with the task in a virtual reality setting.'
+    ),
+    (
+        20,
+        10,
+        'Remote Collaboration',
+        'Participants complete the task in collaboration with others remotely.'
     );
--- Read, Read/Write. No None cuz they just wouldn't be in the table
-INSERT INTO study_user_access_type (
-        study_user_access_type_id,
-        study_user_access_type_description
-    )
-VALUES (1, 'Read'),
-    (2, 'Read/Write');
--- Owner, Viewer, Editor
-INSERT INTO study_user_role_type (
-        study_user_role_type_id,
-        study_user_role_description,
-        study_user_access_type_id
-    )
-VALUES (1, 'Owner', 2),
-    (2, 'Viewer', 1),
-    (3, 'Editor', 2);
--- Study User Role
-INSERT INTO study_user_role (study_id, user_id, study_user_role_type_id)
-VALUES (1, 1, 1),
-    (2, 2, 1),
-    (3, 3, 1),
-    (4, 4, 1),
-    (5, 5, 1),
-    (6, 6, 1),
-    (7, 7, 1),
-    (8, 8, 1),
-    (9, 9, 1),
-    (10, 10, 1),
-    -- END OF OWNERS
-    (10, 1, 2),
-    (9, 2, 2),
-    (8, 3, 2),
-    (7, 4, 2),
-    (6, 5, 2),
-    -- END OF VIEWERS
-    (8, 1, 3),
-    (7, 2, 3),
-    (6, 3, 3) -- END OF EDITORS
-;
--- Study Task
-INSERT INTO study_task (study_id, task_id)
-VALUES (1, 1),
-    (1, 2),
-    (2, 3),
-    (2, 4),
-    (3, 5),
-    (3, 6),
-    (4, 7),
-    (4, 8),
-    (5, 9),
-    (5, 10),
-    (6, 11),
-    (6, 12),
-    (7, 13),
-    (7, 14),
-    (8, 15),
-    (8, 16),
-    (9, 17),
-    (9, 18),
-    (10, 19),
-    (10, 20);
--- Study Factor
-INSERT INTO study_factor (study_id, factor_id)
-VALUES (1, 1),
-    (1, 2),
-    (2, 3),
-    (2, 4),
-    (3, 5),
-    (3, 6),
-    (4, 7),
-    (4, 8),
-    (5, 9),
-    (5, 10),
-    (6, 11),
-    (6, 12),
-    (7, 13),
-    (7, 14),
-    (8, 15),
-    (8, 16),
-    (9, 17),
-    (9, 18),
-    (10, 19),
-    (10, 20);
+INSERT INTO participant (participant_id)
+VALUES (NULL);
+INSERT INTO participant_session (participant_id, study_id, created_at, ended_at)
+VALUES (1, 1, NOW(), NULL);

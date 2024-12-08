@@ -169,7 +169,7 @@ export default {
     async populateStudies(userID) {
       try {
         const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_data/${userID}`
+        const path = `${backendUrl}/get_study_data/${userID}`
         const response = await axios.get(path)
 
         if (Array.isArray(response.data)) {
