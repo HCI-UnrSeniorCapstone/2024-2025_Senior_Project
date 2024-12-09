@@ -46,7 +46,7 @@ fi
 
 # Create 3 CSV files with 10 lines of data each
 for i in {1..3}; do
-    file_path="/home/hci/Documents/participants_results/study_1/participant_1/${i}_session_data_instance_id.csv"
+    file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
     mkdir -p "$(dirname "$file_path")"
 
     # Generate 10 lines of data for the CSV
@@ -60,6 +60,11 @@ for i in {1..3}; do
 
     echo "CSV file created at: $file_path"
 
+    create_session_data_instance="
+        USE DEVELOP_fulcrum; INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
+        VALUES (1, 1, 1, 1)
+        "
+    mysql -e "$(printf "$create_session_data_instance")"
     # Update session_data_instance with the generated CSV path
     update_path_session_data_instance="USE DEVELOP_fulcrum; UPDATE session_data_instance SET csv_results_path = '%s' WHERE session_data_instance_id = '%s'"
 
