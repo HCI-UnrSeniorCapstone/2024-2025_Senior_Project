@@ -178,6 +178,12 @@
         </v-dialog>
       </div>
     </v-container>
+
+    <div>
+      <v-alert v-if="saveStatus" :type="alertType" class="top-alert" closable>
+        {{ alertMessage }}
+      </v-alert>
+    </div>
   </v-main>
 
   <v-snackbar
@@ -246,6 +252,10 @@ export default {
       // warning when trying to collapse improperly fileld panel
       collapseError: false,
       collapseErrorMsg: 'Cannot collapse with improperly filled field(s)',
+      // study saved successfully
+      saveStatus: false,
+      alertType: 'success',
+      alertMessage: '',
     }
   },
 
@@ -382,6 +392,15 @@ export default {
       this.dialog = false
     },
 
+    studySaveStatus(type, msg) {
+      this.alertType = type
+      this.alertMessage = msg
+      this.saveStatus = true
+      setTimeout(() => {
+        this.saveStatus = false
+      }, 1500)
+    },
+
     async submit() {
       const submissionData = {
         studyName: this.studyName,
@@ -406,9 +425,12 @@ export default {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_study`
         const response = await axios.post(path, submissionData)
-        console.log('Response:', response)
-        this.exit()
+        this.studySaveStatus('success', 'Study saved successfully!')
+        setTimeout(() => {
+          this.exit()
+        }, 1500)
       } catch (error) {
+        this.studySaveStatus('error', 'Study failed to save!')
         console.error('Error:', error.response?.data || error.message)
       }
     },
@@ -441,5 +463,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+}
+.top-alert {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 2000;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 </style>
