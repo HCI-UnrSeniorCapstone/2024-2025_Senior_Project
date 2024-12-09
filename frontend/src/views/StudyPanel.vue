@@ -174,7 +174,7 @@
 
     <v-row justify="center">
       <v-col cols="auto">
-        <v-btn @click="openNewSession" color="red">Start New Session</v-btn>
+        <v-btn @click="startNewSession" color="red">Start New Session</v-btn>
       </v-col>
     </v-row>
   </v-navigation-drawer>
@@ -285,9 +285,6 @@ export default {
 
         this.focus_study = response.data
 
-        // HAVE THE COMPLETE AND ENTIRE STUDY FORMED HERE (focus_study)
-        const response1 = await axios.post('http://127.0.0.1:5001/study_json', this.focus_study)
-
         console.log(this.focus_study)
 
         this.studyName = this.focus_study.studyName
@@ -322,8 +319,8 @@ export default {
     },
 
     // route to an empty study form page
-    openNewSession() {
-      this.$router.push('/SessionForm')
+    startNewSession() {
+      this.$router.push({ name: 'SessionForm', params: { id: this.studyID } })
     },
   },
 }

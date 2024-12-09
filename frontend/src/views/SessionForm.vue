@@ -1,6 +1,9 @@
 <template>
+  <div>
+    <p>Received Variable: {{ studyId }}</p>
+  </div>
   <div class="container">
-    <v-btn @click="startSession" color="green">Begin Session</v-btn>
+    <v-btn @click="startSession()" color="green">Begin Session</v-btn>
   </div>
 </template>
 
@@ -8,29 +11,55 @@
 import axios from 'axios'
 
 export default {
-  props: {
-    study: {
-      // this is where we need to save the study passed from the study panel
-      type: Object,
-      required: true,
-    },
+  data() {
+    return {
+      studyId: null,
+      participantSessId: null,
+      study: null,
+    }
   },
 
-  data() {
-    return {}
+  mounted() {
+    this.studyId = this.$route.params.id
+    this.getStudyInfo()
   },
 
   methods: {
-    // needs to be modified
+    // identical to fetchStudyData() on StudyPanel.vue
+    // decided best to query using passed study id rather than send study object to this vue
+    // we could miss recent changes to the study if we pass the obj, plus passing phat objects around isnt good
+    async getStudyInfo() {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/load_study/${this.studyId}`
+        const response = await axios.get(path)
+
+        this.study = response.data
+
+        console.log(this.study)
+      } catch (error) {
+        console.error('Error fetching study details:', error)
+      }
+    },
+
+    async getSessionID() {
+      try{
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/create_participant_session/${this.studyId}`
+        const response = await axios.get(path)
+        this.participantSessId = response.data.participant_session_id
+        console.log("Session ID: ", this.participantSessId)
+      } catch(error) {
+        console.error('Error:', error.response?.data || error.message)
+      }
+    }
+
     async startSession() {
       try {
-        const response = axios.post(
-          'http://127.0.0.1:5001/run_study',
-          this.study,
-        ) //local flask
-        console.log('Response:', response.data)
+        const path = 'http://127.0.0.1:5001/run_study'
+        const response = await axios.post(path, this.study)
       } catch (error) {
-        console.error('Error: ', error)
+        console.error('Error:', error.response?.data || error.message)
       }
     },
   },
