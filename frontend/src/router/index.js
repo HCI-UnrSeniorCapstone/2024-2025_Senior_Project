@@ -10,6 +10,7 @@ import TestDB from '../views/TestDB.vue'
 import SessionForm from '../views/SessionForm.vue'
 import TestSendCSV from '../views/TestCSVToServer.vue'
 import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
+import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
 import axios from 'axios'
 
 const router = createRouter({
@@ -72,6 +73,11 @@ const router = createRouter({
           path: '/TestGetCSVInfo',
           name: 'TestGetCSVInfo',
           component: TestGetCSVInfo,
+        },
+        {
+          path: '/TestGetParticipantSessionCSVInfo',
+          name: 'TestGetParticipantSessionCSVInfo',
+          component: TestGetParticipantSessionCSVInfo,
         },
       ],
     },
