@@ -159,10 +159,10 @@ def run_study():
     task_measurements = []
     user_Task = []
 
-    # gets the data from the json file
-    with open('../frontend/public/demo3.json', 'r') as file:
-        data = json.load(file)
-    # submissionData = request.get_json()
+    # # gets the data from the json file
+    # with open('../frontend/public/demo3.json', 'r') as file:
+    #     data = json.load(file)
+    data = request.get_json()
 
     default_tasks = data.get('tasks', [])
     app.logger.debug(f'{default_tasks}')

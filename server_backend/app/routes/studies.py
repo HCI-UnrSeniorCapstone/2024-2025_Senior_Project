@@ -541,7 +541,53 @@ def get_all_session_data_instance(study_id):
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
+
+# When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
+@bp.route("/create_participant_session/<int:study_id>", methods=["POST"])
+def create_participant_session(study_id):
+    try:
         
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        insert_into_participant = """
+        INSERT INTO participant ()
+        VALUES ()
+        """
+        cur.execute(insert_into_participant)
+        
+        # id of the participant just created 
+        # eventually we have to consider a participant being involved in several sessions or studies but no unique data in participant table to be able to differentiate this now
+        participant_id = cur.lastrowid
+        
+        insert_into_participant_session = """
+        INSERT INTO participant_session (participant_id, study_id)
+        VALUES (%s, %s)
+        """
+        cur.execute(insert_into_participant_session, (participant_id, study_id))
+        
+        # session id needed back on the vue side to pass to local script so we can save csv data properly
+        participant_session_id = cur.lastrowid
+
+        # Commit changes to the database
+        conn.commit()        
+        cur.close()  
+        
+        return jsonify({"participant_session_id": participant_session_id}), 201
+
+    except Exception as e:
+        conn.rollback()
+        
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
+                
 # Gets CSV data for 1 participant_session with corresponding types
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
 @bp.route("/get_participant_session_data/<int:study_id>/<int:participant_session_id>", methods=["GET"])

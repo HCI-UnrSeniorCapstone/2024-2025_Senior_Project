@@ -60,7 +60,7 @@ const router = createRouter({
           component: TestDB,
         },
         {
-          path: '/SessionForm',
+          path: '/SessionForm/:id',
           name: 'SessionForm',
           component: SessionForm,
         },
