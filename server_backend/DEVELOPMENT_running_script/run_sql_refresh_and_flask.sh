@@ -53,7 +53,7 @@ start_seconds=$(date -d "$start_time" +%s)
 seconds_offset=0
 
 # Mouse Movements
-for i in {1..3}; do
+for i in {1..1}; do
     file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
     mkdir -p "$(dirname "$file_path")"
 
@@ -95,7 +95,7 @@ for i in {1..3}; do
 done
 
 # Mouse Scrolls
-for i in {4..6}; do
+for i in {2..2}; do
     file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
     mkdir -p "$(dirname "$file_path")"
 
@@ -141,7 +141,7 @@ for i in {4..6}; do
 done
 
 # Mouse Clicks
-for i in {7..9}; do
+for i in {3..3}; do
     file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
     mkdir -p "$(dirname "$file_path")"
 
@@ -184,7 +184,7 @@ for i in {7..9}; do
 done
 
 # Keyboard Inputs
-for i in {10..12}; do
+for i in {4..4}; do
     file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
     mkdir -p "$(dirname "$file_path")"
 
