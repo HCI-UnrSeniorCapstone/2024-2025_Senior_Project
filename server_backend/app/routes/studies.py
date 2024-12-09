@@ -222,7 +222,7 @@ def get_study_data(user_id):
         # Close cursor
         cur.close() 
 
-        return jsonify(results)
+        return jsonify(results), 200
 
     except Exception as e:
         # Error message
@@ -338,7 +338,7 @@ def load_study(study_id):
         
         cur.close()
         
-        return jsonify(study_data)
+        return jsonify(study_data), 200
         
     except Exception as e:
         # Error message
@@ -529,7 +529,7 @@ def get_all_session_data_instance(study_id):
         
         # Close cursor
         cur.close() 
-        return jsonify(df_dict)
+        return jsonify(df_dict), 200
     
     except Exception as e:
         # Error message
@@ -541,3 +541,75 @@ def get_all_session_data_instance(study_id):
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
+        
+# Gets CSV data for 1 participant_session with corresponding types
+# Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
+@bp.route("/get_participant_session_data/<int:study_id>/<int:participant_session_id>", methods=["GET"])
+def get_participant_session_data(study_id, participant_session_id): 
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        select_participant_session_data_query = """
+        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.measurement_option_id
+        FROM session_data_instance sdi
+        JOIN participant_session ps
+        ON ps.participant_session_id = sdi.participant_session_id
+        WHERE ps.study_id = %s AND ps.participant_session_id = %s
+        """
+        
+        cur.execute(select_participant_session_data_query, (study_id, participant_session_id))
+        
+        results = cur.fetchall()
+
+        if not results:
+            return jsonify({
+                "error": "No data found for the given study_id and participant_session_id."
+            }), 404
+
+        df_dict = {}
+        measurement_option_dict = {}
+        
+        for result in results:
+            # Convert CSV to dataframe
+            df = pd.read_csv(result[1])
+            
+            # Convert DataFrame to a list of lists (each row is a list)
+            df_list = df.values.tolist()
+            
+            # Add dataframe JSON to dictionary
+            df_dict[result[0]] = df_list        
+            
+            select_measurment_option_description_query = """
+            SELECT measurement_option_name
+            FROM measurement_option
+            WHERE measurement_option_id = %s
+            """
+            
+            cur.execute(select_measurment_option_description_query, (result[2],))
+            option_name = cur.fetchone()
+            
+            if option_name:
+                measurement_option_dict[result[0]] = option_name[0]
+            else:
+                measurement_option_dict[result[0]] = None
+        
+        cur.close()
+        
+        # Create the response body with both dictionaries
+        response = {
+            "df_dict": df_dict,
+            "measurement_option_dict": measurement_option_dict
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        return jsonify({
+            "error_type": error_type,
+            "error_message": error_message
+        }), 500
