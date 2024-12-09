@@ -2,8 +2,8 @@
 
 # Assuming you're already in the 'server_backend' directory and in venv
 
-# Load environment variables from the .env file
-export $(grep -v '^#' ../.env | xargs)
+# Load specific environment variables from the .env file
+export $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=' ../.env | xargs)
 
 # Run the SQL files in the specified order
 echo "Running drop_tables.sql..."
@@ -226,13 +226,13 @@ for i in {4..4}; do
     fi
 done
 
-
 # Get the Flask port from the environment variable
 FLASK_PORT=$VUE_APP_BACKEND_PORT
 
 # Stop any process running on the specified port
 # Remove any carriage return (\r) that might exist if editing on Windows
 FLASK_PORT=$(echo $FLASK_PORT | tr -d '\r')
+MYSQL_HOST=$(echo $MYSQL_HOST | tr -d '\r')
 
 # Find the PID of the process using the port and kill it
 FLASK_PID=$(lsof -t -i :$FLASK_PORT)
