@@ -3,6 +3,7 @@ import os
 import csv
 from flask import Blueprint, current_app, request, jsonify
 import json
+import pandas as pd
 from app.utility.studies import set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
 
@@ -492,4 +493,51 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
-   
+
+# Gets all CSV data for a study
+# Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
+@bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
+def get_all_session_data_instance(study_id): 
+    
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        select_session_data_instance_routes_query = """
+        SELECT sdi.session_data_instance_id, sdi.csv_results_path
+        FROM session_data_instance sdi
+        JOIN participant_session ps
+        ON ps.participant_session_id = sdi.participant_session_id
+        WHERE ps.study_id = %s
+        """
+        
+        cur.execute(select_session_data_instance_routes_query, (study_id,))
+        
+        results = cur.fetchall()
+        
+        df_dict = dict()
+        for result in results:
+            # Convert CSV to dataframe
+            df = pd.read_csv(result[1])
+            
+            # Convert DataFrame to a list of lists (each row is a list)
+            df_list = df.values.tolist()
+            
+            # Add dataframe jsonto dictionary
+            df_dict[result[0]] = df_list        
+        
+        # Close cursor
+        cur.close() 
+        return jsonify(df_dict)
+    
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
