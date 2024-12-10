@@ -1,4 +1,8 @@
 <template>
+  <div>
+    <p>Received Variable: {{ sessionID }}</p>
+  </div>
+
   <v-main>
     <div class="chart-container">
       <canvas id="scatterChart"></canvas>
@@ -19,7 +23,15 @@ import {
 } from 'chart.js'
 
 export default {
+  data() {
+    return {
+      sessionID: null,
+    }
+  },
+
   mounted() {
+    this.sessionID = this.$route.params.id
+
     Chart.register(
       ScatterController,
       LinearScale,

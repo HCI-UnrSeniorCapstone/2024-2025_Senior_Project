@@ -279,6 +279,7 @@ def load_study(study_id):
         # Get all the factors under the study        
         get_factors = """
         SELECT
+            factor_id AS 'Factor ID',
             factor_name AS 'Factor Name',
             factor_description AS 'Factor Description'
         FROM factor
@@ -306,7 +307,10 @@ def load_study(study_id):
                 for task in task_res
             ],
             "factors": [
-                {"factorName": factor[0], "factorDescription": factor[1] or "No factor description provided"}
+                {
+                'factorID': factor[0],
+                "factorName": factor[1],
+                 "factorDescription": factor[2] or "No factor description provided"}
                 for factor in factor_res
             ]
         }
@@ -331,10 +335,6 @@ def load_study(study_id):
             task["measurementOptions"] = [
                 measurement[1] for measurement in measurement_res if measurement[0] == task["taskID"]
             ]
-        # Discard the taskID's
-        for task in study_data["tasks"]:
-            del task["taskID"]
-        
         
         cur.close()
         
