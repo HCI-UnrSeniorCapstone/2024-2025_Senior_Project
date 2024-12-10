@@ -44,13 +44,6 @@
                 </v-card>
                 <v-divider class="mb-2"></v-divider>
                 <v-card class="metric-card">
-                  <v-icon color="primary"
-                    >mdi-checkbox-marked-circle-outline</v-icon
-                  >
-                  {{ '3 completed sessions' }}
-                </v-card>
-                <v-divider class="mb-2"></v-divider>
-                <v-card class="metric-card">
                   <v-icon color="primary">mdi-swap-horizontal</v-icon>
                   {{ studyDesignType + ' (study design type)' }}
                 </v-card>
@@ -130,7 +123,6 @@
             <v-data-table
               :headers="headers"
               :items="sessions"
-              hide-default-footer
               dense
               class="elevation-2"
             >
@@ -300,8 +292,11 @@ export default {
       this.$emit('update:drawer', false)
     },
 
-    openSession() {
-      this.$router.push({ name: 'SessionReporting', params: { id: '222' } })
+    openSession(item) {
+      this.$router.push({
+        name: 'SessionReporting',
+        params: { id: item.sessionID },
+      })
     },
 
     getColor(status) {
