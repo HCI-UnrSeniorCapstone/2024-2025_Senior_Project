@@ -142,8 +142,11 @@ CREATE TABLE participant_session (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     -- Should be updated and no longer null when session done
     ended_at TIMESTAMP NULL,
+    comments VARCHAR(255) NULL,
+    is_valid TINYINT(1) NOT NULL DEFAULT 1,
     FOREIGN KEY (participant_id) REFERENCES participant(participant_id),
-    FOREIGN KEY (study_id) REFERENCES study(study_id)
+    FOREIGN KEY (study_id) REFERENCES study(study_id),
+    CHECK (is_valid IN (0, 1))
 );
 /*
  NOTE: A session can do the same task / factor instance multiple times

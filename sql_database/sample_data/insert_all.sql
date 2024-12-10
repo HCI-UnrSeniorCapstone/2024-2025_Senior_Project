@@ -657,5 +657,7 @@ VALUES
     (1, 1),
     (1, 2),
     (1, 3);
-INSERT INTO participant_session (participant_id, study_id, created_at, ended_at)
-VALUES (1, 1, NOW(), NULL);
+INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
+VALUES (1, 1, NOW() + INTERVAL 30 MINUTE, "Participant is too smart. Terminate him", 0),
+(1, 1, NULL, "They were very nice", 1),
+(1, 1, NOW() + INTERVAL 23 MINUTE, "Thank you for reading this message", 1);
