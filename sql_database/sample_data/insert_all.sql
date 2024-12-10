@@ -650,7 +650,12 @@ INSERT INTO highest_education_type (highest_education_description) VALUES
 
 
 -- This guy should be participant 1
-INSERT INTO participant (age, gender_type_id, ethnicity_type_id, highest_education_type_id, technology_competence)
-VALUES (25, 1, 1, 1, 1);
+INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
+VALUES (25, 1, 1, 1);
+INSERT INTO participant_ethnicity (participant_id, ethnicity_type_id)
+VALUES 
+    (1, 1),
+    (1, 2),
+    (1, 3);
 INSERT INTO participant_session (participant_id, study_id, created_at, ended_at)
 VALUES (1, 1, NOW(), NULL);

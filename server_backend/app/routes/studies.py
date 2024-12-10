@@ -545,21 +545,51 @@ def get_all_session_data_instance(study_id):
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
 @bp.route("/create_participant_session/<int:study_id>", methods=["POST"])
 def create_participant_session(study_id):
+    # Get request and convert to json
+    submissionData = request.get_json()
+
+    # Formatting display
+    json_object = json.dumps(submissionData, indent=5)
     try:
-        
+        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
         
-        insert_into_participant = """
-        INSERT INTO participant ()
-        VALUES ()
+        # Get gender_type
+        cur.execute("SELECT gender_type_id FROM gender_type WHERE gender_type_description = %s", (submissionData['participantGender'],))
+        result = cur.fetchone()
+        gender_type_id = result[0]
+        
+        # Get highest_education_type
+        cur.execute("SELECT highest_education_type_id FROM highest_education_type WHERE highest_education_type_description = %s", (submissionData['participantEducationLv'],))
+        result = cur.fetchone()
+        highest_education_type_id = result[0]
+        
+        # Insert participant data into the participant table
+        insert_participant_query = """
+        INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
+        VALUES (%s, %s, %s, %s)
         """
-        cur.execute(insert_into_participant)
+        cur.execute(insert_participant_query, (submissionData['participantAge'], gender_type_id, highest_education_type_id, submissionData['participantTechCompetency'],))
         
         # id of the participant just created 
-        # eventually we have to consider a participant being involved in several sessions or studies but no unique data in participant table to be able to differentiate this now
         participant_id = cur.lastrowid
         
+        for ethnicity in submissionData[participantRaceEthnicity]:            
+            # Get ethnicity_type
+            cur.execute("SELECT ethnicity_type_id FROM ethnicity_type WHERE ethnicity_type_description = %s", (submissionData['participantRaceEthnicity'],))
+            result = cur.fetchone()
+            ethnicity_type_id = result[0]      
+
+            # Update intersection table
+            insert_participant_ethnicity_query = """
+            INSERT INTO participant_ethnicity(participant_id, ethnicity_type_id)
+            VALUES (%s, %s)
+            """
+
+            cur.execute(insert_participant_ethnicity_query, (participant_id, ethnicity_type_id,))
+   
+        # Insert participant session data into the participant_session table
         insert_into_participant_session = """
         INSERT INTO participant_session (participant_id, study_id)
         VALUES (%s, %s)
@@ -586,7 +616,7 @@ def create_participant_session(study_id):
         return jsonify({
                 "error_type": error_type,
                 "error_message": error_message
-            }), 500 
+            }), 500
                 
 # Gets CSV data for 1 participant_session with corresponding types
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data

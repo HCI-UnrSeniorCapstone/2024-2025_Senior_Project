@@ -119,13 +119,21 @@ CREATE TABLE participant (
     participant_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     age TINYINT UNSIGNED NULL,
     gender_type_id TINYINT UNSIGNED NULL,
-    ethnicity_type_id TINYINT UNSIGNED NULL,
     highest_education_type_id TINYINT UNSIGNED NULL,
     technology_competence TINYINT UNSIGNED NULL CHECK (technology_competence BETWEEN 0 AND 10),
     FOREIGN KEY (gender_type_id) REFERENCES gender_type(gender_type_id),
-    FOREIGN KEY (ethnicity_type_id) REFERENCES ethnicity_type(ethnicity_type_id),
     FOREIGN KEY (highest_education_type_id) REFERENCES highest_education_type(highest_education_type_id)
 );
+
+-- Intersection Table
+CREATE TABLE participant_ethnicity (
+    participant_id INT,
+    ethnicity_type_id TINYINT UNSIGNED,
+    PRIMARY KEY (participant_id, ethnicity_type_id),
+    FOREIGN KEY (participant_id) REFERENCES participant(participant_id),
+    FOREIGN KEY (ethnicity_type_id) REFERENCES ethnicity_type(ethnicity_type_id)
+);
+
 -- NOTE: This is NOT an intersection. It's named this way since session is a SQL keyword
 CREATE TABLE participant_session (
     participant_session_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
