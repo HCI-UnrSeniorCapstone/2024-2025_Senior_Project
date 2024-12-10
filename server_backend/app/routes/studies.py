@@ -557,12 +557,12 @@ def create_participant_session(study_id):
         cur = conn.cursor()
         
         # Get gender_type
-        cur.execute("SELECT gender_type_id FROM gender_type WHERE gender_type_description = %s", (submissionData['participantGender'],))
+        cur.execute("SELECT gender_type_id FROM gender_type WHERE gender_description = %s", (submissionData['participantGender'],))
         result = cur.fetchone()
         gender_type_id = result[0]
         
         # Get highest_education_type
-        cur.execute("SELECT highest_education_type_id FROM highest_education_type WHERE highest_education_type_description = %s", (submissionData['participantEducationLv'],))
+        cur.execute("SELECT highest_education_type_id FROM highest_education_type WHERE highest_education_description = %s", (submissionData['participantEducationLv'],))
         result = cur.fetchone()
         highest_education_type_id = result[0]
         
@@ -576,9 +576,10 @@ def create_participant_session(study_id):
         # id of the participant just created 
         participant_id = cur.lastrowid
         
-        for ethnicity in submissionData[participantRaceEthnicity]:            
+        race_ethnicities = submissionData.get('participantRaceEthnicity', [])
+        for ethnicity in race_ethnicities:            
             # Get ethnicity_type
-            cur.execute("SELECT ethnicity_type_id FROM ethnicity_type WHERE ethnicity_type_description = %s", (submissionData['participantRaceEthnicity'],))
+            cur.execute("SELECT ethnicity_type_id FROM ethnicity_type WHERE ethnicity_description = %s", (ethnicity,))
             result = cur.fetchone()
             ethnicity_type_id = result[0]      
 

@@ -3,7 +3,7 @@
     <p>Received Variable: {{ studyId }}</p>
   </div>
   <div class="container">
-    <v-btn @click="startSession()" color="green">Begin Session</v-btn>
+    <v-btn @click="getSessionID()" color="green">Begin Session</v-btn>
   </div>
 </template>
 
@@ -46,7 +46,13 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_participant_session/${this.studyId}`
-        const response = await axios.get(path)
+        const response = await axios.post(path, {
+          participantGender: 'Male',
+          participantEducationLv: 'Some College',
+          participantAge: 25,
+          participantRaceEthnicity: ['Asian', 'White'],
+          participantTechCompetency: 5,
+        })
         this.participantSessId = response.data.participant_session_id
         console.log('Session ID: ', this.participantSessId)
         if (this.participantSessId) {
