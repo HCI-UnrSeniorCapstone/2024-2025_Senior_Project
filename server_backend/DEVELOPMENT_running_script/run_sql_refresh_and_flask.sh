@@ -52,14 +52,86 @@ start_seconds=$(date -d "$start_time" +%s)
 # Initialize seconds offset
 seconds_offset=0
 
+
+# Insert participants into participant_session dynamically
+insert_participant_sessions() {
+    #local participant_id=$1
+    for i in {1..3}; do
+        participant_id=$i
+        study_id=1
+        # Generate a random ended_at time
+        ended_at=$(date -d "NOW + $((RANDOM % 60 + 1)) minute" +"'%Y-%m-%d %H:%M:%S'")
+        
+        # Generate a random comment
+        if (( $i == 1 )); then
+            comments="'Participant is too smart. Terminate him'"
+            is_valid=0
+        else
+            comments="'They were very nice'"
+            is_valid=1
+        fi
+        # Generate the SQL INSERT statement for participant_session
+        insert_stmt="USE DEVELOP_fulcrum;
+        INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
+        VALUES ($participant_id, $study_id, $ended_at, $comments, $is_valid);"
+        
+        # Execute the insert statement using mysql
+        mysql -e "$(printf "$insert_stmt" "$participant_id" "$study_id" "$ended_at" "$comments" "$is_valid")"
+
+        if [ $? -eq 0 ]; then
+            echo "Participant $participant_id inserted successfully."
+        else
+            echo "Error inserting Participant $participant_id."
+            exit 1
+        fi
+    done
+}
+insert_participant_sessions
+update_database() {
+    local file_path=$1 
+    local i=$2
+    local measurement_option_id=$3
+    # Insert the session data instance
+    create_session_data_instance="USE DEVELOP_fulcrum;
+        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
+        VALUES ($i, 1, $measurement_option_id, $i);
+    "
+
+    # Execute the insert and retrieve the last inserted ID in the same session
+    session_data_instance_id=$(mysql -e "$create_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
+
+    if [ $? -eq 0 ]; then
+        echo "Last inserted session_data_instance_id: $session_data_instance_id"
+    else
+        echo "Error inserting into session_data_instance."
+        exit 1
+    fi
+
+    # Update session_data_instance with the generated CSV path
+    update_path_session_data_instance="USE DEVELOP_fulcrum;
+    UPDATE session_data_instance SET csv_results_path = '$file_path'
+    WHERE session_data_instance_id = '$session_data_instance_id'"
+
+    # Run the update query
+    echo "Updating session_data_instance with CSV path..."
+    mysql -e "$update_path_session_data_instance"
+
+    if [ $? -eq 0 ]; then
+        echo "session_data_instance updated with CSV path."
+    else
+        echo "Error updating session_data_instance."
+        exit 1
+    fi
+}
+
 # Mouse Movements
-for i in {1..1}; do
-    file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
-    mkdir -p "$(dirname "$file_path")"
+generate_mouse_movements() {
+    local file_path=$1        
+    local start_seconds=$2      
+    local seconds_offset=$3
+    local num=$4
 
-    for j in {1..250}; do
-        seconds_offset=$((seconds_offset + RANDOM % 2))
-
+    for i in {1..25}; do
         # Calculate new time in seconds
         current_seconds=$((start_seconds + seconds_offset))
         # Convert back to HH:MM:SS format
@@ -69,37 +141,20 @@ for i in {1..1}; do
         value2=$((RANDOM % 1000))
         value3=$((RANDOM % 500))
         echo "$time,$value1,$value2,$value3" >> "$file_path"
+
     done
-
     echo "CSV file created at: $file_path"
-
-    create_session_data_instance="
-        USE DEVELOP_fulcrum;
-        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
-        VALUES (1, 1, 1, 1);
-        "
-    mysql -e "$(printf "$create_session_data_instance")"
-    # Update session_data_instance with the generated CSV path
-    update_path_session_data_instance="USE DEVELOP_fulcrum; UPDATE session_data_instance SET csv_results_path = '%s' WHERE session_data_instance_id = '%s'"
-
-    # Run the update query
-    echo "Updating session_data_instance with CSV path..."
-    mysql -e "$(printf "$update_path_session_data_instance" "$file_path" "$i")"
-
-    if [ $? -eq 0 ]; then
-        echo "session_data_instance updated with CSV path."
-    else
-        echo "Error updating session_data_instance."
-        exit 1
-    fi
-done
+    update_database "$file_path" "$num" "1"
+}
 
 # Mouse Scrolls
-for i in {2..2}; do
-    file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
-    mkdir -p "$(dirname "$file_path")"
+generate_mouse_scrolls() {
+    local file_path=$1        
+    local start_seconds=$2      
+    local seconds_offset=$3
+    local num=$4
 
-    for j in {1..250}; do
+    for i in {1..25}; do
         seconds_offset=$((seconds_offset + RANDOM % 2))
 
         # Calculate new time in seconds
@@ -113,39 +168,22 @@ for i in {2..2}; do
         value1=$(echo "scale=2; $RANDOM/1000" | bc)
         value2=$((400 + RANDOM % 801))
         value3=$((350 + RANDOM % 101))
+
         # Append to file
         echo "$time,$value1,$value2,$value3" >> "$file_path"
     done
-
     echo "CSV file created at: $file_path"
+    update_database "$file_path" "$num" "2"
+}
 
-    create_session_data_instance="
-        USE DEVELOP_fulcrum;
-        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
-        VALUES (1, 1, 2, 1);
-        "
-    mysql -e "$(printf "$create_session_data_instance")"
-    # Update session_data_instance with the generated CSV path
-    update_path_session_data_instance="USE DEVELOP_fulcrum; UPDATE session_data_instance SET csv_results_path = '%s' WHERE session_data_instance_id = '%s'"
+# Mouse clicks
+generate_mouse_clicks() {
+    local file_path=$1        
+    local start_seconds=$2      
+    local seconds_offset=$3
+    local num=$4
 
-    # Run the update query
-    echo "Updating session_data_instance with CSV path..."
-    mysql -e "$(printf "$update_path_session_data_instance" "$file_path" "$i")"
-
-    if [ $? -eq 0 ]; then
-        echo "session_data_instance updated with CSV path."
-    else
-        echo "Error updating session_data_instance."
-        exit 1
-    fi
-done
-
-# Mouse Clicks
-for i in {3..3}; do
-    file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
-    mkdir -p "$(dirname "$file_path")"
-
-    for j in {1..250}; do
+    for i in {1..25}; do
         seconds_offset=$((seconds_offset + RANDOM % 2))
 
         # Calculate new time in seconds
@@ -156,39 +194,21 @@ for i in {3..3}; do
         value1=$(echo "scale=2; $RANDOM/1000" | bc)
         value2=$((400 + RANDOM % 801))
         value3=$((350 + RANDOM % 101)) 
+
         # Append to file
         echo "$time,$value1,$value2,$value3" >> "$file_path"
     done
-
     echo "CSV file created at: $file_path"
+    update_database "$file_path" "$num" "3"
+}
 
-    create_session_data_instance="
-        USE DEVELOP_fulcrum;
-        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
-        VALUES (1, 1, 3, 1);
-        "
-    mysql -e "$(printf "$create_session_data_instance")"
-    # Update session_data_instance with the generated CSV path
-    update_path_session_data_instance="USE DEVELOP_fulcrum; UPDATE session_data_instance SET csv_results_path = '%s' WHERE session_data_instance_id = '%s'"
+generate_keyboard_inputs() {
+    local file_path=$1        
+    local start_seconds=$2      
+    local seconds_offset=$3
+    local num=$4
 
-    # Run the update query
-    echo "Updating session_data_instance with CSV path..."
-    mysql -e "$(printf "$update_path_session_data_instance" "$file_path" "$i")"
-
-    if [ $? -eq 0 ]; then
-        echo "session_data_instance updated with CSV path."
-    else
-        echo "Error updating session_data_instance."
-        exit 1
-    fi
-done
-
-# Keyboard Inputs
-for i in {4..4}; do
-    file_path="/home/hci/Documents/participants_results/1_study_id/1_participant_session_id/1_session_data_instance_id/${i}.csv"
-    mkdir -p "$(dirname "$file_path")"
-
-    for j in {1..50}; do
+    for i in {1..25}; do
         seconds_offset=$((seconds_offset + RANDOM % 2))
 
         # Calculate new time in seconds
@@ -199,33 +219,47 @@ for i in {4..4}; do
         value1=$(echo "scale=2; $RANDOM/1000" | bc)
         value2=$((400 + RANDOM % 801))
         value3=$((350 + RANDOM % 101))
+
         # Append to file
         echo "$time,$value1,$value2,$value3" >> "$file_path"
     done
-
     echo "CSV file created at: $file_path"
+    update_database "$file_path" "$num" "4"
+}
+# Make data for the 3 participants in the database
+csv_counter=1
+for i in {1..3}; do
+    file_path_dir="/home/hci/Documents/participants_results/1_study_id/${i}_participant_session_id/"
+    mkdir -p "$(dirname "$file_path_dir")"
+    index=$i
+    #insert_participant_sessions "$i"
 
-    create_session_data_instance="
-        USE DEVELOP_fulcrum;
-        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
-        VALUES (1, 1, 4, 1);
-        "
-    mysql -e "$(printf "$create_session_data_instance")"
-    # Update session_data_instance with the generated CSV path
-    update_path_session_data_instance="USE DEVELOP_fulcrum; UPDATE session_data_instance SET csv_results_path = '%s' WHERE session_data_instance_id = '%s'"
+    #for j in {1..4}; do
+        j=1 
+        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        mkdir -p "$(dirname "$file_path")"
+        generate_mouse_movements "$file_path" "$start_seconds" "$seconds_offset" "$index"
+        csv_counter=$((csv_counter + 1))
 
-    # Run the update query
-    echo "Updating session_data_instance with CSV path..."
-    mysql -e "$(printf "$update_path_session_data_instance" "$file_path" "$i")"
+        j=2
+        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        mkdir -p "$(dirname "$file_path")"
+        generate_mouse_scrolls "$file_path" "$start_seconds" "$seconds_offset" "$index"
+        csv_counter=$((csv_counter + 1))
 
-    if [ $? -eq 0 ]; then
-        echo "session_data_instance updated with CSV path."
-    else
-        echo "Error updating session_data_instance."
-        exit 1
-    fi
+        j=3
+        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        mkdir -p "$(dirname "$file_path")"
+        generate_mouse_clicks "$file_path" "$start_seconds" "$seconds_offset" "$index"
+        csv_counter=$((csv_counter + 1))
+
+        j=4
+        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        mkdir -p "$(dirname "$file_path")"
+        generate_keyboard_inputs "$file_path" "$start_seconds" "$seconds_offset" "$index"
+        csv_counter=$((csv_counter + 1))
+    #done
 done
-
 # Get the Flask port from the environment variable
 FLASK_PORT=$VUE_APP_BACKEND_PORT
 
