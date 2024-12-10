@@ -41,35 +41,35 @@ For experiments conducted outside the platform (e.g., VR, web-based, PowerPoint)
 
   1.  **Frontend**
 
-      - **_Installing_**
+      - **_Retrieving Required Dependencies_**
 
         - Go to the **frontend** folder
         - Run `npm install`
         - Run `npm install chart.js`
         - Run `npm install papaparse`
 
-      - **_Updating_**
+      - **_Appending Dependency List_**
         - This is automatically handled by npm :)
 
   2.  **Local_Backend**
 
-      - **_Installing_**
+      - **_Retrieving Required Dependencies_**
 
         - Activate your **local_backend** venv
         - Run `pip install -r requirements.txt`
 
-      - **_Updating_**
+      - **_Appending Dependency List_**
         - Activate your **local_backend** venv
         - Run `pip freeze > requirements.txt`
 
   3.  **Server_Backend**
 
-      - **_Installing_**
+      - **_Retrieving Required Dependencies_**
 
         - Activate your **server_backend** venv
         - Run `pip install -r requirements.txt`
 
-      - **_Updating_**
+      - **_Appending Dependency List_**
         - Activate your **server_backend** venv
         - Run `pip freeze > requirements.txt`
 
