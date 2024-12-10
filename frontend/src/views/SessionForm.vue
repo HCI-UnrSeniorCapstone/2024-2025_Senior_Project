@@ -58,7 +58,63 @@ export default {
         if (this.participantSessId) {
           // only allow the session to start and info the be passed to local flask if participant id is available
           this.study.participantSessId = this.participantSessId
-          this.startSession()
+          this.study.study_id = this.studyId
+
+          await this.startSession()
+
+          //********* WORK IN PROGRESS ******************************//
+          // const default_measurment_id = {"Mouse Movement": 1, "Mouse Scrolls": 2, "Mouse Clicks": 3, "Keyboard Inputs": 4}
+          // console.log(this.study.tasks[0].taskName) //gets the task name
+          // console.log(this.study.factors[0].factorName) //gets factor name
+          // console.log(this.study.tasks[0].measurementOptions[0]) //gets the measurment name
+          //participantSessId
+          //study_id
+          // console.log(this.study.tasks[0].taskID) //gets the task id
+          // console.log(default_measurment_id["Mouse Scrolls"]) //gets the measurment id
+          // console.log(this.study.factors[0].factorID) //gets the factor id
+
+          // for(let i = 0; i < this.study.tasks.length; i++){
+          //   console.log(this.study.tasks[i].measurementOptions[i])
+          //   if(this.study.tasks[i].measurementOptions[i] == 'Mouse Scrolls' || this.study.tasks[i].measurementOptions[i] == 'Mouse Movement' || this.study.tasks[i].measurementOptions[i] == 'Mouse Clicks'){
+          //     const csv_path = `./${this.study.tasks[i].taskName}_${this.study.factors[i].factorName}_${this.study.tasks[i].measurementOptions[i]}_${this.study.participantSessId}_${this.study.study_id}_${this.study.tasks[i].taskID}_${default_measurment_id['Mouse Scrolls']}_${this.study.factors[i].factorID}.csv`
+          //     console.log(csv_path)
+
+          //     const file = new File([this.getFileBlob_mouse(csv_path)], 'file.csv', { type: 'text/csv' })
+
+          //     const formData = new FormData()
+          //     formData.append('input_csv', this.file) // Append the selected file
+
+          //     const backendUrl = this.$backendUrl
+          //     const path = `${backendUrl}/save_session_data_instance/${this.study.participantSessId}/${this.study.study_id}/${this.study.tasks[i].taskID}/${default_measurment_id[this.study.tasks[i].measurementOptions[i]]}/${this.study.factors[i].factorID}`
+          //     axios
+          //       .post(path, formData, {
+          //         headers: {
+          //           'Content-Type': 'multipart/form-data',
+          //         },
+          //       })
+          //   }
+          //   else if (this.study.tasks[i].measurementOptions[i] == 'Keyboard Inputs'){
+          //     const csv_path = `./${this.study.tasks[i].taskName}_${this.study.factors[i].factorName}_${this.study.tasks[i].measurementOptions[i]}_${this.study.participantSessId}_${this.study.study_id}_${this.study.tasks[i].taskID}_${default_measurment_id['Keyboard Inputs']}_${this.study.factors[i].factorID}.csv`
+          //     console.log(csv_path)
+
+          //     const file = new File([this.getFileBlob_mouse(csv_path)], 'file.csv', { type: 'text/csv' })
+
+          //     const formData = new FormData()
+          //     formData.append('input_csv', this.file)
+
+          //     const backendUrl = this.$backendUrl
+          //     const path = `${backendUrl}/save_session_data_instance/${this.study.participantSessId}/${this.study.study_id}/${this.study.tasks[i].taskID}/${default_measurment_id[this.study.tasks[i].measurementOptions[i]]}/${this.study.factors[i].factorID}`
+          //     axios
+          //       .post(path, formData, {
+          //         headers: {
+          //           'Content-Type': 'multipart/form-data',
+          //         },
+          //       })
+          //   }
+          // }
+
+          //********* WORK IN PROGRESS ******************************//
+
         }
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
@@ -73,9 +129,32 @@ export default {
         console.error('Error:', error.response?.data || error.message)
       }
     },
+    getFileBlob_mouse(filePath) {
+      try {
+        // Example: Convert file content to Blob (assuming CSV data is to be fetched/generated)
+        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,x,y`;
+
+        return new Blob([csvContent], { type: 'text/csv' });
+      } catch (error) {
+        console.error('Error creating Blob:', error);
+        return null;
+      }
+    },
+    getFileBlob_keyboard(filePath) {
+      try {
+        // Example: Convert file content to Blob (assuming CSV data is to be fetched/generated)
+        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,keys`;
+
+        return new Blob([csvContent], { type: 'text/csv' });
+      } catch (error) {
+        console.error('Error creating Blob:', error);
+        return null;
+      }
+    },
   },
 }
 </script>
+
 
 <style scoped>
 .container {
