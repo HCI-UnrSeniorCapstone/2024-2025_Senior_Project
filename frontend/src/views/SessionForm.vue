@@ -43,16 +43,21 @@ export default {
     },
 
     async getSessionID() {
-      try{
+      try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_participant_session/${this.studyId}`
         const response = await axios.get(path)
         this.participantSessId = response.data.participant_session_id
-        console.log("Session ID: ", this.participantSessId)
-      } catch(error) {
+        console.log('Session ID: ', this.participantSessId)
+        if (this.participantSessId) {
+          // only allow the session to start and info the be passed to local flask if participant id is available
+          this.study.participantSessId = this.participantSessId
+          this.startSession()
+        }
+      } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }
-    }
+    },
 
     async startSession() {
       try {
