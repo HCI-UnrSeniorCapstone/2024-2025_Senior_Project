@@ -159,7 +159,7 @@ export default {
   data() {
     return {
       showForm: true,
-      timer: 30,
+      timer: 15,
       timerInterval: null,
       resultsAvailable: false,
       studyId: null,
@@ -232,7 +232,7 @@ export default {
     },
 
     progressTimer() {
-      return (this.timer / 30) * 100
+      return (this.timer / 15) * 100
     },
   },
 
@@ -308,7 +308,7 @@ export default {
         if (this.participantSessId) {
           // only allow the session to start and info the be passed to local flask if participant id is available
           this.study.participantSessId = this.participantSessId
-
+          this.study.study_id = this.studyId
           this.startSession()
           this.viewResultsBtt = true
 
@@ -364,7 +364,6 @@ export default {
           // }
 
           //********* WORK IN PROGRESS ******************************//
-
         }
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
@@ -382,29 +381,28 @@ export default {
     getFileBlob_mouse(filePath) {
       try {
         // Example: Convert file content to Blob (assuming CSV data is to be fetched/generated)
-        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,x,y`;
+        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,x,y`
 
-        return new Blob([csvContent], { type: 'text/csv' });
+        return new Blob([csvContent], { type: 'text/csv' })
       } catch (error) {
-        console.error('Error creating Blob:', error);
-        return null;
+        console.error('Error creating Blob:', error)
+        return null
       }
     },
     getFileBlob_keyboard(filePath) {
       try {
         // Example: Convert file content to Blob (assuming CSV data is to be fetched/generated)
-        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,keys`;
+        const csvContent = `data:text/csv;charset=utf-8,Time,running_time,keys`
 
-        return new Blob([csvContent], { type: 'text/csv' });
+        return new Blob([csvContent], { type: 'text/csv' })
       } catch (error) {
-        console.error('Error creating Blob:', error);
-        return null;
+        console.error('Error creating Blob:', error)
+        return null
       }
     },
   },
 }
 </script>
-
 
 <style scoped>
 .btn-row {

@@ -3,10 +3,17 @@
     <div class="chart-container">
       <canvas id="scatterChart"></canvas>
     </div>
+    <div class="d-flex flex justify-center mt-4">
+      <v-btn color="secondary" class="download-btn" @click="getZip">
+        <v-icon left>mdi-download</v-icon>
+        Download Results
+      </v-btn>
+    </div>
   </v-main>
 </template>
 
 <script>
+import axios from 'axios'
 import Papa from 'papaparse'
 import {
   Chart,
@@ -84,7 +91,7 @@ export default {
           plugins: {
             title: {
               display: true,
-              text: 'Task 1', //need to be dynamic eventually
+              text: 'Task 1 - Factor A', //need to be dynamic eventually
               color: 'black',
               font: {
                 size: 32,
@@ -221,18 +228,53 @@ export default {
 
     main()
   },
+
+  methods: {
+    async getZip() {
+      // get appropriate name based on session id since they are saved as sessionID.zip
+      const zipName = `${this.sessionID}.zip`
+      console.log(zipName)
+      try {
+        const response = await axios.get(
+          `http://127.0.0.1:5001/retrieve_zip/${zipName}`,
+          {
+            responseType: 'blob',
+          },
+        )
+
+        if (response.data.size === 0) {
+          return
+        }
+        console.log('Received file size:', response.data.size)
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', zipName)
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+      } catch (error) {
+        console.error('Error downloading ZIP file:', error)
+      }
+    },
+  },
 }
 </script>
 
 <style>
 .chart-container {
-  width: 80vw;
+  width: 70vw;
   height: auto;
-  max-height: 80vh;
+  max-height: 70vh;
   aspect-ratio: 2;
   margin: 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.download-btn {
+  min-height: 40px;
+  max-width: 30px;
+  margin-top: 10px;
 }
 </style>

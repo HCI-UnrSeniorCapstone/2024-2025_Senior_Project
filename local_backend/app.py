@@ -4,7 +4,7 @@ https://testdriven.io/blog/developing-a-single-page-app-with-flask-and-vuejs/
 '''
 
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 import json
 from flask_cors import CORS
 import threading
@@ -277,12 +277,20 @@ def run_study():
                     random_factor_index, parti_id, int(study_id), task_id, measurment_id, factor_ID)
 
     # turns folder to zip file
-    zip_file_name = f'{parti_id}_measurments.zip'
+    zip_file_name = f'{parti_id}.zip'
     zip_folder(f'./{study_name}', zip_file_name)
     shutil.rmtree(f'./{study_name}')
 
     return "finished"
 
-
+@app.route("/retrieve_zip/<zip_name>", methods=["GET"])
+def retrieve_zip(zip_name):
+    z_path = os.path.join(os.getcwd(), zip_name)
+    if os.path.exists(z_path) and zip_name.endswith('.zip'):
+        return send_file(z_path, as_attachment=True)
+    else:
+        return "", 200
+    
+    
 if __name__ == "__main__":
     app.run(host='localhost', port=5001, debug=True)
