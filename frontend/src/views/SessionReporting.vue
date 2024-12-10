@@ -1,8 +1,4 @@
 <template>
-  <div>
-    <p>Received Variable: {{ sessionID }}</p>
-  </div>
-
   <v-main>
     <div class="chart-container">
       <canvas id="scatterChart"></canvas>
@@ -230,8 +226,13 @@ export default {
 
 <style>
 .chart-container {
-  width: 100%;
-  height: 100%;
+  width: 80vw;
+  height: auto;
+  max-height: 80vh;
   aspect-ratio: 2;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 </style>

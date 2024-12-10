@@ -8,9 +8,6 @@
     <v-toolbar flat dense color="white">
       <v-toolbar-title> {{ studyName }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn icon @click="editStudy">
-        <v-icon color="secondary">mdi-pencil</v-icon>
-      </v-btn>
       <v-btn icon @click="closeDrawer">
         <v-icon color="secondary">mdi-close</v-icon>
       </v-btn>
@@ -93,8 +90,8 @@
                   <template v-if="task.measurementOptions.length > 0">
                     <v-chip
                       size="xsmall"
-                      variant="outlined"
-                      color="secondary"
+                      variant="tonal"
+                      color="primary"
                       rounded
                       v-for="(option, i) in task.measurementOptions"
                       :key="i"
@@ -301,10 +298,6 @@ export default {
 
     closeDrawer() {
       this.$emit('update:drawer', false)
-    },
-
-    editStudy() {
-      return alert('Not implemented yet')
     },
 
     openSession() {

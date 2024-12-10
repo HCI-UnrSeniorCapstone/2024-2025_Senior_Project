@@ -633,10 +633,11 @@ def get_all_session_info(study_id):
         ROW_NUMBER() OVER (ORDER BY created_at) AS 'Session Name',
         created_at AS 'Date Conducted',
         CASE
-           WHEN is_valid = 1 THEN 'Valid'
-           WHEN is_valid = 0 THEN 'Invalid'
+            WHEN is_valid = 1 THEN 'Valid'
+            WHEN is_valid = 0 THEN 'Invalid'
         END AS 'Status',
-        comments AS 'Comments'
+        IFNULL(comments, '') AS 'Comments',  -- If comments is null, return an empty string
+        IFNULL(ended_at, 'N/A') AS 'Ended At'  -- If ended_at is null, return 'N/A'
         FROM participant_session
         WHERE study_id = %s
         """
@@ -668,7 +669,7 @@ def get_participant_session_data(study_id, participant_session_id):
         cur = conn.cursor()
         
         select_participant_session_data_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.measurement_option_id
+        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
         FROM session_data_instance sdi
         JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id
@@ -686,6 +687,8 @@ def get_participant_session_data(study_id, participant_session_id):
 
         df_dict = {}
         measurement_option_dict = {}
+        task_dict = {}
+        factor_dict = {}
         
         for result in results:
             # Convert CSV to dataframe
@@ -711,12 +714,19 @@ def get_participant_session_data(study_id, participant_session_id):
             else:
                 measurement_option_dict[result[0]] = None
         
+            # task dict based upon same id as everything else for key
+            task_dict[result[0]] = result[3]
+            
+            # factor dict based upon same id as everything else for key
+            factor_dict[result[0]] = result[4]
         cur.close()
         
         # Create the response body with both dictionaries
         response = {
             "df_dict": df_dict,
-            "measurement_option_dict": measurement_option_dict
+            "measurement_option_dict": measurement_option_dict,
+            "task_dict": task_dict,
+            "factor_dict": factor_dict
         }
         return jsonify(response), 200
 

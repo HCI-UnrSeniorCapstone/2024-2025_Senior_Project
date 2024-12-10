@@ -652,12 +652,16 @@ INSERT INTO highest_education_type (highest_education_description) VALUES
 -- This guy should be participant 1
 INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
 VALUES (25, 1, 1, 1);
+INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
+VALUES (37, 1, 1, 1);
+INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
+VALUES (49, 1, 1, 1);
 INSERT INTO participant_ethnicity (participant_id, ethnicity_type_id)
 VALUES 
     (1, 1),
     (1, 2),
     (1, 3);
-INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
-VALUES (1, 1, NOW() + INTERVAL 30 MINUTE, "Participant is too smart. Terminate him", 0),
-(1, 1, NULL, "They were very nice", 1),
-(1, 1, NOW() + INTERVAL 23 MINUTE, "Thank you for reading this message", 1);
+-- INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
+-- VALUES (1, 1, NOW() + INTERVAL 30 MINUTE, "Participant is too smart. Terminate him", 0),
+-- (2, 1, NULL, "They were very nice", 1),
+-- (3, 1, NOW() + INTERVAL 23 MINUTE, "Thank you for reading this message", 1);
