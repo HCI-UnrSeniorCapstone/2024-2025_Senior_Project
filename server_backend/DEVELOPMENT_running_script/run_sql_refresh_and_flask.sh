@@ -236,25 +236,25 @@ for i in {1..3}; do
 
     #for j in {1..4}; do
         j=1 
-        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
         mkdir -p "$(dirname "$file_path")"
         generate_mouse_movements "$file_path" "$start_seconds" "$seconds_offset" "$index"
         csv_counter=$((csv_counter + 1))
 
         j=2
-        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
         mkdir -p "$(dirname "$file_path")"
         generate_mouse_scrolls "$file_path" "$start_seconds" "$seconds_offset" "$index"
         csv_counter=$((csv_counter + 1))
 
         j=3
-        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
         mkdir -p "$(dirname "$file_path")"
         generate_mouse_clicks "$file_path" "$start_seconds" "$seconds_offset" "$index"
         csv_counter=$((csv_counter + 1))
 
         j=4
-        file_path="${file_path_dir}${j}_session_data_instance_id/${csv_counter}.csv"
+        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
         mkdir -p "$(dirname "$file_path")"
         generate_keyboard_inputs "$file_path" "$start_seconds" "$seconds_offset" "$index"
         csv_counter=$((csv_counter + 1))
