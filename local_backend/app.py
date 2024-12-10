@@ -61,6 +61,7 @@ def overlay_heatmap(heatmap, screenshot):
 mouse_tracking_thread = None
 keyboard_tracking_thread = None
 
+
 def set_available_features(task_measurments):
     # makes sures the default taks are false
     default_tasks = {'Mouse Movement': False, 'Mouse Scrolls': False,
@@ -73,20 +74,31 @@ def set_available_features(task_measurments):
 
     return default_tasks
 
+
 def Mbox(title, text, style):
     # pop up function (https://stackoverflow.com/questions/2963263/how-can-i-create-a-simple-message-box-in-python)
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
-def get_measurments(user_Task, task_name, task_duration, factor_name, parti_id):
+# 1. I get the Task id, task_direction, factor_id, participant_session_id from vue session form page, add these to the new app.py (TaskName_FactorName_MeasurementType_ParticipantSessionId.csv) -
+
+# 2. Randomization for task and factor combos
+# 3. add the task directions and desction go the pop ups
+# 4. add old zipfile code
+# 5. Download executable
+
+
+def get_measurments(user_Task, task_name, task_descripton, task_direction, task_duration, factor_name, random_factor_index, parti_id):
     # Start getting measurements from task
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
 
         # pop up
         if task_id == 0:
-            Mbox(f'{task_name[task_id]}', 'Start Task', 0)
+            Mbox(f'{task_name[task_id]}',
+                 f'Factor Name: {factor_name[random_factor_index]}\nTask Directions: {task_direction[task_id]}\nTime for task: {task_duration[task_id]} sec\n\nStart Task', 0)
         else:
-            Mbox(f'{task_name[task_id]}', 'Start Next Task', 0)
+            Mbox(f'{task_name[task_id]}',
+                 f'Factor Name: {factor_name[random_factor_index]}\nTask Directions: {task_direction[task_id]}\nTime for task: {task_duration[task_id]} sec\n\nStart Next Task', 0)
 
         # checks to see if any task was added
         if True in user_Task[task_id].values():
@@ -94,7 +106,7 @@ def get_measurments(user_Task, task_name, task_duration, factor_name, parti_id):
 
             if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False or user_Task[task_id]['Keyboard Inputs'] is not False:
                 tracking_thread = threading.Thread(target=get_all_measurements, args=(
-                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], factor_name[task_id], parti_id))
+                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], factor_name[random_factor_index], parti_id))
                 tracking_thread.start()
                 app.logger.debug("tracking")
                 tracking_thread.join()
@@ -111,13 +123,13 @@ def get_measurments(user_Task, task_name, task_duration, factor_name, parti_id):
 
                 time.sleep(1)
                 screenshot = ImageGrab.grab()
-                screenshot.save(f"screenshot_{task_name[task_id]}.png")
+                screenshot.save(f"screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
 
-                screenshot = cv2.imread(f"screenshot_{task_name[task_id]}.png")
+                screenshot = cv2.imread(f"screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
 
                 # Extract mouse movement coordinates
                 coordinates = extract_mouse_movements(
-                    f"{task_name[task_id]}_{factor_name[task_id]}_mouse_movement_{parti_id}_data.csv")
+                    f"{task_name[task_id]}_{factor_name[random_factor_index]}_mouse_movement_{parti_id}_data.csv")
 
                 # Create the heatmap
                 heatmap = create_heatmap(coordinates, screenshot.shape)
@@ -129,29 +141,33 @@ def get_measurments(user_Task, task_name, task_duration, factor_name, parti_id):
                 cv2.imwrite(f"heatmap_{task_name[task_id]}.png", overlay)
 
                 # removes the initial screenshot
-                os.remove(f'./screenshot_{task_name[task_id]}.png')
+                os.remove(f'./screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png')
 
         else:
             app.logger.debug('No Task added')
+
 
 # parses the factor data from the json
 def parse_factor_data(data):
     factor_desc = []
     factor_ID = []
     factor_name = []
-    
+
     # gets all the factor data
     factor_data = data.get('factors', [])
 
     # implement later, this is to randomly choose a task
-    # rand_factor = sorted(factor_data, key=lambda x: random.random())
+    len_of_factors = len(factor_data)
+    random_factor_index = random.randint(0, len_of_factors -1)
+    print(random_factor_index)
 
     for i in range(len(factor_data)):
         factor_desc.append(factor_data[i]['factorDescription'])
         factor_ID.append(int(factor_data[i]['factorID']))
         factor_name.append(factor_data[i]['factorName'])
-    
-    return factor_desc, factor_ID, factor_name
+
+    return factor_desc, factor_ID, factor_name, random_factor_index
+
 
 # parses the task data from the json
 def parse_task_data(data):
@@ -160,23 +176,23 @@ def parse_task_data(data):
     task_direction = []
     task_duration = []
     task_id = []
-    task_name = []   
-    tasks_data = data.get('tasks', [])
+    task_name = []
 
+    tasks_data = data.get('tasks', [])
     # implement later, this is to randomly choose a task
-    # rand_tasks = sorted(task, key=lambda x: random.random())
+    rand_tasks = sorted(tasks_data, key=lambda x: random.random())
 
     # gets all the factor data
-    for i in range(len(tasks_data)):
-        task_measurements.append(tasks_data[i]['measurementOptions'])
-        task_descripton.append(tasks_data[i]['taskDescription'])
-        task_direction.append(tasks_data[i]['taskDirections'])
-        task_name.append(tasks_data[i]['taskName'])
-        task_id.append(tasks_data[i]['taskID'])
-        task_duration.append(float(tasks_data[i]['taskDuration']))
-        
+    for i in range(len(rand_tasks)):
+        task_measurements.append(rand_tasks[i]['measurementOptions'])
+        task_descripton.append(rand_tasks[i]['taskDescription'])
+        task_direction.append(rand_tasks[i]['taskDirections'])
+        task_name.append(rand_tasks[i]['taskName'])
+        task_id.append(rand_tasks[i]['taskID'])
+        task_duration.append(float(rand_tasks[i]['taskDuration']))
 
-    return task_measurements, task_descripton, task_direction, task_duration, task_id, task_name   
+    return task_measurements, task_descripton, task_direction, task_duration, task_id, task_name
+
 
 # gets the rest of the data from the json
 def parse_detail_data(data):
@@ -188,12 +204,14 @@ def parse_detail_data(data):
 
     return parti_count, study_desc, study_dsgn_type, study_name, parti_id
 
+
 # creating app
 app = Flask(__name__)
 app.config.from_object(__name__)
 
 # enable CORS w/ specific routes
 CORS(app, resources={r'/*': {'origins': '*'}})
+
 
 @app.route("/study_json", methods=["POST", "GET"])
 def study_json():
@@ -205,6 +223,7 @@ def study_json():
 
     return 'finished'
 
+
 # gets parameters from server and runs
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
@@ -215,9 +234,11 @@ def run_study():
         data = json.load(file)
     # data = request.get_json()
     # app.logger.debug(f'{data}')
-    factor_desc, factor_ID, factor_name = parse_factor_data(data)
-    task_measurements, task_descripton, task_direction, task_duration, task_id, task_name = parse_task_data(data)
-    parti_count, study_desc, study_dsgn_type, study_name, parti_id = parse_detail_data(data)
+    factor_desc, factor_ID, factor_name, random_factor_index = parse_factor_data(data)
+    task_measurements, task_descripton, task_direction, task_duration, task_id, task_name = parse_task_data(
+        data)
+    parti_count, study_desc, study_dsgn_type, study_name, parti_id = parse_detail_data(
+        data)
 
     # checks to see what rand_tasks were selected
     for task_amount in range(len(task_measurements)):
@@ -225,8 +246,7 @@ def run_study():
         user_Task.append(rand_tasks)
 
     # # RECORDS EXPERIMENTS
-    get_measurments(user_Task, task_name, task_duration, factor_name, parti_id)
-
+    get_measurments(user_Task, task_name, task_descripton,task_direction, task_duration, factor_name, random_factor_index, parti_id)
     return "finished"
 
 
