@@ -16,6 +16,8 @@ import cv2
 import numpy as np  # type: ignore
 import time  # temp for now
 import csv
+import zipfile
+import shutil  # used to remove folder with stuff in it
 
 
 def extract_mouse_movements(log_file):
@@ -54,6 +56,17 @@ def overlay_heatmap(heatmap, screenshot):
     overlay = cv2.addWeighted(screenshot, 0.7, heatmap_colored, 0.3, 0)
     return overlay
 
+# from the internet
+
+
+def zip_folder(folder_path, zip_name):
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, folder_path)
+                zipf.write(file_path, arcname)
+
 # ***********************************************************************************
 
 
@@ -63,16 +76,21 @@ keyboard_tracking_thread = None
 
 
 def set_available_features(task_measurments):
+    meaurement_id = []
     # makes sures the default taks are false
     default_tasks = {'Mouse Movement': False, 'Mouse Scrolls': False,
                      'Mouse Clicks': False, 'Keyboard Inputs': False}
+
+    default_measurment_ids = {'Mouse Movement': 1, 'Mouse Scrolls': 2,
+                              'Mouse Clicks': 3, 'Keyboard Inputs': 4}
 
     # checks if features are in the array, then it will change hash into true
     for task in task_measurments:
         if task in default_tasks:
             default_tasks[task] = True
+            meaurement_id.append(default_measurment_ids[task])
 
-    return default_tasks
+    return default_tasks, meaurement_id
 
 
 def Mbox(title, text, style):
@@ -87,26 +105,26 @@ def Mbox(title, text, style):
 # 5. Download executable
 
 
-def get_measurments(user_Task, task_name, task_descripton, task_direction, task_duration, factor_name, random_factor_index, parti_id):
+def get_measurments(study_name, user_Task, task_name, task_direction, task_duration, factor_name, random_factor_index, parti_id, study_id, user_task_id, default_measurment_ids, factor_ID):
     # Start getting measurements from task
-    for task_id in range(len(user_Task)):
+    for measurment_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
 
         # pop up
-        if task_id == 0:
-            Mbox(f'{task_name[task_id]}',
-                 f'Factor Name: {factor_name[random_factor_index]}\nTask Directions: {task_direction[task_id]}\nTime for task: {task_duration[task_id]} sec\n\nStart Task', 0)
+        if measurment_id == 0:
+            Mbox(f'{task_name[measurment_id]}',
+                 f'Directions: {task_direction[measurment_id]}\nFactor: {factor_name[random_factor_index]}\nDuration: {task_duration[measurment_id]} sec\n\nStart Task', 0)
         else:
-            Mbox(f'{task_name[task_id]}',
-                 f'Factor Name: {factor_name[random_factor_index]}\nTask Directions: {task_direction[task_id]}\nTime for task: {task_duration[task_id]} sec\n\nStart Next Task', 0)
+            Mbox(f'{task_name[measurment_id]}',
+                 f'Directions: {task_direction[measurment_id]}\nFactor: {factor_name[random_factor_index]}\nDuration: {task_duration[measurment_id]} sec\n\nStart Next Task', 0)
 
         # checks to see if any task was added
-        if True in user_Task[task_id].values():
+        if True in user_Task[measurment_id].values():
             start_time = time.time()  # when exeriment starts
 
-            if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False or user_Task[task_id]['Keyboard Inputs'] is not False:
-                tracking_thread = threading.Thread(target=get_all_measurements, args=(
-                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], factor_name[random_factor_index], parti_id))
+            if user_Task[measurment_id]['Mouse Movement'] is not False or user_Task[measurment_id]['Mouse Clicks'] is not False or user_Task[measurment_id]['Mouse Scrolls'] is not False or user_Task[measurment_id]['Keyboard Inputs'] is not False:
+                tracking_thread = threading.Thread(target=get_all_measurements, args=(study_name,
+                                                                                      task_duration[measurment_id], task_name[measurment_id], start_time, user_Task[measurment_id]['Keyboard Inputs'], user_Task[measurment_id]['Mouse Movement'], user_Task[measurment_id]['Mouse Clicks'], user_Task[measurment_id]['Mouse Scrolls'], factor_name[random_factor_index], parti_id, study_id, user_task_id[measurment_id], default_measurment_ids[measurment_id], factor_ID[measurment_id]))
                 tracking_thread.start()
                 app.logger.debug("tracking")
                 tracking_thread.join()
@@ -114,22 +132,24 @@ def get_measurments(user_Task, task_name, task_descripton, task_direction, task_
                 app.logger.debug("not tracking foo")
 
             # pop up
-            Mbox(f'{task_name[task_id]}', 'Task Ended', 0)
+            Mbox(f'{task_name[measurment_id]}', 'Task Ended', 0)
 
             # this portion is from the code vinh sent us
-            if user_Task[task_id]['Mouse Movement'] is not False:
+            if user_Task[measurment_id]['Mouse Movement'] is not False:
                 # TAKES SCREENSHOT OF YOUR SCREEN
                 app.logger.debug("Capturing Screen! Please wait a moment...")
 
                 time.sleep(1)
                 screenshot = ImageGrab.grab()
-                screenshot.save(f"screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
+                screenshot.save(
+                    f"screenshot_{task_name[measurment_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
 
-                screenshot = cv2.imread(f"screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
+                screenshot = cv2.imread(
+                    f"screenshot_{task_name[measurment_id]}_{factor_name[random_factor_index]}_{parti_id}.png")
 
                 # Extract mouse movement coordinates
                 coordinates = extract_mouse_movements(
-                    f"{task_name[task_id]}_{factor_name[random_factor_index]}_mouse_movement_{parti_id}_data.csv")
+                    f"./{study_name}/{task_name[measurment_id]}/{task_name[measurment_id]}_{factor_name[random_factor_index]}_Mouse Movement_{parti_id}_{study_id}_{user_task_id[measurment_id]}_{default_measurment_ids[measurment_id]}_{factor_ID[measurment_id]}_data.csv")
 
                 # Create the heatmap
                 heatmap = create_heatmap(coordinates, screenshot.shape)
@@ -138,10 +158,12 @@ def get_measurments(user_Task, task_name, task_descripton, task_direction, task_
                 overlay = overlay_heatmap(heatmap, screenshot)
 
                 # Save the output
-                cv2.imwrite(f"heatmap_{task_name[task_id]}.png", overlay)
+                cv2.imwrite(
+                    f"./{study_name}/{task_name[measurment_id]}/heatmap_{task_name[measurment_id]}.png", overlay)
 
                 # removes the initial screenshot
-                os.remove(f'./screenshot_{task_name[task_id]}_{factor_name[random_factor_index]}_{parti_id}.png')
+                os.remove(
+                    f'./screenshot_{task_name[measurment_id]}_{factor_name[random_factor_index]}_{parti_id}.png')
 
         else:
             app.logger.debug('No Task added')
@@ -158,8 +180,7 @@ def parse_factor_data(data):
 
     # implement later, this is to randomly choose a task
     len_of_factors = len(factor_data)
-    random_factor_index = random.randint(0, len_of_factors -1)
-    print(random_factor_index)
+    random_factor_index = random.randint(0, len_of_factors - 1)
 
     for i in range(len(factor_data)):
         factor_desc.append(factor_data[i]['factorDescription'])
@@ -201,8 +222,9 @@ def parse_detail_data(data):
     study_dsgn_type = data.get('studyDesignType')
     study_name = data.get('studyName')
     parti_id = data.get('participantSessId')
+    study_id = data.get('study_id')
 
-    return parti_count, study_desc, study_dsgn_type, study_name, parti_id
+    return parti_count, study_desc, study_dsgn_type, study_name, parti_id, study_id
 
 
 # creating app
@@ -230,23 +252,35 @@ def run_study():
     user_Task = []
 
     # # gets the data from the json file
-    with open('../frontend/public/demo3.json', 'r') as file:
-        data = json.load(file)
-    # data = request.get_json()
-    # app.logger.debug(f'{data}')
-    factor_desc, factor_ID, factor_name, random_factor_index = parse_factor_data(data)
+    # with open('../frontend/public/demo3.json', 'r') as file:
+    #     data = json.load(file)
+    data = request.get_json()
+    app.logger.debug(f'{data}')
+    factor_desc, factor_ID, factor_name, random_factor_index = parse_factor_data(
+        data)
     task_measurements, task_descripton, task_direction, task_duration, task_id, task_name = parse_task_data(
         data)
-    parti_count, study_desc, study_dsgn_type, study_name, parti_id = parse_detail_data(
+    parti_count, study_desc, study_dsgn_type, study_name, parti_id, study_id = parse_detail_data(
         data)
 
-    # checks to see what rand_tasks were selected
+    measurment_id = []
+    # checks to see what rand_measurment were selected
     for task_amount in range(len(task_measurements)):
-        rand_tasks = set_available_features(task_measurements[task_amount])
-        user_Task.append(rand_tasks)
+        rand_measurment, rand_measurment_id = set_available_features(task_measurements
+                                                                     [task_amount])
+        # print(rand_measurment, rand_measurment_id)
+        user_Task.append(rand_measurment)
+        measurment_id.append(rand_measurment_id[0])
 
-    # # RECORDS EXPERIMENTS
-    get_measurments(user_Task, task_name, task_descripton,task_direction, task_duration, factor_name, random_factor_index, parti_id)
+    # RECORDS EXPERIMENTS
+    get_measurments(study_name, user_Task, task_name, task_direction, task_duration, factor_name,
+                    random_factor_index, parti_id, int(study_id), task_id, measurment_id, factor_ID)
+
+    # turns folder to zip file
+    zip_file_name = f'{parti_id}_measurments.zip'
+    zip_folder(f'./{study_name}', zip_file_name)
+    shutil.rmtree(f'./{study_name}')
+
     return "finished"
 
 
