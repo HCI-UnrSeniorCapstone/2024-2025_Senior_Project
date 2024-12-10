@@ -493,7 +493,8 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
-
+       
+        
 # Gets all CSV data for a study
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
 @bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
@@ -617,7 +618,45 @@ def create_participant_session(study_id):
                 "error_type": error_type,
                 "error_message": error_message
             }), 500
-                
+
+# Get session general info for study panel
+@bp.route("/get_all_session_info/<int:study_id>", methods=["GET"])
+def get_all_session_info(study_id): 
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        select_session_info_query = """
+        SELECT participant_session_id,
+        ROW_NUMBER() OVER (ORDER BY created_at) AS 'Session Name',
+        created_at AS 'Date Conducted',
+        CASE
+           WHEN is_valid = 1 THEN 'Valid'
+           WHEN is_valid = 0 THEN 'Invalid'
+        END AS 'Status',
+        comments AS 'Comments'
+        FROM participant_session
+        WHERE study_id = %s
+        """
+
+        cur.execute(select_session_info_query, (study_id,))
+        
+        results = cur.fetchall()
+            
+        return jsonify(results), 200
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500 
+
+          
 # Gets CSV data for 1 participant_session with corresponding types
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
 @bp.route("/get_participant_session_data/<int:study_id>/<int:participant_session_id>", methods=["GET"])
