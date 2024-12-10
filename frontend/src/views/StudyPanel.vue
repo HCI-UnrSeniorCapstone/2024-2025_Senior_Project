@@ -217,30 +217,8 @@ export default {
         { key: 'comment', title: 'Comments', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      // sample data until the db is connected
-      sessions: [
-        {
-          sessionName: 'Session 3',
-          dateConducted: '11/22/2024',
-          status: 'Valid',
-          comment:
-            'This is a sample comment of what the researcher may have written post-session.',
-        },
-        {
-          sessionName: 'Session 2',
-          dateConducted: '10/15/2024',
-          status: 'Invalid',
-          comment:
-            'Another sample of comments that could be added to the details for a particular session.',
-        },
-        {
-          sessionName: 'Session 1',
-          dateConducted: '08/28/2024',
-          status: 'Valid',
-          comment:
-            'The lack of creativity in these sample descriptions is superb.',
-        },
-      ],
+      // holds all the studies returned from the db query
+      sessions: [],
     }
   },
 
@@ -264,6 +242,7 @@ export default {
       handler(newStudyID) {
         if (newStudyID) {
           this.fetchStudyDetails(newStudyID)
+          this.populateSessions(newStudyID)
         } else {
           console.warn('studyID not defined on mount')
         }
@@ -298,6 +277,28 @@ export default {
       }
     },
 
+    // populating the sessions table
+    async populateSessions(sessionID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_all_session_info/${sessionID}`
+        const response = await axios.get(path)
+
+        console.log(response)
+        if (Array.isArray(response.data)) {
+          this.sessions = response.data.map(session => ({
+            sessionID: session[0],
+            sessionName: `Session ${session[1]}`,
+            dateConducted: session[2],
+            status: session[3],
+            comment: session[4],
+          }))
+        }
+      } catch (error) {
+        console.error('Error retrieving sessions: ', error)
+      }
+    },
+
     closeDrawer() {
       this.$emit('update:drawer', false)
     },
@@ -307,7 +308,7 @@ export default {
     },
 
     openSession() {
-      this.$router.push('/SessionReporting')
+      this.$router.push({ name: 'SessionReporting', params: { id: '222' } })
     },
 
     getColor(status) {

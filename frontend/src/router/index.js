@@ -38,7 +38,7 @@ const router = createRouter({
           component: StudyForm,
         },
         {
-          path: '/SessionReporting',
+          path: '/SessionReporting/:id',
           name: 'SessionReporting',
           component: SessionReporting,
         },

@@ -154,7 +154,7 @@ export default {
         text: '',
         study: '',
       },
-      // sample data until the db is connected
+      // holds all the studies returned from db query
       studies: [],
     }
   },
