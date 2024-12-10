@@ -633,10 +633,11 @@ def get_all_session_info(study_id):
         ROW_NUMBER() OVER (ORDER BY created_at) AS 'Session Name',
         created_at AS 'Date Conducted',
         CASE
-           WHEN is_valid = 1 THEN 'Valid'
-           WHEN is_valid = 0 THEN 'Invalid'
+            WHEN is_valid = 1 THEN 'Valid'
+            WHEN is_valid = 0 THEN 'Invalid'
         END AS 'Status',
-        comments AS 'Comments'
+        IFNULL(comments, '') AS 'Comments',  -- If comments is null, return an empty string
+        IFNULL(ended_at, 'N/A') AS 'Ended At'  -- If ended_at is null, return 'N/A'
         FROM participant_session
         WHERE study_id = %s
         """
