@@ -160,7 +160,7 @@
                 <v-icon
                   class="me-2"
                   size="small"
-                  @click.stop="openSession(item)"
+                  @click.stop="openSession(item.sessionID)"
                 >
                   mdi-arrow-expand
                 </v-icon>
@@ -307,8 +307,8 @@ export default {
       return alert('Not implemented yet')
     },
 
-    openSession() {
-      this.$router.push({ name: 'SessionReporting', params: { id: '222' } })
+    openSession(sessID) {
+      this.$router.push({ name: 'SessionReporting', params: { id: sessID } })
     },
 
     getColor(status) {
