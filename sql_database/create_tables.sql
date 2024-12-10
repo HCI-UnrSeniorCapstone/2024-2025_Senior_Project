@@ -92,6 +92,23 @@ CREATE TABLE factor (
 -- Recorded instance when study happens
 -- Will have to implement results to this however that is chosen
 -- Participant should be generated
+
+
+CREATE TABLE gender_type (
+    gender_type_id TINYINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    gender_description VARCHAR(255)
+);
+
+CREATE TABLE ethnicity_type (
+    ethnicity_type_id TINYINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ethnicity_description VARCHAR(255)
+);
+
+CREATE TABLE highest_education_type (
+    highest_education_type_id TINYINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    highest_education_description VARCHAR(255)
+);
+
 /*
  Session Rules to ensure:
  1: A particpant may do many sessions
@@ -99,7 +116,15 @@ CREATE TABLE factor (
  3: A session may have many instances of the same task / factor
  */
 CREATE TABLE participant (
-    participant_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+    participant_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    age TINYINT UNSIGNED NULL,
+    gender_type_id TINYINT UNSIGNED NULL,
+    ethnicity_type_id TINYINT UNSIGNED NULL,
+    highest_education_type_id TINYINT UNSIGNED NULL,
+    technology_competence TINYINT UNSIGNED NULL CHECK (technology_competence BETWEEN 0 AND 10),
+    FOREIGN KEY (gender_type_id) REFERENCES gender_type(gender_type_id),
+    FOREIGN KEY (ethnicity_type_id) REFERENCES ethnicity_type(ethnicity_type_id),
+    FOREIGN KEY (highest_education_type_id) REFERENCES highest_education_type(highest_education_type_id)
 );
 -- NOTE: This is NOT an intersection. It's named this way since session is a SQL keyword
 CREATE TABLE participant_session (
