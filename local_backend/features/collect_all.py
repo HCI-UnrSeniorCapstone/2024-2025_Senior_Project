@@ -87,7 +87,7 @@ def on_press(key):
 '''***************************************************************************************************************************'''
 
 # Gets all the measurments
-def get_all_measurements(run_time=10, task_name=None, exe_time=None, key_input_flag=False, move_flag=False, click_flag=False, scroll_flag=False):
+def get_all_measurements(run_time=10, task_name=None, exe_time=None, key_input_flag=False, move_flag=False, click_flag=False, scroll_flag=False, factor_name=0, parti_id=0):
     global mouse_listener, key_listener, running_time, keyboard_data, running_time, mouse_move_data, mouse_click_data, mouse_scroll_data
     running_time = exe_time
 
@@ -115,10 +115,10 @@ def get_all_measurements(run_time=10, task_name=None, exe_time=None, key_input_f
         stop_keyboard_ps()
 
         # makes csv and inserts the data to the csv
-        create_csv(task_name, 'keyboard', 'keyboard', keyboard_data, key_input_flag)
-        create_csv(task_name, 'mouse_movement', 'mouse', mouse_move_data, move_flag)
-        create_csv(task_name, 'mouse_clicks', 'mouse', mouse_click_data, click_flag)
-        create_csv(task_name, 'mouse_scroll', 'mouse', mouse_scroll_data, scroll_flag)
+        create_csv(task_name, 'keyboard', 'keyboard', keyboard_data, key_input_flag, factor_name, parti_id)
+        create_csv(task_name, 'mouse_movement', 'mouse', mouse_move_data, move_flag, factor_name, parti_id)
+        create_csv(task_name, 'mouse_clicks', 'mouse', mouse_click_data, click_flag, factor_name, parti_id)
+        create_csv(task_name, 'mouse_scroll', 'mouse', mouse_scroll_data, scroll_flag, factor_name, parti_id)
         keyboard_data = []
         mouse_move_data = []
         mouse_click_data = []
@@ -136,14 +136,14 @@ def stop_keyboard_ps():
         key_listener.stop()
         key_listener = None
 
-def create_csv(task_name, measur_name, feature, arr_data, is_used):
+def create_csv(task_name, measur_name, feature, arr_data, is_used, factor_name, parti_id):
     if is_used and (feature == 'mouse'):
         df = pd.DataFrame(arr_data, columns=['Time', 'running_time', 'x', 'y'])
-        df.to_csv(f'{task_name}_{measur_name}_data.csv', index=False)
-    
+        df.to_csv(f'{task_name}_{factor_name}_{measur_name}_{parti_id}_data.csv', index=False)
+    #TaskName_FactorName_MeasurementType_ParticipantSessionId.csv
     if is_used and (feature == 'keyboard'):
         df = pd.DataFrame(arr_data, columns=['Time', 'running_time', 'keys'])
-        df.to_csv(f'{task_name}_{measur_name}_data.csv', index=False)
+        df.to_csv(f'{task_name}_{factor_name}_{measur_name}_{parti_id}_data.csv', index=False)
 
 def euclidian_distance(x1, y1, x2, y2):
     ed = ((x1-x2)**2 + (y1-y2)**2)**.5

@@ -77,7 +77,7 @@ def Mbox(title, text, style):
     # pop up function (https://stackoverflow.com/questions/2963263/how-can-i-create-a-simple-message-box-in-python)
     return ctypes.windll.user32.MessageBoxW(0, text, title, style)
 
-def get_measurments(user_Task, task_name, task_duration):
+def get_measurments(user_Task, task_name, task_duration, factor_name, parti_id):
     # Start getting measurements from task
     for task_id in range(len(user_Task)):
         global mouse_tracking_thread, keyboard_tracking_thread
@@ -94,7 +94,7 @@ def get_measurments(user_Task, task_name, task_duration):
 
             if user_Task[task_id]['Mouse Movement'] is not False or user_Task[task_id]['Mouse Clicks'] is not False or user_Task[task_id]['Mouse Scrolls'] is not False or user_Task[task_id]['Keyboard Inputs'] is not False:
                 tracking_thread = threading.Thread(target=get_all_measurements, args=(
-                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls']))
+                    task_duration[task_id], task_name[task_id], start_time, user_Task[task_id]['Keyboard Inputs'], user_Task[task_id]['Mouse Movement'], user_Task[task_id]['Mouse Clicks'], user_Task[task_id]['Mouse Scrolls'], factor_name[task_id], parti_id))
                 tracking_thread.start()
                 app.logger.debug("tracking")
                 tracking_thread.join()
@@ -117,7 +117,7 @@ def get_measurments(user_Task, task_name, task_duration):
 
                 # Extract mouse movement coordinates
                 coordinates = extract_mouse_movements(
-                    f"{task_name[task_id]}_mouse_movement_data.csv")
+                    f"{task_name[task_id]}_{factor_name[task_id]}_mouse_movement_{parti_id}_data.csv")
 
                 # Create the heatmap
                 heatmap = create_heatmap(coordinates, screenshot.shape)
@@ -133,6 +133,60 @@ def get_measurments(user_Task, task_name, task_duration):
 
         else:
             app.logger.debug('No Task added')
+
+# parses the factor data from the json
+def parse_factor_data(data):
+    factor_desc = []
+    factor_ID = []
+    factor_name = []
+    
+    # gets all the factor data
+    factor_data = data.get('factors', [])
+
+    # implement later, this is to randomly choose a task
+    # rand_factor = sorted(factor_data, key=lambda x: random.random())
+
+    for i in range(len(factor_data)):
+        factor_desc.append(factor_data[i]['factorDescription'])
+        factor_ID.append(int(factor_data[i]['factorID']))
+        factor_name.append(factor_data[i]['factorName'])
+    
+    return factor_desc, factor_ID, factor_name
+
+# parses the task data from the json
+def parse_task_data(data):
+    task_measurements = []
+    task_descripton = []
+    task_direction = []
+    task_duration = []
+    task_id = []
+    task_name = []   
+    tasks_data = data.get('tasks', [])
+
+    # implement later, this is to randomly choose a task
+    # rand_tasks = sorted(task, key=lambda x: random.random())
+
+    # gets all the factor data
+    for i in range(len(tasks_data)):
+        task_measurements.append(tasks_data[i]['measurementOptions'])
+        task_descripton.append(tasks_data[i]['taskDescription'])
+        task_direction.append(tasks_data[i]['taskDirections'])
+        task_name.append(tasks_data[i]['taskName'])
+        task_id.append(tasks_data[i]['taskID'])
+        task_duration.append(float(tasks_data[i]['taskDuration']))
+        
+
+    return task_measurements, task_descripton, task_direction, task_duration, task_id, task_name   
+
+# gets the rest of the data from the json
+def parse_detail_data(data):
+    parti_count = data.get('participantCount')
+    study_desc = data.get('studyDescription')
+    study_dsgn_type = data.get('studyDesignType')
+    study_name = data.get('studyName')
+    parti_id = data.get('participantSessId')
+
+    return parti_count, study_desc, study_dsgn_type, study_name, parti_id
 
 # creating app
 app = Flask(__name__)
@@ -154,33 +208,24 @@ def study_json():
 # gets parameters from server and runs
 @app.route("/run_study", methods=["POST", "GET"])
 def run_study():
-    task_name = []
-    task_duration = []
-    task_measurements = []
     user_Task = []
 
     # # gets the data from the json file
-    # with open('../frontend/public/demo3.json', 'r') as file:
-    #     data = json.load(file)
-    data = request.get_json()
-
-    default_tasks = data.get('tasks', [])
-    app.logger.debug(f'{default_tasks}')
-
-    rand_tasks = sorted(default_tasks, key=lambda x: random.random())
-
-    for i in range(len(rand_tasks)):
-        task_name.append(rand_tasks[i]['taskName'])
-        task_duration.append(float(rand_tasks[i]['taskDuration']))
-        task_measurements.append(rand_tasks[i]['measurementOptions'])
+    with open('../frontend/public/demo3.json', 'r') as file:
+        data = json.load(file)
+    # data = request.get_json()
+    # app.logger.debug(f'{data}')
+    factor_desc, factor_ID, factor_name = parse_factor_data(data)
+    task_measurements, task_descripton, task_direction, task_duration, task_id, task_name = parse_task_data(data)
+    parti_count, study_desc, study_dsgn_type, study_name, parti_id = parse_detail_data(data)
 
     # checks to see what rand_tasks were selected
     for task_amount in range(len(task_measurements)):
         rand_tasks = set_available_features(task_measurements[task_amount])
         user_Task.append(rand_tasks)
 
-    # RECORDS EXPERIMENTS
-    get_measurments(user_Task, task_name, task_duration)
+    # # RECORDS EXPERIMENTS
+    get_measurments(user_Task, task_name, task_duration, factor_name, parti_id)
 
     return "finished"
 
