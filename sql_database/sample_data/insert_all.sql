@@ -624,7 +624,38 @@ VALUES (
         'Remote Collaboration',
         'Participants complete the task in collaboration with others remotely.'
     );
-INSERT INTO participant (participant_id)
-VALUES (NULL);
+INSERT INTO gender_type (gender_description) VALUES 
+('Male'),
+('Female'),
+('Non-Binary'),
+('Other'),
+('Prefer Not to Say');
+
+INSERT INTO ethnicity_type (ethnicity_description) VALUES 
+('American Indian or Alaska Native'),
+('Asian'),
+('Black or African American'),
+('Hispanic or Latino'),
+('Native Hawaiian or Other Pacific Islander'),
+('White');
+
+INSERT INTO highest_education_type (highest_education_description) VALUES 
+('Some High School'),
+('High School Graduate or Equivalent'),
+('Some College'),
+('Associate''s Degree'),
+('Bachelor''s Degree'),
+('Master''s Degree'),
+('Doctorate');
+
+
+-- This guy should be participant 1
+INSERT INTO participant (age, gender_type_id, highest_education_type_id, technology_competence)
+VALUES (25, 1, 1, 1);
+INSERT INTO participant_ethnicity (participant_id, ethnicity_type_id)
+VALUES 
+    (1, 1),
+    (1, 2),
+    (1, 3);
 INSERT INTO participant_session (participant_id, study_id, created_at, ended_at)
 VALUES (1, 1, NOW(), NULL);
