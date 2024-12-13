@@ -45,7 +45,7 @@ export default {
     )
 
     const main = async () => {
-      //path to files currently in frontend/public dir
+      //path to files of most recent session
       const backendPath = `http://127.0.0.1:5001/retrieve_csv/`
       const csvData = [
         `${backendPath}1.csv`,
