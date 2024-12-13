@@ -46,18 +46,19 @@ export default {
 
     const main = async () => {
       //path to files currently in frontend/public dir
+      const backendPath = `http://127.0.0.1:5001/retrieve_csv/`
       const csvData = [
-        '/Task 1_keyboard_data.csv',
-        '/Task 1_mouse_clicks_data.csv',
-        '/Task 1_mouse_movement_data.csv',
-        '/Task 1_mouse_scroll_data.csv',
+        `${backendPath}1.csv`,
+        `${backendPath}2.csv`,
+        `${backendPath}3.csv`,
+        `${backendPath}4.csv`,
       ]
 
       //y-axis labels
       const labels = [
         'Keyboard Inputs',
-        'Mouse Clicks',
         'Mouse Movement',
+        'Mouse Clicks',
         'Mouse Scrolls',
       ]
 

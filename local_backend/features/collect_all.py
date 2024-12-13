@@ -137,8 +137,11 @@ def stop_keyboard_ps():
         key_listener.stop()
         key_listener = None
 
-def create_csv(study_name, task_name, measur_name, feature, arr_data, is_used, factor_name, parti_id, study_id, user_task_id, ran_measurment_id, factor_ID):
+temp_csv_counter = 1
 
+def create_csv(study_name, task_name, measur_name, feature, arr_data, is_used, factor_name, parti_id, study_id, user_task_id, ran_measurment_id, factor_ID):
+    global temp_csv_counter
+    
     if not is_used:
         return
 
@@ -153,6 +156,11 @@ def create_csv(study_name, task_name, measur_name, feature, arr_data, is_used, f
 
     task_path_name = os.path.join(parent_path, f'{task_name}_{factor_name}_{measur_name}_{parti_id}_{study_id}_{user_task_id}_{ran_measurment_id}_{factor_ID}_data.csv')
     df.to_csv(task_path_name, index=False)
+    
+    csv_name = f"{temp_csv_counter}.csv"
+    df.to_csv(csv_name,  index=False)
+    temp_csv_counter += 1
+
 
     
 
