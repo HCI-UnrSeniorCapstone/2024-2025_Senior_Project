@@ -291,6 +291,13 @@ def retrieve_zip(zip_name):
     else:
         return "", 200
     
+@app.route("/retrieve_csv/<csv_name>", methods=["GET"])
+def retrieve_csv(csv_name):
+    csv_path = os.path.join(os.getcwd(), csv_name)
+    if os.path.exists(csv_path) and csv_name.endswith('.csv'):
+        return send_file(csv_path, as_attachment=True)
+    else:
+        return "", 404 
     
 if __name__ == "__main__":
     app.run(host='localhost', port=5001, debug=True)
