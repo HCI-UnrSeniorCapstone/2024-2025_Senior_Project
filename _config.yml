@@ -13,16 +13,13 @@
 
 #theme: jekyll-agency
 remote_theme: raviriley/agency-jekyll-theme
-include:
-  - github_page/_data
-  - github_page/_portfolio
 
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 baseurl: "/hci-unrseniorcapstone.github.io" # the subpath of your site, e.g. /blog
 
 title: Fulcrum
 email: sharedhci@gmail.com #this is also the email contact forms will go to
-description: "Agency Bootstrap theme converted to a Jekyll theme, plus new features: Google Analytics, Markdown support, custom pages, and more!"
+description: "Fulcrum is a web-based platform designed to provide HCI researchers with a standardized interface and integrated tools for conducting studies. It streamlines the setup and operation of studies, centralizing many common tasks and reducing reliance on external tools like Excel or custom scripts."
 author: Team 23
 # logo:     #optional, defaults to site title
 # path: assets\img\clients\creative-market.jpg

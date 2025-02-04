@@ -11,25 +11,25 @@
 # -----------------
 en: &DEFAULT_EN
   header:
-    title: Welcome to our Studio!
+    title: Welcome to our Site!
     text: It's Nice To Meet You
-    button: Tell Me More
+    button: Learn more about Fulcrum
     buttonlink: "#services"
 
   services:
     title: "Services"
-    text: "Lorem ipsum"
+    text: "Revolutionizing HCI studies"
     section: services
     list:
-      - title: "E-Commerce"
-        desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minima maxime quam architecto quo inventore harum ex magni, dicta impedit."
-        icon: fas fa-shopping-cart #find more at https://fontawesome.com/icons
-      - title: "Responsive Design"
-        desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minima maxime quam architecto quo inventore harum ex magni, dicta impedit."
+      - title: "Study Creation"
+        desc: "Simplified setup of HCI studies, including tasks, factors, descriptions, limits, etc."
+        icon: fa-regular fa-file-lines #find more at https://fontawesome.com/icons
+      - title: "Session Tracking"
+        desc: "Participant session execution through mouse and keyboard tracking."
         icon: fas fa-laptop
-      - title: "[Markdown](https://en.wikipedia.org/wiki/Markdown)"
-        desc: "Your description here, full **Markdown** support"
-        icon: fab fa-markdown
+      - title: "Analytics Workspace"
+        desc: "Visual breakdowns of study session data"
+        icon: fa-solid fa-chart-line
 
   portfolio:
     title: "Portfolio"
