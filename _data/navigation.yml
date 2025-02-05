@@ -15,9 +15,11 @@ en: &DEFAULT_EN
       section: services
     # - title: "Portfolio"
     #   section: portfolio
-    - title: "About"
+    - title: "Project Description"
+      section: description
+    - title: "About Us"
       section: about
-    - title: "Project Related Resources"
+    - title: "Resources"
       section: resources
     - title: "Team"
       section: team

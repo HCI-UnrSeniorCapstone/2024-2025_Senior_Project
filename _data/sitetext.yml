@@ -40,11 +40,10 @@ en: &DEFAULT_EN
   resources:
     title: "Project Related Resources"
     text: "Learn more about HCI research!"
-    body: "**Between-Subjects vs. Within-Subjects Designs**  
-  [NNGroup: Between-Subjects vs. Within-Subjects](https://www.nngroup.com/articles/between-within-subjects/)  
-  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.\n\n**Human-Computer Interaction (HCI)**  
-  [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)  
-  This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."  
+    body: "**Human-Computer Interaction (HCI)** [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)\n\n
+  **Norman, Donald A. (Donald Arthur), and Donald A. (Donald Arthur) Norman.** [The Design of Everyday Things.] First MIT press edition., MIT, 1998.\n\n
+  **E. Hehman, R. M. Stolier, and J. B. Freeman,** [“Advanced mouse-tracking analytic techniques for enhancing psychological science,”] Group Processes & Intergroup Relations, vol. 18, no. 3, pp. 384–401, Jun. 2014, doi: https://doi.org/10.1177/1368430214538325.\n\n
+  **Freeman, J.B., Ambady, N.** [MouseTracker: Software for studying real-time mental processing using a computer mouse-tracking method.] Behavior Research Methods 42, 226–241 (2010). https://doi.org/10.3758/BRM.42.1.226"  
 
 
     section: resources
@@ -74,12 +73,16 @@ en: &DEFAULT_EN
   #       # you can enforce the alignment
   #       align: right
   #   end: "Be Part <br> of Our <br> Story!"
+  description:
+    title: "Project Description"
+    text: "brief overview"
+    body: "Fulcrum is a web-based platform for conducting HCI research studies. Current processes for conducting HCI research are highly variable; however, two common pain points researchers express are difficulties finding/integrating data collection mechanisms and the dependence on a variety of technologies to conduct a single experiment. Fulcrum standardizes and streamlines this process (while ensuring high levels of customization) by providing users a variety of tools that make it easier to set up their next HCI study. Some of the main capabilities of the platform include creating new user studies, study management, participant session facilitation (with a variety of data collection mechanisms to choose from), session reporting, and data analytics. Additionally, our dashboard workspace enables researchers to quickly review ongoing work, track progress towards custom goals, and jump back into existing workflows. By packaging several functionalities into one product, we can help researchers avoid relying on numerous technologies. Our goal is to develop a platform that supports a variety of HCI study types, which includes interfacing with external environments such as VR. The project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database."
+    section: description
 
   about:
     title: "About Us"
     text: "Our story"
-    body: "Nicholas Jarvis and Brandon Rowell are students at the **University of Nevada, Reno** developing Fulcrum for their CS 426 Senior Project in Computer Science, Spring 2025 of the UNR CSE Department. Vinh Le and Levi Scully are UNR students serving as project advisors. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23.
-    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis and Brandon Rowell make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator. \n\nThe project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies. "
+    body: "This project is a CS 426 Senior Project in Computer Science, during the Spring 2025 for the Department of Computer Science & Engineering at the University of Nevada, Reno. Nicholas Jarvis and Brandon Rowell are students developing Fulcrum, under the guidance of two advisors, Vinh Le and Levi Scully. Vinh Le is an instructor at UNR and OIT Administrator. Levi Scully is a teaching assistant for the university. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23."
     section: about
 
   # clients:
