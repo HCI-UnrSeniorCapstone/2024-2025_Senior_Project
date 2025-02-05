@@ -102,7 +102,7 @@ en: &DEFAULT_EN
 
   team:
     title: "OUR AMAZING TEAM"
-    text: "Undergraduates developers and advisors"
+    text: "Undergraduate developers and advisors"
     subtext: Feel free to reach out and connect!
     section: team
     people:
