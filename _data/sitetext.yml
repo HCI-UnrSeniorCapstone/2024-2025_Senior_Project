@@ -23,13 +23,13 @@ en: &DEFAULT_EN
     list:
       - title: "Study Creation"
         desc: "Simplified setup of HCI studies, including tasks, factors, descriptions, limits, etc."
-        icon: fa-solid fa-clipboard-list #find more at https://fontawesome.com/icons
+        icon: fas fa-clipboard-list #find more at https://fontawesome.com/icons
       - title: "Session Tracking"
         desc: "Participant session execution through mouse and keyboard tracking."
         icon: fas fa-laptop
       - title: "Analytics Workspace"
         desc: "Visual breakdowns of study session data"
-        icon: fa-solid fa-chart-bar
+        icon: fas fa-chart-bar
 
   # portfolio:
   #   title: "Portfolio"
