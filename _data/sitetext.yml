@@ -40,13 +40,9 @@ en: &DEFAULT_EN
   timeline:
     title: "Project Related Resources"
     text: "Learn more about HCI research!"
-    body: "### Useful Resources  
-
-- **Between-Subjects vs. Within-Subjects Designs**  
+    body: "**Between-Subjects vs. Within-Subjects Designs**  
   [NNGroup: Between-Subjects vs. Within-Subjects](https://www.nngroup.com/articles/between-within-subjects/)  
-  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.  
-
-- **Human-Computer Interaction (HCI)**  
+  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.\n\n**Human-Computer Interaction (HCI)**  
   [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)  
   This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."  
 
