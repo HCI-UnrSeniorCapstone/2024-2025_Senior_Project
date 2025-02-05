@@ -40,10 +40,10 @@ en: &DEFAULT_EN
   resources:
     title: "Project Related Resources"
     text: "Learn more about HCI research!"
-    body: "**Human-Computer Interaction (HCI)** [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)\n\n
-  **Norman, Donald A. (Donald Arthur), and Donald A. (Donald Arthur) Norman.** [The Design of Everyday Things.] First MIT press edition., MIT, 1998.\n\n
-  **E. Hehman, R. M. Stolier, and J. B. Freeman,** [“Advanced mouse-tracking analytic techniques for enhancing psychological science,”] Group Processes & Intergroup Relations, vol. 18, no. 3, pp. 384–401, Jun. 2014, doi: https://doi.org/10.1177/1368430214538325.\n\n
-  **Freeman, J.B., Ambady, N.** [MouseTracker: Software for studying real-time mental processing using a computer mouse-tracking method.] Behavior Research Methods 42, 226–241 (2010). https://doi.org/10.3758/BRM.42.1.226"  
+    body: "**Human-Computer Interaction (HCI)** Interaction Design Foundation: Human-Computer Interaction (HCI), https://www.interaction-design.org/literature/topics/human-computer-interaction\n\n
+  **Norman, Donald A. (Donald Arthur), and Donald A. (Donald Arthur) Norman.** The Design of Everyday Things. First MIT press edition., MIT, 1998.\n\n
+  **E. Hehman, R. M. Stolier, and J. B. Freeman,** “Advanced mouse-tracking analytic techniques for enhancing psychological science,” Group Processes & Intergroup Relations, vol. 18, no. 3, pp. 384–401, Jun. 2014, doi: https://doi.org/10.1177/1368430214538325.\n\n
+  **Freeman, J.B., Ambady, N.** MouseTracker: Software for studying real-time mental processing using a computer mouse-tracking method. Behavior Research Methods 42, 226–241 (2010). https://doi.org/10.3758/BRM.42.1.226"  
 
 
     section: resources
@@ -82,7 +82,7 @@ en: &DEFAULT_EN
   about:
     title: "About Us"
     text: "Our story"
-    body: "This project is a CS 426 Senior Project in Computer Science, during the Spring 2025 for the Department of Computer Science & Engineering at the University of Nevada, Reno. Nicholas Jarvis and Brandon Rowell are students developing Fulcrum, under the guidance of two advisors, Vinh Le and Levi Scully. Vinh Le is an instructor at UNR and OIT Administrator. Levi Scully is a teaching assistant for the university. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23."
+    body: "This project is a CS 426 Senior Project in Computer Science, during the Spring 2025 for the Department of Computer Science & Engineering at the University of Nevada, Reno. Nicholas Jarvis and Brandon Rowell are students developing Fulcrum, under the guidance of two advisors, Vinh Le and Levi Scully. Vinh Le is an instructor at UNR and OIT Administrator. Levi Scully is a teaching assistant for the University. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23."
     section: about
 
   # clients:
