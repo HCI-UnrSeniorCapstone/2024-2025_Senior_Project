@@ -103,25 +103,25 @@ en: &DEFAULT_EN
         role: "Undergraduate"
         image: assets/img/team/500x500.jpg
         social:
-          - url: https://linkedin.com
+          - url: www.linkedin.com/in/nicholasrjarvis
             icon: fab fa-linkedin-in
       - name: "Brandon Rowell"
         role: "Undergraduate"
-        image: assets/img/team/2.jpg
-        social:
-          - url: https://linkedin.com
-            icon: fab fa-linkedin-in
+        image: assets/img/team/500x500.jpg
+        # social:
+        #   - url: https://linkedin.com
+        #     icon: fab fa-linkedin-in
       - name: "Vinh Le"
         role: "Advisor (UNR)"
         image: assets/img/team/500x500.jpg
         social:
-          - url: https://linkedin.com
+          - url: https://www.linkedin.com/in/vdacle/
             icon: fab fa-linkedin-in
       - name: "Levi Scully"
         role: "Advisor (UNR)"
         image: assets/img/team/500x500.jpg
         social:
-          - url: https://linkedin.com
+          - url: https://www.linkedin.com/in/levi-scully/
             icon: fab fa-linkedin-in
 
   contact:
