@@ -71,7 +71,8 @@ en: &DEFAULT_EN
   about:
     title: "About Us"
     text: "Our story"
-    body: "Nicholas Jarvis and Brandon Rowell are students at the **University of Nevada, Reno** developing Fulcrum for their senior capstone. Vinh Le and Levi Scully serve as project advisors."
+    body: "Nicholas Jarvis and Brandon Rowell are students at the **University of Nevada, Reno** developing Fulcrum for their CS 426 Senior Project in Computer Science, Spring 2025 of the UNR CSE Department. Vinh Le and Levi Scully are UNR students serving as project advisors. The team identifies themselves by the project name, Fulcrum, and as Team 23.
+    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis, Brandon Rowell, and Jairo Cadena-Mendez make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator. The project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies. "
     section: about
 
   # clients:
