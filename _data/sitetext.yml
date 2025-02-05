@@ -39,7 +39,7 @@ en: &DEFAULT_EN
 
   timeline:
     title: "Project Related Resources"
-    #text: "Lorem ipsum timeline"
+    text: "Learn more about HCI research!"
     body: "### Useful Resources  
 
 - **Between-Subjects vs. Within-Subjects Designs**  
