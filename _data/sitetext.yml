@@ -107,7 +107,7 @@ en: &DEFAULT_EN
             icon: fab fa-linkedin-in
       - name: "Brandon Rowell"
         role: "Undergraduate"
-        image: assets/img/team/500x500.jpg
+        image: assets/img/team/brandon.jpeg
         # social:
         #   - url: https://linkedin.com
         #     icon: fab fa-linkedin-in
