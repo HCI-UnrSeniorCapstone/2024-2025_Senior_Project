@@ -37,7 +37,7 @@ en: &DEFAULT_EN
   #   section: portfolio
   #   closebutton: "Close Project"
 
-  timeline:
+  resources:
     title: "Project Related Resources"
     text: "Learn more about HCI research!"
     body: "**Between-Subjects vs. Within-Subjects Designs**  
@@ -130,21 +130,6 @@ en: &DEFAULT_EN
         social:
           - url: https://www.linkedin.com/in/levi-scully/
             icon: fab fa-linkedin-in
-
-  contact:
-    title: "Contact Us"
-    text: "Ask us questions about Fulcrum!"
-    section: contact
-    name: "Name*"
-    name-validation: "Please enter your name."
-    email: "Email*"
-    email-validation: "Please enter your email address."
-    phone: "Phone Number"
-    phone-validation: "Please enter your phone number."
-    message: "Message*"
-    message-validation: "Please enter a message."
-    subject: "Contact Form Submission"
-    submit: "Send Message"
 
   footer:
     legal: "Privacy Policy"
