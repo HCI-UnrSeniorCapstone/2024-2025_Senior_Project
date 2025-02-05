@@ -37,10 +37,21 @@ en: &DEFAULT_EN
   #   section: portfolio
   #   closebutton: "Close Project"
 
-  # timeline:
-  #   title: "Timeline"
-  #   text: "Lorem ipsum timeline"
-  #   section: timeline
+  timeline:
+    title: "Project Related Resources"
+    #text: "Lorem ipsum timeline"
+    body: "### Useful Resources  
+
+- **Between-Subjects vs. Within-Subjects Designs**  
+  [NNGroup: Between-Subjects vs. Within-Subjects](https://www.nngroup.com/articles/between-within-subjects/)  
+  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.  
+
+- **Human-Computer Interaction (HCI)**  
+  [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)  
+  This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."  
+
+
+    section: resources
   #   # left is the default
   #   #start_align: "left"
   #   events:
@@ -72,7 +83,7 @@ en: &DEFAULT_EN
     title: "About Us"
     text: "Our story"
     body: "Nicholas Jarvis and Brandon Rowell are students at the **University of Nevada, Reno** developing Fulcrum for their CS 426 Senior Project in Computer Science, Spring 2025 of the UNR CSE Department. Vinh Le and Levi Scully are UNR students serving as project advisors. The team identifies themselves by the project name, Fulcrum, and as Team 23.
-    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis and Brandon Rowell make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator. The project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies. "
+    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis and Brandon Rowell make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator. \n\nThe project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies. "
     section: about
 
   # clients:
