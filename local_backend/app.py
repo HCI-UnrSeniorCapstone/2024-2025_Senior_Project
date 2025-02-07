@@ -235,15 +235,16 @@ app.config.from_object(__name__)
 CORS(app, resources={r'/*': {'origins': '*'}})
 
 
-@app.route("/study_json", methods=["POST", "GET"])
-def study_json():
-    submissionData = request.get_json()
+# out of date
+# @app.route("/study_json", methods=["POST", "GET"])
+# def study_json():
+#     submissionData = request.get_json()
 
-    json_object = json.dumps(submissionData, indent=4)
-    with open(f'../frontend/public/demo3.json', 'w') as f:
-        f.write(json_object)
+#     json_object = json.dumps(submissionData, indent=4)
+#     with open(f'../frontend/public/demo3.json', 'w') as f:
+#         f.write(json_object)
 
-    return 'finished'
+#     return 'finished'
 
 
 # gets parameters from server and runs
