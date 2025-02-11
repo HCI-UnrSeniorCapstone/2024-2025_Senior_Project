@@ -536,7 +536,7 @@ def get_all_session_data_instance(study_id):
                     "measurement_option_id": measurement_option_id,
                     "factor_id": factor_id
                 }
-                yield json.dumps({"metadata": metadata}) + '\n'
+                yield json.dumps({"metadata": metadata}, separators=(',', ':')) + '\n'
                 
                 # How many rows read per CSV
                 chunk_size = 2000                
@@ -544,7 +544,7 @@ def get_all_session_data_instance(study_id):
                 # Read the CSV file in chunks
                 for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
                     chunk_list = chunk.values.tolist()
-                    yield json.dumps({"data": chunk_list}) + '\n'
+                    yield json.dumps({"data": chunk_list}, separators=(',', ':')) + '\n'
                         
         # Close the cursor after processing
         cur.close()
