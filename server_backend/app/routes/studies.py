@@ -1,7 +1,7 @@
 import random
 import os
 import csv
-from flask import Blueprint, current_app, request, jsonify
+from flask import Blueprint, current_app, request, jsonify, Response
 import json
 import pandas as pd
 from app.utility.studies import set_available_features, get_study_detail
@@ -499,49 +499,68 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
 @bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance(study_id): 
-    
     try:
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
+        # SQL query to get session data instance details
         select_session_data_instance_routes_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path
+        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, sdi.measurement_option_id, sdi.factor_id
         FROM session_data_instance sdi
         JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id
         WHERE ps.study_id = %s
+        ORDER BY sdi.session_data_instance_id
         """
         
         cur.execute(select_session_data_instance_routes_query, (study_id,))
         
         results = cur.fetchall()
-        
-        df_dict = dict()
+
+        # Sort the results by the size of the CSV files so that the user sees data quicker by loading smallest first
+        results_with_size = []
         for result in results:
-            # Convert CSV to dataframe
-            df = pd.read_csv(result[1])
+            file_size = os.path.getsize(result[1])
+            results_with_size.append((result, file_size))
             
-            # Convert DataFrame to a list of lists (each row is a list)
-            df_list = df.values.tolist()
-            
-            # Add dataframe jsonto dictionary
-            df_dict[result[0]] = df_list        
+        results_with_size.sort(key=lambda x: x[1])
         
-        # Close cursor
-        cur.close() 
-        return jsonify(df_dict), 200
+        def generate_session_data():
+            for result, _ in results_with_size:
+                session_data_instance_id, csv_path, task_id, measurement_option_id, factor_id = result
+                # Send metadata ONCE per session instance
+                metadata = {
+                    "session_data_instance_id": session_data_instance_id,
+                    "task_id": task_id,
+                    "measurement_option_id": measurement_option_id,
+                    "factor_id": factor_id
+                }
+                yield json.dumps({"metadata": metadata}) + '\n'
+                
+                # How many rows read per CSV
+                chunk_size = 2000                
+                
+                # Read the CSV file in chunks
+                for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
+                    chunk_list = chunk.values.tolist()
+                    yield json.dumps({"data": chunk_list}) + '\n'
+                        
+        # Close the cursor after processing
+        cur.close()
+        
+        # Return the response as a streamed response
+        return Response(generate_session_data(), content_type='application/json', status=200)
     
     except Exception as e:
-        # Error message
+        # Error handling
         error_type = type(e).__name__ 
-        error_message = str(e) 
+        error_message = str(e)
         
-        # 500 means internal error, AKA the database probably broke
         return jsonify({
-                "error_type": error_type,
-                "error_message": error_message
-            }), 500 
+            "error_type": error_type,
+            "error_message": error_message
+        }), 500
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
 @bp.route("/create_participant_session/<int:study_id>", methods=["POST"])

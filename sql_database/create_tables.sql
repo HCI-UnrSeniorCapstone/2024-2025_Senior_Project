@@ -162,7 +162,7 @@ CREATE TABLE session_data_instance (
     -- This is where it is stored on hci
     csv_results_path VARCHAR(255) NULL,
     FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
-    FOREIGN KEY (task_id) REFERENCES task_measurement(task_id),
+    FOREIGN KEY (task_id) REFERENCES task(task_id),
     FOREIGN KEY (measurement_option_id) REFERENCES task_measurement(measurement_option_id),
     FOREIGN KEY (factor_id) REFERENCES factor(factor_id)
 );
