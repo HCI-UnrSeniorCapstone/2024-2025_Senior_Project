@@ -263,6 +263,9 @@ export default {
   mounted() {
     this.addTaskFactor('task')
     this.addTaskFactor('factor')
+    // Passed in from redirect
+    this.studyID = this.$route.params.studyID
+    this.userID = this.$route.params.userID
   },
 
   computed: {
@@ -423,8 +426,18 @@ export default {
       console.log(JSON.stringify(submissionData, null, 2))
       try {
         const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/create_study`
-        const response = await axios.post(path, submissionData)
+        let path
+        let response
+        console.log(JSON.stringify(this.studyID))
+        console.log(JSON.stringify(this.userID))
+        // Making new study vs editing
+        if (this.studyID != '' && this.userID != '') {
+          path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
+          response = await axios.put(path, submissionData)
+        } else {
+          path = `${backendUrl}/create_study`
+          response = await axios.post(path, submissionData)
+        }
         this.studySaveStatus('success', 'Study saved successfully!')
         setTimeout(() => {
           this.exit()

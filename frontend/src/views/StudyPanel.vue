@@ -164,6 +164,9 @@
     <v-row justify="center">
       <v-col cols="auto">
         <v-btn @click="startNewSession" color="red">Start New Session</v-btn>
+        <v-btn @click="editExistingStudy" color="purple"
+          >Edit Study Details</v-btn
+        >
       </v-col>
     </v-row>
   </v-navigation-drawer>
@@ -310,6 +313,13 @@ export default {
     // route to an empty study form page
     startNewSession() {
       this.$router.push({ name: 'SessionForm', params: { id: this.studyID } })
+    },
+    // route to create study form
+    editExistingStudy() {
+      this.$router.push({
+        name: 'StudyForm',
+        params: { studyID: this.studyID, userID: 1 }, // 1 is hardcoded for now until we have users
+      })
     },
   },
 }

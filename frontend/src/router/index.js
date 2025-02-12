@@ -33,7 +33,8 @@ const router = createRouter({
           component: UserStudies,
         },
         {
-          path: '/StudyForm',
+          // Id not required (only needed when editing study)
+          path: '/StudyForm/:studyID?/:userID?',
           name: 'StudyForm',
           component: StudyForm,
         },
