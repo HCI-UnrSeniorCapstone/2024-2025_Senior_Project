@@ -4,7 +4,7 @@ import csv
 from flask import Blueprint, current_app, request, jsonify, Response
 import json
 import pandas as pd
-from app.utility.studies import set_available_features, get_study_detail
+from app.utility.studies import create_study_details, create_study_task_factor_details, set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
 
 
@@ -86,7 +86,12 @@ def create_study():
             }), 500 
 
 @bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["PUT"])
-def overwrite_study():
+def overwrite_study(user_id, study_id):
+    # Get request and convert to json
+    submissionData = request.get_json()
+
+    # Formatting display
+    json_object = json.dumps(submissionData, indent=4)
     try:
         conn = get_db_connection()
         cur = conn.cursor()        
@@ -101,9 +106,9 @@ def overwrite_study():
         user_access_exists = cur.fetchone()[0]
 
         # Error Message
-        if user_exists == 0:
+        if user_access_exists == 0:
             # Check if study exists
-            check_study_query """
+            check_study_query = """
             SELECT study_id
             FROM study
             WHERE study_id = %s
@@ -112,10 +117,9 @@ def overwrite_study():
             study_exists = cur.fetchone()[0]
             
             if study_exists == 0:
-                return jsonify({"error": "Study does not exist"}), 404
+                return jsonify({"error": "Study does not exist"}), 404    
             
-            
-        return jsonify({"error": "User does not have access to study"}), 404
+            return jsonify({"error": "User does not have access to study"}), 404
         
         # Error Message
         if user_access_exists[0] == 'Viewer':
