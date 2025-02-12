@@ -4,7 +4,7 @@ import csv
 from flask import Blueprint, current_app, request, jsonify, Response
 import json
 import pandas as pd
-from app.utility.studies import set_available_features, get_study_detail
+from app.utility.studies import create_study_details, create_study_task_factor_details, set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
 
 
@@ -24,79 +24,8 @@ def create_study():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get study_design_type
-        cur.execute("SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s", (submissionData['studyDesignType'],))
-        result = cur.fetchone()
-        study_design_type_id = result[0]
-
-        # Insert study
-        insert_study_query = """
-        INSERT INTO study (study_name, study_description, study_design_type_id, expected_participants)
-        VALUES (%s, %s, %s, %s)
-        """
-        study_name = submissionData['studyName']
-        study_description = submissionData['studyDescription']
-        expected_participants = submissionData['participantCount']
-
-        # Execute study insert
-        cur.execute(insert_study_query, (study_name, study_description, study_design_type_id, expected_participants))
-
-        # Get the study_id of the newly inserted study
-        study_id = cur.lastrowid
-
-        # Insert tasks
-        insert_task_query = """
-        INSERT INTO task (task_name, study_id, task_description, task_directions, duration)
-        VALUES (%s, %s, %s, %s, %s)
-        """
-        for task in submissionData['tasks']:
-            task_name = task['taskName']
-            task_description = task['taskDescription']
-            task_directions = task['taskDirections']
-            task_duration = task.get('taskDuration', None)
-
-            # Error handling for bad duration inputs. Convert empty or invalid values to None
-            if task_duration is not None:
-                try:
-                    task_duration = float(task_duration) if task_duration else None
-                except ValueError:
-                    task_duration = None
-
-            # Execute insert for each task
-            cur.execute(insert_task_query, (task_name, study_id, task_description, task_directions, task_duration))
-
-            # Get the task_id of the newly inserted task
-            task_id = cur.lastrowid
-
-            # Define query for getting measurement_option_id
-            select_measurement_option_query = """
-            SELECT measurement_option_id FROM measurement_option WHERE measurement_option_name = %s
-            """
-            # Define query for inserting task_measurement 
-            insert_measurement_query = """
-            INSERT INTO task_measurement (task_id, measurement_option_id)
-            VALUES (%s, %s)
-            """
-            # Process each measurement option for the task
-            for measurement_option in task['measurementOptions']:
-                # Get id for each measurement option
-                cur.execute(select_measurement_option_query, (measurement_option,))
-                result = cur.fetchone()
-                if result:
-                    measurement_option_id = result[0]
-
-                    # Insert task-to-measurement
-                    cur.execute(insert_measurement_query, (task_id, measurement_option_id))
-
-        # Insert factors
-        for factor in submissionData['factors']:
-            insert_factor_query = """
-            INSERT INTO factor (study_id, factor_name, factor_description)
-            VALUES (%s, %s, %s)
-            """
-            factor_name = factor['factorName']
-            factor_description = factor['factorDescription']
-            cur.execute(insert_factor_query, (study_id, factor_name, factor_description,))
+        study_id = create_study_details(submissionData, conn, cur)
+        create_study_task_factor_details(study_id, submissionData, conn, cur)
 
         # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
         # select_user_query = """
@@ -120,7 +49,7 @@ def create_study():
         #     cur.execute(insert_user_query)
     
             # Get new user_id
-            user_id = 1
+        user_id = 1
 
         # Get owner id
         select_study_user_role_type = """
@@ -143,7 +72,7 @@ def create_study():
         
         # Close cursor
         cur.close()  
-        return 'finished'
+        return jsonify({"message": "Study created successfully"}), 200
 
     except Exception as e:
         # Error message
@@ -155,6 +84,116 @@ def create_study():
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
+
+@bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["PUT"])
+def overwrite_study(user_id, study_id):
+    # Get request and convert to json
+    submissionData = request.get_json()
+
+    # Formatting display
+    json_object = json.dumps(submissionData, indent=4)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()        
+        
+        # Check if user has access
+        check_user_query = """
+        SELECT study_user_role_description 
+        FROM study_user_role 
+        WHERE user_id = %s AND study_id = %s
+        """
+        cur.execute(check_user_query, (user_id, study_id,))
+        user_access_exists = cur.fetchone()[0]
+
+        # Error Message
+        if user_access_exists == 0:
+            # Check if study exists
+            check_study_query = """
+            SELECT study_id
+            FROM study
+            WHERE study_id = %s
+            """
+            cur.execute(check_study_query, (study_id,))
+            study_exists = cur.fetchone()[0]
+            
+            if study_exists == 0:
+                return jsonify({"error": "Study does not exist"}), 404    
+            
+            return jsonify({"error": "User does not have access to study"}), 404
+        
+        # Error Message
+        if user_access_exists[0] == 'Viewer':
+            return jsonify({"error": "User may only view this study"}), 404
+        
+        elif user_access_exists[0] == 'Owner' or user_access_exists[0] == 'Editor':
+            
+            # If sessions exist, info can't be overwritten
+            check_sessions_query = """
+            SELECT COUNT(*)
+            FROM participant_session
+            WHERE study_id = %s 
+            """
+            cur.execute(check_sessions_query, (study_id,))
+            sessions_exist = cur.fetchall()
+            
+            # Error Message
+            if sessions_exist != 0:
+                return jsonify({"error": "Sessions already exist, so the study may not be overwritten"}), 404
+            
+            delete_task_query = """
+            DELETE 
+            FROM task
+            WHERE study_id = %s
+            """
+            cur.exeucte(delete_task_query, (study_id,))
+            
+            delete_factor_query = """
+            DELETE 
+            FROM factor
+            WHERE study_id = %s
+            """
+            cur.exeucte(delete_factor_query, (study_id,))
+            
+            # Get study_design_type
+            cur.execute("SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s", (submissionData['studyDesignType'],))
+            result = cur.fetchone()
+            study_design_type_id = result[0]
+
+            # Update study query
+            update_study_query = """
+            UPDATE study 
+            SET study_name = %s,
+                study_description = %s,
+                study_design_type_id = %s,
+                expected_participants = %s
+            WHERE study_id = %s;
+            """
+
+            study_name = submissionData['studyName']
+            study_description = submissionData['studyDescription']
+            expected_participants = submissionData['participantCount']
+
+            # Execute study update
+            cur.execute(update_study_query, (study_name, study_description, study_design_type_id, expected_participants, study_id,))
+            
+            # Build up rest of info
+            create_study_task_factor_details(study_id, submissionData, conn, cur)
+            
+            # Close cursor
+            cur.close() 
+
+        return jsonify({"message": "Study overwritten successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__ 
+        error_message = str(e) 
+        
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({
+                "error_type": error_type,
+                "error_message": error_message
+            }), 500  
 
 @bp.route("/get_study_data/<int:user_id>", methods=["GET"])
 def get_study_data(user_id):
