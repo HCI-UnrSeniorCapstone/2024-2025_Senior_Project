@@ -99,7 +99,9 @@ def overwrite_study(user_id, study_id):
         # Check if user has access
         check_user_query = """
         SELECT study_user_role_description 
-        FROM study_user_role 
+        FROM study_user_role sur
+        INNER JOIN study_user_role_type surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
         WHERE user_id = %s AND study_id = %s
         """
         cur.execute(check_user_query, (user_id, study_id,))
@@ -120,12 +122,12 @@ def overwrite_study(user_id, study_id):
                 return jsonify({"error": "Study does not exist"}), 404    
             
             return jsonify({"error": "User does not have access to study"}), 404
-        
+        print(user_access_exists)
         # Error Message
-        if user_access_exists[0] == 'Viewer':
+        if user_access_exists == 'Viewer':
             return jsonify({"error": "User may only view this study"}), 404
         
-        elif user_access_exists[0] == 'Owner' or user_access_exists[0] == 'Editor':
+        elif user_access_exists == 'Owner' or user_access_exists == 'Editor':
             
             # If sessions exist, info can't be overwritten
             check_sessions_query = """
@@ -134,7 +136,7 @@ def overwrite_study(user_id, study_id):
             WHERE study_id = %s 
             """
             cur.execute(check_sessions_query, (study_id,))
-            sessions_exist = cur.fetchall()
+            sessions_exist = cur.fetchone()[0]
             
             # Error Message
             if sessions_exist != 0:
@@ -145,14 +147,14 @@ def overwrite_study(user_id, study_id):
             FROM task
             WHERE study_id = %s
             """
-            cur.exeucte(delete_task_query, (study_id,))
+            cur.execute(delete_task_query, (study_id,))
             
             delete_factor_query = """
             DELETE 
             FROM factor
             WHERE study_id = %s
             """
-            cur.exeucte(delete_factor_query, (study_id,))
+            cur.execute(delete_factor_query, (study_id,))
             
             # Get study_design_type
             cur.execute("SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s", (submissionData['studyDesignType'],))
@@ -179,6 +181,8 @@ def overwrite_study(user_id, study_id):
             # Build up rest of info
             create_study_task_factor_details(study_id, submissionData, conn, cur)
             
+            # Commit the transaction
+            conn.commit()
             # Close cursor
             cur.close() 
 
