@@ -28,14 +28,14 @@
       "measurementOptions": ["Mouse Movement"],
       "taskDescription": "Task Des",
       "taskDirections": "Move your mouse foo",
-      "taskDuration": "2.000",
+      "taskDuration": "5.000",
       "taskName": "Task A"
     },
     "22": {
       "measurementOptions": ["Keyboard Inputs"],
       "taskDescription": "Task Des",
       "taskDirections": "Start spamming keyboard lil bru",
-      "taskDuration": "2.000",
+      "taskDuration": null,
       "taskName": "Task B"
     }
   },

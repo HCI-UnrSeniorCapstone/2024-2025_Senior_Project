@@ -7,24 +7,31 @@ import cv2
 import numpy as np
 from PIL import ImageGrab
 import time
+from tracking.utility.file_management import get_save_dir
 
 
-def generate_heatmap(session_id, task, factor, logger):
+def generate_heatmap(session_id, task, factor):
     task_name = task['taskName'].replace(" ","")
     factor_name = factor['factorName'].replace(" ","")
+     
+    dir_fulcrum = get_save_dir()
+    dir_session = os.path.join(dir_fulcrum, f'Session_{session_id}')
+    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
+    os.makedirs(dir_trial, exist_ok = True)
     
-    logger.debug("Capturing Screen! Please wait a moment...")
-
-    # Taking screenshot
-    time.sleep(1)
     screenshot_nm = f"screenshot_{session_id}_{task_name}_{factor_name}.png"
+    screenshot_path = os.path.join(dir_trial, screenshot_nm)
+    
     screenshot = ImageGrab.grab()
-    screenshot.save(screenshot_nm)
+    screenshot.save(screenshot_path)
 
-    screenshot = cv2.imread(screenshot_nm)
+    screenshot = cv2.imread(screenshot_path)
 
+    mouse_data_nm = f"{session_id}_{task_name}_{factor_name}_MouseMovement_data.csv"
+    mouse_data_path = os.path.join(dir_trial, mouse_data_nm)
+    
     # Extract mouse movement coordinates
-    coordinates = extract_mouse_movements(f"./Session_{session_id}/{task_name}_{factor_name}/{session_id}_{task_name}_{factor_name}_MouseMovement_data.csv", logger)
+    coordinates = extract_mouse_movements(mouse_data_path)
 
     if coordinates:
         # Create the heatmap
@@ -32,36 +39,28 @@ def generate_heatmap(session_id, task, factor, logger):
 
         # Overlay the heatmap on the screenshot
         overlay = overlay_heatmap(heatmap, screenshot)
-
-        output_dir = os.path.join(f"Session_{session_id}", f"{task_name}_{factor_name}")
-        os.makedirs(output_dir, exist_ok=True)
         
         # Save the output
         heatmap_nm = f"{session_id}_{task_name}_{factor_name}_MouseMovement_heatmap.png"
-        heatmap_output_path = os.path.join(output_dir, heatmap_nm)
-        cv2.imwrite(heatmap_output_path, overlay)
+        heatmap_path = os.path.join(dir_trial, heatmap_nm)
+        cv2.imwrite(heatmap_path, overlay)
 
         # removes the initial screenshot
-        os.remove(screenshot_nm)
-        
-        logger.debug(f"heatmap has been saved")
-    else:
-        logger.warning(f"no mouse movement data found, abort heatmap creation")
+        os.remove(screenshot_path)
     
         
-def extract_mouse_movements(log_file, logger):
+def extract_mouse_movements(log_file):
     coordinates = []
-    try:
-        with open(log_file, 'r') as f:
-            reader = csv.reader(f)
-            next(reader)  # skips the header
-            for row in reader:
-                x, y = int(row[2]), int(row[3])
-                coordinates.append((x, y))
-    except FileNotFoundError:
-        logger.warning(f"mouse movement file not found")
-    except Exception as e:
-        logger.error(f"error reading mouse movement data")
+    # try:
+    with open(log_file, 'r') as f:
+        reader = csv.reader(f)
+        next(reader)  # skips the header
+        for row in reader:
+            x, y = int(row[2]), int(row[3])
+            coordinates.append((x, y))
+    # except FileNotFoundError:
+        
+    # except Exception as e:
         
     return coordinates
 
