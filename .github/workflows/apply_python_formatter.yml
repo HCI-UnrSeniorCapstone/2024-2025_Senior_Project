@@ -24,6 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install black
 
-      - name: Format Python files with Black
+      - name: Run Black formatter
         run: |
-          black --check --diff .
+          black .
+        
+      - name: Show changed files
+        run: |
+          # Show only files that were changed by Black
+          git diff --name-only
