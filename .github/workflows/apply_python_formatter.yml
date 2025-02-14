@@ -3,11 +3,13 @@ name: Apply Python Black Formatter
 on:
   pull_request:
     types:
-      - closed
+      - opened
+      - synchronize
+    branches:
+      - main
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
+  format_code:
     runs-on: ubuntu-latest
 
     steps:
@@ -43,8 +45,8 @@ jobs:
         run: |
           git config --global user.name "sharedhci"
           git config --global user.email "sharedhci@gmail.com"
-          git add .
+          git add . 
           git commit -m "Apply Black code formatting to: ${{ github.event.pull_request.title }}"
-          git push --force-with-lease
+          git push
         env:
           GITHUB_TOKEN: ${{ secrets.SHARED_HCI_TOKEN }}
