@@ -156,6 +156,41 @@ def zip_one_csv(result):
     return zip_buffer
 
 
+def zip_multiple_csvs_with_folders(results_with_size):
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        # Iterate over each participant session
+        for participant_session_id, csv_records in results_with_size:
+            session_folder = f"session_{participant_session_id}"
+            # Iterate over each CSV record for that session
+            for record_with_size in csv_records:
+                csv_record, _ = record_with_size
+
+                (
+                    _,
+                    csv_path,
+                    _,
+                    task_name,
+                    _,
+                    measurement_option_name,
+                    _,
+                    factor_name,
+                ) = csv_record
+
+                ext = os.path.splitext(csv_path)[1]
+                if os.path.exists(csv_path):
+                    custom_name = (
+                        f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
+                    )
+                    # Put file in folder
+                    arcname = f"{session_folder}/{custom_name}"
+                    zip_file.write(csv_path, arcname=arcname)
+
+    zip_buffer.seek(0)
+    return zip_buffer
+
+
 def zip_multiple_csvs(results_with_size):
     # Create an in-memory bytes buffer for the ZIP archive
     zip_buffer = io.BytesIO()

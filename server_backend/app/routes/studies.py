@@ -19,6 +19,7 @@ from app.utility.studies import (
     set_available_features,
     get_study_detail,
     zip_multiple_csvs,
+    zip_multiple_csvs_with_folders,
     zip_one_csv,
 )
 from app.utility.db_connection import get_db_connection
@@ -617,12 +618,17 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         # Every element of results_with_size will be another list of csv files
         # This separates by participant_sessions
         for result in id_results:
-            results_with_size.append(get_all_participant_session_csv_files(result, cur))
+            participant_session_id = result[0]
+            csv_records = get_all_participant_session_csv_files(
+                participant_session_id, cur
+            )
+            # Append a tuple containing the session ID and its list of CSV records
+            results_with_size.append((participant_session_id, csv_records))
 
         cur.close()
 
         return send_file(
-            zip_multiple_csvs(results_with_size),
+            zip_multiple_csvs_with_folders(results_with_size),
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"participant.zip",
