@@ -127,29 +127,9 @@ def get_all_study_csv_files(study_id, cur):
         for result in results:
             file_size = os.path.getsize(result[1])
             results_with_size.append((result, file_size))
-            print(f"{result}\n\n")
             
         results_with_size.sort(key=lambda x: x[1])
-        return results_with_size
-
-
-def generate_gzip_from_csv(results_with_size):
-    buffer = io.BytesIO()
-    with gzip.GzipFile(fileobj=buffer, mode="wb") as gz:
-        for result, _ in results_with_size:
-            file_path = result[1]  # CSV file path
-            try:
-                with open(file_path, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        gz.write(chunk)  # Write to gzip stream
-                        gz.flush()
-                        buffer.seek(0)
-                        yield buffer.read()  # Yield compressed data
-                        buffer.seek(0)
-                        buffer.truncate(0)  # Clear buffer
-            except FileNotFoundError:
-                continue  # Skip missing files
-    
+        return results_with_size    
 
 def generate_session_data_from_csv(results_with_size, chunk_size):
     for result, _ in results_with_size:

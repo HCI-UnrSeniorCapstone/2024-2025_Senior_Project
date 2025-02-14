@@ -518,7 +518,7 @@ VALUES (
     ),
     (
         3,
-        2,
+        1,
         'Time-Limited',
         'Tasks must be completed within a specified time limit.'
     ),

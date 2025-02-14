@@ -8,7 +8,7 @@ import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
 import pandas as pd
-from app.utility.studies import create_study_details, create_study_task_factor_details, generate_gzip_from_csv, generate_session_data_from_csv, get_all_study_csv_files, set_available_features, get_study_detail
+from app.utility.studies import create_study_details, create_study_task_factor_details, generate_session_data_from_csv, get_all_study_csv_files, set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
 
 
@@ -550,7 +550,7 @@ def get_all_session_data_instance_zip(study_id):
         cur = conn.cursor()
 
         results_with_size = get_all_study_csv_files(study_id, cur)
-        #generate_gzip_from_csv(results_with_size)
+
         # Create an in-memory bytes buffer for the ZIP archive
         zip_buffer = io.BytesIO()
 
@@ -565,24 +565,23 @@ def get_all_session_data_instance_zip(study_id):
         # Create a ZIP file within the buffer
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for result, _ in results_with_size:
-                session_data_instance_id, csv_path, _, task_name, _, measurement_option_name, _, factor_name = result
+                _, csv_path, _, task_name, _, measurement_option_name, _, factor_name = result
                 # should always be csv but this gives protections in future
                 ext = os.path.splitext(csv_path)[1]
                 if os.path.exists(csv_path):  # Ensure the file exists
-                    custom_name = f"{task_name}_{measurement_option_name}_{factor_name}{ext}"
+                    custom_name = f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
                     zip_file.write(csv_path, arcname=custom_name)
 
         # Rewind the buffer's file pointer to the beginning
         zip_buffer.seek(0)
 
-        # Close the cursor after processing
         cur.close()
         
         return send_file(
             zip_buffer,
             mimetype='application/zip',
             as_attachment=True,
-            download_name=f"{study_name}.zip"  # For Flask <2.2 use: attachment_filename='files.zip'
+            download_name=f"{study_name}.zip"
         )
     except Exception as e:
         # Error handling
