@@ -47,4 +47,4 @@ jobs:
           git commit -m "Apply Black code formatting to: ${{ github.event.pull_request.title }}"
           git push --force-with-lease
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SHARED_HCI_TOKEN }}
