@@ -3,16 +3,25 @@ name: Apply Python Black Formatter
 on:
   pull_request:
     types:
-      - closed
+      - opened
+      - synchronize
+    branches:
+      - main
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
+  format_code:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure all branches are fetched
+
+      - name: Checkout the PR branch
+        run: |
+          git fetch origin ${{ github.head_ref }}  # Explicitly fetch the PR branch
+          git checkout ${{ github.head_ref }}      # Checkout the PR branch
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -45,6 +54,6 @@ jobs:
           git config --global user.email "sharedhci@gmail.com"
           git add .
           git commit -m "Apply Black code formatting to: ${{ github.event.pull_request.title }}"
-          git push --force-with-lease
+          git push origin ${{ github.head_ref }}
         env:
           GITHUB_TOKEN: ${{ secrets.SHARED_HCI_TOKEN }}
