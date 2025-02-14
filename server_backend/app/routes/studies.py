@@ -19,7 +19,8 @@ from app.utility.studies import (
     set_available_features,
     get_study_detail,
     zip_multiple_csvs,
-    zip_multiple_csvs_with_folders,
+    zip_multiple_csvs_with_folders_participant,
+    zip_multiple_csvs_with_folders_study,
     zip_one_csv,
 )
 from app.utility.db_connection import get_db_connection
@@ -628,7 +629,7 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         cur.close()
 
         return send_file(
-            zip_multiple_csvs_with_folders(results_with_size),
+            zip_multiple_csvs_with_folders_participant(results_with_size),
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"participant.zip",
@@ -710,6 +711,7 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
+# Gets all CSV data for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
@@ -719,10 +721,11 @@ def get_all_session_data_instance_zip(study_id):
 
         results_with_size = get_all_study_csv_files(study_id, cur)
 
+        # Get the study name for naming the ZIP file
         select_study_name_query = """
-        SELECT s.study_name
-        FROM study AS s
-        WHERE s.study_id = %s
+            SELECT s.study_name
+            FROM study AS s
+            WHERE s.study_id = %s
         """
         cur.execute(select_study_name_query, (study_id,))
         study_name = cur.fetchone()[0]
@@ -730,16 +733,14 @@ def get_all_session_data_instance_zip(study_id):
         cur.close()
 
         return send_file(
-            zip_multiple_csvs(results_with_size),
+            zip_multiple_csvs_with_folders_study(results_with_size),
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{study_name}.zip",
         )
     except Exception as e:
-        # Error handling
         error_type = type(e).__name__
         error_message = str(e)
-
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
