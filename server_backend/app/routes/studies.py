@@ -12,7 +12,7 @@ from app.utility.studies import (
     create_study_details,
     create_study_task_factor_details,
     generate_session_data_from_csv,
-    get_all_participant_csv_files,
+    # get_all_participant_csv_files,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
     get_one_csv_file,
@@ -604,25 +604,28 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        results_with_size = get_all_participant_csv_files(participant_id, cur)
-
-        select_participant_session_creation_query = """
-        SELECT ps.created_at
-        FROM participant_session AS ps 
-        WHERE ps.participant_session_id = %s 
+        select_participant_session_ids_query = """
+        SELECT ps.participant_session_id
+        FROM participant_session AS ps
+        WHERE ps.participant_id = %s
         """
-        cur.execute(
-            select_participant_session_creation_query, (participant_session_id,)
-        )
+        cur.execute(select_participant_session_ids_query, (participant_id,))
 
-        session_time_stamp = cur.fetchone()[0]
+        id_results = cur.fetchall()
+        results_with_size = []
+
+        # Every element of results_with_size will be another list of csv files
+        # This separates by participant_sessions
+        for result in id_results:
+            results_with_size.append(get_all_participant_session_csv_files(result, cur))
+
         cur.close()
 
         return send_file(
             zip_multiple_csvs(results_with_size),
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"{session_time_stamp}_participant_session.zip",
+            download_name=f"participant.zip",
         )
     except Exception as e:
         # Error handling

@@ -196,26 +196,28 @@ def sort_csv_by_size(results):
     results_with_size.sort(key=lambda x: x[1])
     return results_with_size
 
+
 # Gets all csvs from a participant
-def get_all_participant_csv_files(participant_id, cur):
-    select_session_data_instance_route_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
-        FROM session_data_instance sdi
-        INNER JOIN participant_session ps
-        ON ps.participant_session_id = sdi.participant_session_id
-        INNER JOIN task AS t
-        ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
-        INNER JOIN factor AS f
-        ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
-        INNER JOIN measurement_option AS mo
-        ON mo.measurement_option_id = sdi.measurement_option_id
-        WHERE ps.participant_id = %s
-        """
+# def get_all_participant_csv_files(participant_id, cur):
+#     select_session_data_instance_route_query = """
+#         SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
+#         FROM session_data_instance sdi
+#         INNER JOIN participant_session ps
+#         ON ps.participant_session_id = sdi.participant_session_id
+#         INNER JOIN task AS t
+#         ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
+#         INNER JOIN factor AS f
+#         ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
+#         INNER JOIN measurement_option AS mo
+#         ON mo.measurement_option_id = sdi.measurement_option_id
+#         WHERE ps.participant_id = %s
+#         """
 
-    cur.execute(select_session_data_instance_route_query, (participant_id,))
+#     cur.execute(select_session_data_instance_route_query, (participant_id,))
 
-    results = cur.fetchall()
-    return sort_csv_by_size(results))
+#     results = cur.fetchall()
+#     return sort_csv_by_size(results)
+
 
 # Gets all csvs for a participant session
 def get_all_participant_session_csv_files(participant_session_id, cur):
