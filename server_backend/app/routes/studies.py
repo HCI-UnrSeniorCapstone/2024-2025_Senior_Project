@@ -12,9 +12,14 @@ from app.utility.studies import (
     create_study_details,
     create_study_task_factor_details,
     generate_session_data_from_csv,
+    get_all_participant_csv_files,
+    get_all_participant_session_csv_files,
     get_all_study_csv_files,
+    get_one_csv_file,
     set_available_features,
     get_study_detail,
+    zip_multiple_csvs,
+    zip_one_csv,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -588,7 +593,114 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Uses streaming
+# Gets all csvs from a participant
+@bp.route(
+    "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
+    methods=["GET"],
+)
+def get_all_session_data_instance_from_participant_zip(participant_id):
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        results_with_size = get_all_participant_csv_files(participant_id, cur)
+
+        select_participant_session_creation_query = """
+        SELECT ps.created_at
+        FROM participant_session AS ps 
+        WHERE ps.participant_session_id = %s 
+        """
+        cur.execute(
+            select_participant_session_creation_query, (participant_session_id,)
+        )
+
+        session_time_stamp = cur.fetchone()[0]
+        cur.close()
+
+        return send_file(
+            zip_multiple_csvs(results_with_size),
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{session_time_stamp}_participant_session.zip",
+        )
+    except Exception as e:
+        # Error handling
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Gets all csvs for a participant session
+@bp.route(
+    "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
+    methods=["GET"],
+)
+def get_all_session_data_instance_from_participant_session_zip(participant_session_id):
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        results_with_size = get_all_participant_session_csv_files(
+            participant_session_id, cur
+        )
+
+        select_participant_session_creation_query = """
+        SELECT ps.created_at
+        FROM participant_session AS ps 
+        WHERE ps.participant_session_id = %s 
+        """
+        cur.execute(
+            select_participant_session_creation_query, (participant_session_id,)
+        )
+
+        session_time_stamp = cur.fetchone()[0]
+        cur.close()
+
+        return send_file(
+            zip_multiple_csvs(results_with_size),
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{session_time_stamp}_participant_session.zip",
+        )
+    except Exception as e:
+        # Error handling
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Gets 1 specific CSV
+@bp.route(
+    "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
+)
+def get_one_session_data_instance_zip(session_data_instance_id):
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        result = get_one_csv_file(session_data_instance_id, cur)
+
+        cur.close()
+
+        return send_file(
+            zip_one_csv(result),
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{result[3]}_{result[7]}_{result[5]}.zip",
+        )
+    except Exception as e:
+        # Error handling
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
@@ -598,9 +710,6 @@ def get_all_session_data_instance_zip(study_id):
 
         results_with_size = get_all_study_csv_files(study_id, cur)
 
-        # Create an in-memory bytes buffer for the ZIP archive
-        zip_buffer = io.BytesIO()
-
         select_study_name_query = """
         SELECT s.study_name
         FROM study AS s
@@ -609,34 +718,10 @@ def get_all_session_data_instance_zip(study_id):
         cur.execute(select_study_name_query, (study_id,))
         study_name = cur.fetchone()[0]
 
-        # Create a ZIP file within the buffer
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for result, _ in results_with_size:
-                (
-                    _,
-                    csv_path,
-                    _,
-                    task_name,
-                    _,
-                    measurement_option_name,
-                    _,
-                    factor_name,
-                ) = result
-                # should always be csv but this gives protections in future
-                ext = os.path.splitext(csv_path)[1]
-                if os.path.exists(csv_path):  # Ensure the file exists
-                    custom_name = (
-                        f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
-                    )
-                    zip_file.write(csv_path, arcname=custom_name)
-
-        # Rewind the buffer's file pointer to the beginning
-        zip_buffer.seek(0)
-
         cur.close()
 
         return send_file(
-            zip_buffer,
+            zip_multiple_csvs(results_with_size),
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{study_name}.zip",
