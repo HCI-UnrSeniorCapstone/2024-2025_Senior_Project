@@ -1,9 +1,11 @@
 name: Update Server and Restart Flask on PR Merge
 
+# Only run when the python code is done formatting
 on:
-  pull_request:
+  workflow_run:
+    workflows: ["Apply Black Formatter"]
     types:
-      - closed
+      - completed
 
 jobs:
   if_merged:
