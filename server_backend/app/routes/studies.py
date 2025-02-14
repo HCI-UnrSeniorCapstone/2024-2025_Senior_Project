@@ -12,17 +12,12 @@ from app.utility.studies import (
     create_study_details,
     create_study_task_factor_details,
     generate_session_data_from_csv,
-    # get_all_participant_csv_files,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
     get_one_csv_file,
     set_available_features,
     get_study_detail,
     zip_csv_files,
-    # zip_multiple_csvs,
-    # zip_multiple_csvs_with_folders_participant,
-    # zip_multiple_csvs_with_folders_study,
-    # zip_one_csv,
 )
 from app.utility.db_connection import get_db_connection
 
