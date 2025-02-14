@@ -27,8 +27,24 @@ jobs:
       - name: Run Black formatter
         run: |
           black .
-        
-      - name: Show changed files
+
+      - name: Check for changes after Black formatting
+        id: check_changes
         run: |
-          # Show only files that were changed by Black
-          git diff --name-only
+          if git diff --exit-code; then
+            echo "result=No Changes Made" >> $GITHUB_ENV
+          else
+            echo "result=Changes Made" >> $GITHUB_ENV
+          fi
+        continue-on-error: false 
+
+      - name: Commit and push changes if changes detected
+        if: ${{ env.result == 'Changes Made' }}
+        run: |
+          git config --global user.name "sharedhci"
+          git config --global user.email "sharedhci@gmail.com"
+          git add .
+          git commit -m "Apply Black code formatting to: ${{ github.event.pull_request.title }}"
+          git push --force-with-lease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
