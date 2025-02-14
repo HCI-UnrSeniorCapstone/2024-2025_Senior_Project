@@ -18,10 +18,11 @@ from app.utility.studies import (
     get_one_csv_file,
     set_available_features,
     get_study_detail,
-    zip_multiple_csvs,
-    zip_multiple_csvs_with_folders_participant,
-    zip_multiple_csvs_with_folders_study,
-    zip_one_csv,
+    zip_csv_files,
+    # zip_multiple_csvs,
+    # zip_multiple_csvs_with_folders_participant,
+    # zip_multiple_csvs_with_folders_study,
+    # zip_one_csv,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -595,133 +596,122 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Gets all csvs from a participant
+# All csv from a participant
 @bp.route(
     "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
 )
 def get_all_session_data_instance_from_participant_zip(participant_id):
     try:
-        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
         select_participant_session_ids_query = """
-        SELECT ps.participant_session_id
-        FROM participant_session AS ps
-        WHERE ps.participant_id = %s
+            SELECT ps.participant_session_id
+            FROM participant_session AS ps
+            WHERE ps.participant_id = %s
         """
         cur.execute(select_participant_session_ids_query, (participant_id,))
-
         id_results = cur.fetchall()
-        results_with_size = []
 
-        # Every element of results_with_size will be another list of csv files
-        # This separates by participant_sessions
+        # Build already-grouped data: list of (group_key, list of (record, size) tuples)
+        grouped_data = []
         for result in id_results:
             participant_session_id = result[0]
             csv_records = get_all_participant_session_csv_files(
                 participant_session_id, cur
             )
-            # Append a tuple containing the session ID and its list of CSV records
-            results_with_size.append((participant_session_id, csv_records))
-
+            # Here the group key is a folder name
+            grouped_data.append((f"session_{participant_session_id}", csv_records))
         cur.close()
 
+        zip_buffer = zip_csv_files(grouped_data, already_grouped=True, record_offset=0)
         return send_file(
-            zip_multiple_csvs_with_folders_participant(results_with_size),
+            zip_buffer,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"participant.zip",
+            download_name="participant.zip",
         )
     except Exception as e:
-        # Error handling
         error_type = type(e).__name__
         error_message = str(e)
-
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Gets all csvs for a participant session
+# All csv for a participant session
 @bp.route(
     "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
 )
 def get_all_session_data_instance_from_participant_session_zip(participant_session_id):
     try:
-        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # Get a flat list of (record, size) tuples
         results_with_size = get_all_participant_session_csv_files(
             participant_session_id, cur
         )
 
         select_participant_session_creation_query = """
-        SELECT ps.created_at
-        FROM participant_session AS ps 
-        WHERE ps.participant_session_id = %s 
+            SELECT ps.created_at
+            FROM participant_session AS ps 
+            WHERE ps.participant_session_id = %s 
         """
         cur.execute(
             select_participant_session_creation_query, (participant_session_id,)
         )
-
         session_time_stamp = cur.fetchone()[0]
         cur.close()
 
+        zip_buffer = zip_csv_files(results_with_size, group_by=None, record_offset=0)
         return send_file(
-            zip_multiple_csvs(results_with_size),
+            zip_buffer,
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{session_time_stamp}_participant_session.zip",
         )
     except Exception as e:
-        # Error handling
         error_type = type(e).__name__
         error_message = str(e)
-
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Gets 1 specific CSV
+# Only 1 specific csv
 @bp.route(
     "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
 )
 def get_one_session_data_instance_zip(session_data_instance_id):
     try:
-        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
         result = get_one_csv_file(session_data_instance_id, cur)
-
         cur.close()
 
+        # Wrap the single record in a list as (record, dummy_size)
+        zip_buffer = zip_csv_files([(result, 0)], group_by=None, record_offset=0)
+        download_name = f"{result[3]}_{result[7]}_{result[5]}.zip"
         return send_file(
-            zip_one_csv(result),
+            zip_buffer,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"{result[3]}_{result[7]}_{result[5]}.zip",
+            download_name=download_name,
         )
     except Exception as e:
-        # Error handling
         error_type = type(e).__name__
         error_message = str(e)
-
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Gets all CSV data for a study
+# All csv for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
-        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
         results_with_size = get_all_study_csv_files(study_id, cur)
-
-        # Get the study name for naming the ZIP file
         select_study_name_query = """
             SELECT s.study_name
             FROM study AS s
@@ -729,11 +719,16 @@ def get_all_session_data_instance_zip(study_id):
         """
         cur.execute(select_study_name_query, (study_id,))
         study_name = cur.fetchone()[0]
-
         cur.close()
 
+        zip_buffer = zip_csv_files(
+            results_with_size,
+            group_by=lambda record: f"session_{record[1]}",
+            already_grouped=False,
+            record_offset=1,
+        )
         return send_file(
-            zip_multiple_csvs_with_folders_study(results_with_size),
+            zip_buffer,
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{study_name}.zip",
