@@ -1,10 +1,14 @@
+from io import BytesIO
+import io
 import random
 import os
 import csv
-from flask import Blueprint, current_app, request, jsonify, Response
+import time
+import zipfile
+from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
 import pandas as pd
-from app.utility.studies import create_study_details, create_study_task_factor_details, set_available_features, get_study_detail
+from app.utility.studies import create_study_details, create_study_task_factor_details, generate_gzip_from_csv, generate_session_data_from_csv, get_all_study_csv_files, set_available_features, get_study_detail
 from app.utility.db_connection import get_db_connection
 
 
@@ -536,10 +540,62 @@ def save_session_data_instance(participant_session_id, study_id, task_id, measur
                 "error_type": error_type,
                 "error_message": error_message
             }), 500 
-       
+
+# Uses streaming   
+@bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
+def get_all_session_data_instance_zip(study_id):   
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        results_with_size = get_all_study_csv_files(study_id, cur)
+        #generate_gzip_from_csv(results_with_size)
+        # Create an in-memory bytes buffer for the ZIP archive
+        zip_buffer = io.BytesIO()
+
+        select_study_name_query = """
+        SELECT s.study_name
+        FROM study AS s
+        WHERE s.study_id = %s
+        """
+        cur.execute(select_study_name_query, (study_id,))
+        study_name = cur.fetchone()[0]
         
+        # Create a ZIP file within the buffer
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for result, _ in results_with_size:
+                session_data_instance_id, csv_path, _, task_name, _, measurement_option_name, _, factor_name = result
+                # should always be csv but this gives protections in future
+                ext = os.path.splitext(csv_path)[1]
+                if os.path.exists(csv_path):  # Ensure the file exists
+                    custom_name = f"{task_name}_{measurement_option_name}_{factor_name}{ext}"
+                    zip_file.write(csv_path, arcname=custom_name)
+
+        # Rewind the buffer's file pointer to the beginning
+        zip_buffer.seek(0)
+
+        # Close the cursor after processing
+        cur.close()
+        
+        return send_file(
+            zip_buffer,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f"{study_name}.zip"  # For Flask <2.2 use: attachment_filename='files.zip'
+        )
+    except Exception as e:
+        # Error handling
+        error_type = type(e).__name__ 
+        error_message = str(e)
+        
+        return jsonify({
+            "error_type": error_type,
+            "error_message": error_message
+        }), 500
+   
 # Gets all CSV data for a study
-# Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
+# Uses streaming
 @bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance(study_id): 
     try:
@@ -547,53 +603,16 @@ def get_all_session_data_instance(study_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # SQL query to get session data instance details
-        select_session_data_instance_routes_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, sdi.measurement_option_id, sdi.factor_id
-        FROM session_data_instance sdi
-        JOIN participant_session ps
-        ON ps.participant_session_id = sdi.participant_session_id
-        WHERE ps.study_id = %s
-        ORDER BY sdi.session_data_instance_id
-        """
-        
-        cur.execute(select_session_data_instance_routes_query, (study_id,))
-        
-        results = cur.fetchall()
 
-        # Sort the results by the size of the CSV files so that the user sees data quicker by loading smallest first
-        results_with_size = []
-        for result in results:
-            file_size = os.path.getsize(result[1])
-            results_with_size.append((result, file_size))
-            
-        results_with_size.sort(key=lambda x: x[1])
-        
-        def generate_session_data():
-            for result, _ in results_with_size:
-                session_data_instance_id, csv_path, task_id, measurement_option_id, factor_id = result
-                # Send metadata ONCE per session instance
-                metadata = {
-                    "session_data_instance_id": session_data_instance_id,
-                    "task_id": task_id,
-                    "measurement_option_id": measurement_option_id,
-                    "factor_id": factor_id
-                }
-                yield json.dumps({"metadata": metadata}, separators=(',', ':')) + '\n'
-                
-                # How many rows read per CSV
-                chunk_size = 2000                
-                
-                # Read the CSV file in chunks
-                for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
-                    chunk_list = chunk.values.tolist()
-                    yield json.dumps({"data": chunk_list}, separators=(',', ':')) + '\n'
-                        
+        results_with_size = get_all_study_csv_files(study_id, cur)
+
         # Close the cursor after processing
         cur.close()
         
+        # How many rows read per CSV
+        chunk_size = 2000 
         # Return the response as a streamed response
-        return Response(generate_session_data(), content_type='application/json', status=200)
+        return Response(generate_session_data_from_csv(results_with_size, chunk_size), content_type='application/json', status=200)
     
     except Exception as e:
         # Error handling

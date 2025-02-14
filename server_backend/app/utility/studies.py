@@ -1,3 +1,9 @@
+import gzip
+import io
+import pandas as pd
+import json
+import os
+
 def set_available_features(task_measurments):
     # makes sures the default taks are false
     default_tasks = {'Mouse Movement': False, 'Mouse Scrolls': False,
@@ -19,7 +25,7 @@ def get_study_detail(subData):
 
     return study_name, study_desc, study_design, 
 
-def create_study_details(submissionData, conn, cur):
+def create_study_details(submissionData, cur):
     # Get study_design_type
     cur.execute("SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s", (submissionData['studyDesignType'],))
     result = cur.fetchone()
@@ -39,7 +45,7 @@ def create_study_details(submissionData, conn, cur):
     
     return cur.lastrowid
 
-def create_study_task_factor_details(study_id, submissionData, conn, cur):
+def create_study_task_factor_details(study_id, submissionData, cur):
     # Insert tasks
     insert_task_query = """
     INSERT INTO task (task_name, study_id, task_description, task_directions, duration)
@@ -93,3 +99,72 @@ def create_study_task_factor_details(study_id, submissionData, conn, cur):
         factor_name = factor['factorName']
         factor_description = factor['factorDescription']
         cur.execute(insert_factor_query, (study_id, factor_name, factor_description,))
+        
+        
+def get_all_study_csv_files(study_id, cur):
+        # SQL query to get session data instance details
+        select_session_data_instance_routes_query = """
+        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
+        FROM session_data_instance sdi
+        INNER JOIN participant_session ps
+        ON ps.participant_session_id = sdi.participant_session_id
+        INNER JOIN task AS t
+        ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
+        INNER JOIN factor AS f
+        ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
+        INNER JOIN measurement_option AS mo
+        ON mo.measurement_option_id = sdi.measurement_option_id
+        WHERE ps.study_id = %s
+        ORDER BY sdi.session_data_instance_id
+        """
+        
+        cur.execute(select_session_data_instance_routes_query, (study_id,))
+        
+        results = cur.fetchall()
+
+        # Sort the results by the size of the CSV files so that the user sees data quicker by loading smallest first
+        results_with_size = []
+        for result in results:
+            file_size = os.path.getsize(result[1])
+            results_with_size.append((result, file_size))
+            print(f"{result}\n\n")
+            
+        results_with_size.sort(key=lambda x: x[1])
+        return results_with_size
+
+
+def generate_gzip_from_csv(results_with_size):
+    buffer = io.BytesIO()
+    with gzip.GzipFile(fileobj=buffer, mode="wb") as gz:
+        for result, _ in results_with_size:
+            file_path = result[1]  # CSV file path
+            try:
+                with open(file_path, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        gz.write(chunk)  # Write to gzip stream
+                        gz.flush()
+                        buffer.seek(0)
+                        yield buffer.read()  # Yield compressed data
+                        buffer.seek(0)
+                        buffer.truncate(0)  # Clear buffer
+            except FileNotFoundError:
+                continue  # Skip missing files
+    
+
+def generate_session_data_from_csv(results_with_size, chunk_size):
+    for result, _ in results_with_size:
+        session_data_instance_id, csv_path, task_id, _, measurement_option_id, _, factor_id, _ = result
+        # Send metadata ONCE per session instance
+        metadata = {
+            "session_data_instance_id": session_data_instance_id,
+            "task_id": task_id,
+            "measurement_option_id": measurement_option_id,
+            "factor_id": factor_id
+        }
+        yield json.dumps({"metadata": metadata}, separators=(',', ':')) + '\n'           
+        
+        # Read the CSV file in chunks
+        for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
+            chunk_list = chunk.values.tolist()
+            yield json.dumps({"data": chunk_list}, separators=(',', ':')) + '\n'
+        
