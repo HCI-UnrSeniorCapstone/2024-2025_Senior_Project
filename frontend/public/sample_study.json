@@ -1,0 +1,52 @@
+{
+  "participantSessId": 9,
+  "study_id": "11",
+  "studyName": "Study Name",
+  "studyDescription": "Study Desc",
+  "studyDesignType": "Between",
+  "participantCount": "214",
+  "trials": [
+    {
+      "taskID": 21,
+      "factorID": 41
+    },
+    {
+      "taskID": 22,
+      "factorID": 41
+    },
+    {
+      "taskID": 21,
+      "factorID": 42
+    },
+    {
+      "taskID": 22,
+      "factorID": 42
+    }
+  ],
+  "tasks": {
+    "21": {
+      "measurementOptions": ["Mouse Movement", "Mouse Scrolls"],
+      "taskDescription": "Task Des",
+      "taskDirections": "Move your mouse foo",
+      "taskDuration": "5.000",
+      "taskName": "Task A"
+    },
+    "22": {
+      "measurementOptions": ["Keyboard Inputs"],
+      "taskDescription": "Task Des",
+      "taskDirections": "Start spamming keyboard lil bru",
+      "taskDuration": null,
+      "taskName": "Task B"
+    }
+  },
+  "factors": {
+    "41": {
+      "factorDescription": "Factor Des",
+      "factorName": "Graph"
+    },
+    "42": {
+      "factorDescription": "Factor Der",
+      "factorName": "Table"
+    }
+  }
+}
