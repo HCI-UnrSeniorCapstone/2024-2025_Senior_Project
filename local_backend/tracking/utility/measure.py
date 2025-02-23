@@ -5,7 +5,7 @@ import os
 from pynput import keyboard, mouse
 import time
 from datetime import datetime
-from tracking.utility.file_management import create_csv, get_save_dir
+from tracking.utility.file_management import write_to_csv, get_save_dir
 
 # Global listeners
 mouse_listener = None
@@ -25,6 +25,7 @@ mouse_scroll_data = []
 running_time = 0
 paused_time = 0
 
+
 #################### MOUSE FUNCTIONALITIES ####################
 
 # Variables for reducing mouse movement pulling frequency by establishing a minimum pixel threshold before recording more data
@@ -36,7 +37,7 @@ curr_time = 0
 prev_time = 0
 
 
-def on_move(x, y):
+def on_move(x, y, session_id, task, factor):
     global PREV_XPOS, PREV_YPOS, curr_time, prev_time, running_time, mouse_move_data
 
     if not pause_event.is_set(): #ignore logging when paused
@@ -50,7 +51,11 @@ def on_move(x, y):
 
         # inserts data into array
         mouse_move_data.append([curr_time, '%.2f' % (time.time() - running_time - paused_time), x, y])
-
+        
+        if len(mouse_move_data) >= 250: # write in batch sizes of 250 to improve performance rather than at the end of a task when there may be tens of thousands of data points 
+            write_to_csv(session_id, 'MouseMovement', 'mouse', mouse_move_data, 'mouse', task, factor)
+            mouse_move_data.clear()
+            
         PREV_XPOS = x
         PREV_YPOS = y
 
@@ -115,8 +120,8 @@ def stop_keyboard_ps():
 
 #################### CORE FUNCTIONALITIES ####################
 
-# Does the actual data collection, using measurement flags to know what to collect for the current trial
-def record_measurements(session_id, task, factor, exe_time, tracking_flags):
+# Manages the actual data collection, using measurement flags to know what to collect for the current trial
+def record_measurements(session_id, task, factor, tracking_flags):
     global mouse_listener, key_listener, running_time, keyboard_data, running_time, paused_time, mouse_move_data, mouse_click_data, mouse_scroll_data
     
     running_time = time.time()
@@ -127,11 +132,14 @@ def record_measurements(session_id, task, factor, exe_time, tracking_flags):
             stop_mouse_ps()
         if key_listener is not None and mouse_listener.running:
             stop_keyboard_ps()
+            
+        def on_move_params(x,y):
+            on_move(x, y, session_id, task, factor)
     
         # Initialize mouse listener if needed
         if tracking_flags.get("mouse_movement") or tracking_flags.get("mouse_clicks") or tracking_flags.get("mouse_scrolls"):
             mouse_listener = mouse.Listener(
-                on_move=on_move if tracking_flags['mouse_movement'] else None,
+                on_move=on_move_params if tracking_flags['mouse_movement'] else None,
                 on_click=on_click if tracking_flags['mouse_clicks'] else None,
                 on_scroll=on_scroll if tracking_flags['mouse_scrolls'] else None
             )
@@ -169,11 +177,11 @@ def record_measurements(session_id, task, factor, exe_time, tracking_flags):
         dir_trial = os.path.join(dir_session, f"{task_nm}_{factor_nm}")
         os.makedirs(dir_trial, exist_ok=True)
 
-        # Makes csv and inserts the data to the csv
-        create_csv(session_id, 'MouseMovement', 'mouse', mouse_move_data, tracking_flags['mouse_movement'], task, factor)
-        create_csv(session_id, 'KeyboardInputs', 'keyboard', keyboard_data, tracking_flags['keyboard_inputs'], task, factor)
-        create_csv(session_id, 'MouseClicks', 'mouse', mouse_click_data, tracking_flags['mouse_clicks'], task, factor)
-        create_csv(session_id, 'MouseScrolls', 'mouse', mouse_scroll_data, tracking_flags['mouse_scrolls'], task, factor)
+        # Writing before the current task ends 
+        write_to_csv(session_id, 'MouseMovement', 'mouse', mouse_move_data, tracking_flags['mouse_movement'], task, factor)
+        write_to_csv(session_id, 'KeyboardInputs', 'keyboard', keyboard_data, tracking_flags['keyboard_inputs'], task, factor)
+        write_to_csv(session_id, 'MouseClicks', 'mouse', mouse_click_data, tracking_flags['mouse_clicks'], task, factor)
+        write_to_csv(session_id, 'MouseScrolls', 'mouse', mouse_scroll_data, tracking_flags['mouse_scrolls'], task, factor)
 
         # Resetting for next trial
         keyboard_data.clear()

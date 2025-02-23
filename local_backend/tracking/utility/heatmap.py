@@ -51,16 +51,12 @@ def generate_heatmap(session_id, task, factor):
         
 def extract_mouse_movements(log_file):
     coordinates = []
-    # try:
     with open(log_file, 'r') as f:
         reader = csv.reader(f)
         next(reader)  # skips the header
         for row in reader:
             x, y = int(row[2]), int(row[3])
             coordinates.append((x, y))
-    # except FileNotFoundError:
-        
-    # except Exception as e:
         
     return coordinates
 

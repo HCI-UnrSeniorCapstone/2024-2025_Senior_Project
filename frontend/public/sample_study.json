@@ -25,7 +25,7 @@
   ],
   "tasks": {
     "21": {
-      "measurementOptions": ["Mouse Movement"],
+      "measurementOptions": ["Mouse Movement", "Mouse Scrolls"],
       "taskDescription": "Task Des",
       "taskDirections": "Move your mouse foo",
       "taskDuration": "5.000",

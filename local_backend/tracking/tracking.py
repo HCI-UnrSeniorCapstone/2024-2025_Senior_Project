@@ -1,9 +1,6 @@
-# Purpose: holds all functionality for facilitating a session (excluding measurement-specific functionality which is in measure.py)
+# Purpose: Holds all functionality for facilitating a session (excluding measurement-specific functionality which is in measure.py)
 
 
-import time
-import threading
-from threading import Lock
 from .utility.measure import record_measurements, data_storage_complete_event
 from .utility.heatmap import generate_heatmap
 
@@ -26,8 +23,9 @@ def conduct_trial(sess_id, task, factor):
     # Start tracking as long as at least 1 option was selected for the current task
     if any(measurement_flags.values()):
         data_storage_complete_event.clear() # reset at the start of a trial
-        record_measurements(sess_id, task, factor, time.time(), measurement_flags)
+        record_measurements(sess_id, task, factor, measurement_flags)
         
+        # will want to change this eventually so only heatmap generated if the researcher requested it instead of always when mouse movement is involved 
         if measurement_flags['mouse_movement']:
             generate_heatmap(sess_id, task, factor)
             

@@ -138,12 +138,10 @@ class GlobalToolbar(QWidget):
     
     def move_next_task(self):
         if self.trial_index > 0:
-            
             stop_event.set()
             pause_event.clear()
             data_storage_complete_event.wait()
 
-        
         trial = self.trials[self.trial_index]
         task_id = str(trial['taskID'])
         task = self.tasks[task_id]
@@ -177,26 +175,29 @@ class GlobalToolbar(QWidget):
                 self.next_btn.setEnabled(True)
                 self.pause_btn.setEnabled(True)
                 
-            if self.trial_index == len(self.trials) - 1:
+            if self.trial_index == len(self.trials) - 1: # cannot go to next task bc there is not one 
                 self.next_btn.setEnabled(False)
                 
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
     
+    # Starts the countdown timer 
     def initiate_countdown(self, duration):
         self.next_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
         self.countdown = duration
         self.format_countdown()
         self.timer.start(1000)
-        
+    
+    # Updates the countdown (decreasing by 1 sec)
     def update_countdown(self):
         if self.countdown > 0 and not self.session_paused:
             self.countdown -= 1
             self.format_countdown()
         else:
             self.timer.stop()
-            self.pause_btn.setEnabled(False) # disable pause when task is at its end anyways since no tracking occuring
+            self.pause_btn.setEnabled(False) # disable pause when task is at its end since no tracking occuring
+            
             if self.trial_index < len(self.trials):
                 self.next_btn.setEnabled(True) # allow participant to move on since time is out
             else:
@@ -206,13 +207,14 @@ class GlobalToolbar(QWidget):
             pause_event.clear()
             stop_event.set()
     
+    # Showing time in HH:MM:SS format 
     def format_countdown(self):
         hrs = self.countdown // 3600
         mins = (self.countdown % 3600) // 60
         secs = self.countdown % 60 
         self.timer_label.setText(f"Time Remaining: {hrs:02}:{mins:02}:{secs:02}")
 
-    # Invert for if we are running we pause and if we are paused we resume 
+    # Inverting state, as if we are running we pause and if we are paused we resume 
     def pause_session(self):
         self.session_paused = not self.session_paused # toggle
         
@@ -233,7 +235,7 @@ class GlobalToolbar(QWidget):
         help_msg.setWindowTitle("Help")
             
         if self.trial_index > 0:
-            curr_trial = self.trials[self.trial_index - 1] # -1, unlike move_next_task(), because we want info for current task not the next one
+            curr_trial = self.trials[self.trial_index - 1] # -1 (unlike move_next_task) because we want info for current task not the next one
             task_id = str(curr_trial['taskID'])
             task = self.tasks[task_id]
             task_dirs = task['taskDirections']
@@ -248,7 +250,7 @@ class GlobalToolbar(QWidget):
                     "<li><b>Quit:</b> Ends the session and closes the application. <b>WARNING -</b> Quitting the session before completing all tasks may invalidate results. Please confirm with the facilitator before exiting</li>" 
                 "</ul>"
             )
-        else:
+        else: # have not started a task yet, aka still on start screen
             help_msg.setText(
                 f"<b>Directions:</b>\n"
                 f"<ul><li>Click the Start button to begin the session</li></ul>"
@@ -270,7 +272,8 @@ class GlobalToolbar(QWidget):
         confirmation_msg = ""
         is_last_task = self.trial_index == len(self.trials)
         is_task_finished = task_dur is not None and self.countdown == 0
-                
+        
+        # unique messaging when trying to quit based on the current session state 
         if is_last_task and is_task_finished:
             confirmation_msg = "Are you sure you want to exit?"
         elif is_last_task and task_dur is None: # untimed last task
@@ -289,7 +292,6 @@ class GlobalToolbar(QWidget):
             if self.trial_index > 0: # only attempt to save results if they completed at least 1 trial
                 pause_event.clear()
                 stop_event.set()
-                time.sleep(1)
                 data_storage_complete_event.wait(timeout=5)
                 
                 if os.path.exists(os.path.join(get_save_dir(), f'Session_{self.session_id}')):

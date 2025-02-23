@@ -2,7 +2,6 @@
 
 
 import os
-import time
 import pandas as pd
 import zipfile
 import shutil  # used to remove folder once zip is created
@@ -17,7 +16,7 @@ def get_save_dir():
 
 
 # Generating a unique csv for each measurement type for each trial 
-def create_csv(session_id, measurement_type, feature, arr_data, is_used, task, factor):    
+def write_to_csv(session_id, measurement_type, feature, arr_data, is_used, task, factor):    
     if not is_used:
         return
 
@@ -26,20 +25,30 @@ def create_csv(session_id, measurement_type, feature, arr_data, is_used, task, f
 
     dir_results = get_save_dir()
     dir_session = os.path.join(dir_results, f'Session_{session_id}')
-
-
     dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
     os.makedirs(dir_trial, exist_ok=True)
-
-    if feature == 'mouse':
-        df = pd.DataFrame(arr_data, columns=['Time', 'running_time', 'x', 'y'])
-
-    elif feature == 'keyboard':
-        df = pd.DataFrame(arr_data, columns=['Time', 'running_time', 'keys'])
-
     filename = f"{session_id}_{task_name}_{factor_name}_{measurement_type}_data.csv"
     file_path = os.path.join(dir_trial, filename)
-    df.to_csv(file_path, index=False)
+    
+    # Prevent writing values that exceeded task duration due to delay between signaling task end and stopping tracking threads
+    task_dur = task.get('taskDuration')
+    if task_dur is not None:
+        time_cutoff = float(task_dur)
+    else:
+        time_cutoff = float('inf')
+    updated_data = [row for row in arr_data if float(row[1]) <= time_cutoff]
+    
+    # Convert to df 
+    if feature == 'mouse':
+        df = pd.DataFrame(updated_data, columns=['Time', 'running_time', 'x', 'y'])
+
+    elif feature == 'keyboard':
+        df = pd.DataFrame(updated_data, columns=['Time', 'running_time', 'keys'])
+
+    if os.path.exists(file_path): # CSV already exists so we just append and don't add headers
+        df.to_csv(file_path, mode='a', header=False, index=False)
+    else: # CSV does not exist so have to create and add headers 
+        df.to_csv(file_path, index=False)
     
 
     
