@@ -2,15 +2,17 @@ from flask import Blueprint, jsonify
 from app.utility.db_connection import get_db_connection
 from app.routes.studies import get_study_data
 
-bp = Blueprint('general', __name__)
+bp = Blueprint("general", __name__)
+
 
 # Basic ping
-@bp.route('/ping', methods=['GET'])
+@bp.route("/ping", methods=["GET"])
 def ping():
     return jsonify({"message": "Pong!"})
 
+
 # Test Database Connection and Fetch Data from 'user' table
-@bp.route('/test_db')
+@bp.route("/test_db")
 def test_db():
     try:
         conn = get_db_connection()
