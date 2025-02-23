@@ -12,9 +12,12 @@ from app.utility.studies import (
     create_study_details,
     create_study_task_factor_details,
     generate_session_data_from_csv,
+    get_all_participant_session_csv_files,
     get_all_study_csv_files,
+    get_one_csv_file,
     set_available_features,
     get_study_detail,
+    zip_csv_files,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -588,53 +591,137 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Uses streaming
+# All csv from a participant
+@bp.route(
+    "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
+    methods=["GET"],
+)
+def get_all_session_data_instance_from_participant_zip(participant_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        select_participant_session_ids_query = """
+            SELECT ps.participant_session_id
+            FROM participant_session AS ps
+            WHERE ps.participant_id = %s
+        """
+        cur.execute(select_participant_session_ids_query, (participant_id,))
+        id_results = cur.fetchall()
+
+        # Build already-grouped data: list of (group_key, list of (record, size) tuples)
+        grouped_data = []
+        for result in id_results:
+            participant_session_id = result[0]
+            csv_records = get_all_participant_session_csv_files(
+                participant_session_id, cur
+            )
+            # Here the group key is a folder name
+            grouped_data.append((f"session_{participant_session_id}", csv_records))
+        cur.close()
+
+        zip_buffer = zip_csv_files(grouped_data, already_grouped=True, record_offset=0)
+        return send_file(
+            zip_buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name="participant.zip",
+        )
+    except Exception as e:
+        error_type = type(e).__name__
+        error_message = str(e)
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# All csv for a participant session
+@bp.route(
+    "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
+    methods=["GET"],
+)
+def get_all_session_data_instance_from_participant_session_zip(participant_session_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get a flat list of (record, size) tuples
+        results_with_size = get_all_participant_session_csv_files(
+            participant_session_id, cur
+        )
+
+        select_participant_session_creation_query = """
+            SELECT ps.created_at
+            FROM participant_session AS ps 
+            WHERE ps.participant_session_id = %s 
+        """
+        cur.execute(
+            select_participant_session_creation_query, (participant_session_id,)
+        )
+        session_time_stamp = cur.fetchone()[0]
+        cur.close()
+
+        zip_buffer = zip_csv_files(results_with_size, group_by=None, record_offset=0)
+        return send_file(
+            zip_buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{session_time_stamp}_participant_session.zip",
+        )
+    except Exception as e:
+        error_type = type(e).__name__
+        error_message = str(e)
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Only 1 specific csv
+@bp.route(
+    "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
+)
+def get_one_session_data_instance_zip(session_data_instance_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        result = get_one_csv_file(session_data_instance_id, cur)
+        cur.close()
+
+        # Wrap the single record in a list as (record, dummy_size)
+        zip_buffer = zip_csv_files([(result, 0)], group_by=None, record_offset=0)
+        download_name = f"{result[3]}_{result[7]}_{result[5]}.zip"
+        return send_file(
+            zip_buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=download_name,
+        )
+    except Exception as e:
+        error_type = type(e).__name__
+        error_message = str(e)
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# All csv for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
-        # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
         results_with_size = get_all_study_csv_files(study_id, cur)
-
-        # Create an in-memory bytes buffer for the ZIP archive
-        zip_buffer = io.BytesIO()
-
         select_study_name_query = """
-        SELECT s.study_name
-        FROM study AS s
-        WHERE s.study_id = %s
+            SELECT s.study_name
+            FROM study AS s
+            WHERE s.study_id = %s
         """
         cur.execute(select_study_name_query, (study_id,))
         study_name = cur.fetchone()[0]
-
-        # Create a ZIP file within the buffer
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            for result, _ in results_with_size:
-                (
-                    _,
-                    csv_path,
-                    _,
-                    task_name,
-                    _,
-                    measurement_option_name,
-                    _,
-                    factor_name,
-                ) = result
-                # should always be csv but this gives protections in future
-                ext = os.path.splitext(csv_path)[1]
-                if os.path.exists(csv_path):  # Ensure the file exists
-                    custom_name = (
-                        f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
-                    )
-                    zip_file.write(csv_path, arcname=custom_name)
-
-        # Rewind the buffer's file pointer to the beginning
-        zip_buffer.seek(0)
-
         cur.close()
 
+        zip_buffer = zip_csv_files(
+            results_with_size,
+            group_by=lambda record: f"session_{record[1]}",
+            already_grouped=False,
+            record_offset=1,
+        )
         return send_file(
             zip_buffer,
             mimetype="application/zip",
@@ -642,10 +729,8 @@ def get_all_session_data_instance_zip(study_id):
             download_name=f"{study_name}.zip",
         )
     except Exception as e:
-        # Error handling
         error_type = type(e).__name__
         error_message = str(e)
-
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
