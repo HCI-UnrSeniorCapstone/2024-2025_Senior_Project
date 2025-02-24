@@ -26,6 +26,11 @@ from tracking.utility.measure import (
     stop_event,
     data_storage_complete_event,
 )
+from tracking.utility.screenrecording import (
+    recording_stop,
+    recording_active,
+    adjustments_finished
+)
 
 
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
@@ -84,7 +89,10 @@ class GlobalToolbar(QWidget):
             else:
                 button.setIconSize(QSize(25, 25))
             button.setStyleSheet(btn_style)
-            button.clicked.connect(action)
+            
+            if action is not None:
+                button.clicked.connect(action)
+                
             vbox.addWidget(button, alignment=Qt.AlignmentFlag.AlignCenter)
 
             tool_desc = QLabel(label)
@@ -102,7 +110,7 @@ class GlobalToolbar(QWidget):
 
         # Pause/Resume button
         pause_layout, self.pause_btn = create_btn(
-            "./icons/pause.svg", "Pause/Resume", self.pause_session
+            "./icons/resume.svg", "Pause/Resume", self.pause_session
         )
         layout.addLayout(pause_layout)
         self.pause_btn.setEnabled(False)  # starts disabled
@@ -115,7 +123,7 @@ class GlobalToolbar(QWidget):
         self.next_btn.setEnabled(False)  # starts disabled
 
         # Timer countdown
-        self.timer_label = QLabel("No Time Limit")
+        self.timer_label = QLabel("             ")
         self.timer_label.setStyleSheet(
             "color: white; font-size: 16px; padding: 5px 10px; border-radius: 12px; border: 1px solid #444"
         )
@@ -127,12 +135,22 @@ class GlobalToolbar(QWidget):
             "color: white; font-size: 16px; padding: 5px 10px; border-radius: 12px; border: 1px solid #444"
         )
         layout.addWidget(self.progress)
+        
+        # Recording status (button but does nothing, however, making it this ways makes it consistent with the rest of the ui)
+        recording_layout, self.recording_btn = create_btn(
+            "./icons/not_recording.svg", "Recording", None
+        )
+        layout.addLayout(recording_layout)
+        self.recording_timer = QTimer()
+        self.recording_timer.timeout.connect(self.update_recording_status)
+        self.recording_timer.start(500)
 
         # Help button
         help_layout, self.help_btn = create_btn(
             "./icons/help.svg", "Help", self.open_help_menu
         )
         layout.addLayout(help_layout)
+        
 
         # Quit button
         quit_layout, self.quit_btn = create_btn(
@@ -158,12 +176,18 @@ class GlobalToolbar(QWidget):
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
+        
 
     def move_next_task(self):
         if self.trial_index > 0:
             stop_event.set()
             pause_event.clear()
             data_storage_complete_event.wait()
+            
+            # Recording signals
+            recording_stop.set()
+            while recording_active.is_set():
+                time.sleep(0.1)
 
         trial = self.trials[self.trial_index]
         task_id = str(trial["taskID"])
@@ -180,6 +204,7 @@ class GlobalToolbar(QWidget):
             trial_msg.setText(f"Directions: {task_dirs}\nDuration: {task_dur} minutes")
         else:
             trial_msg.setText(f"Directions: {task_dirs}\nDuration: No time limit")
+
         trial_msg.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         )
@@ -187,6 +212,10 @@ class GlobalToolbar(QWidget):
         if trial_msg.exec() == QMessageBox.StandardButton.Ok:
             self.start_btn.setEnabled(False)  # disable for the rest of the session
             self.session_paused = False
+            
+            self.pause_btn.setEnabled(True)
+            self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
+            
             pause_event.set()  # start tracking
             stop_event.clear()
             data_storage_complete_event.clear()
@@ -199,8 +228,10 @@ class GlobalToolbar(QWidget):
             if task_dur:
                 self.initiate_countdown(int(float(task_dur) * 1))
             else:
+                self.timer_label.setText("No Time Limit")
                 self.next_btn.setEnabled(True)
                 self.pause_btn.setEnabled(True)
+                self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
 
             if (
                 self.trial_index == len(self.trials) - 1
@@ -210,10 +241,12 @@ class GlobalToolbar(QWidget):
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
 
+
     # Starts the countdown timer
     def initiate_countdown(self, duration):
         self.next_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
+        
         self.countdown = duration
         self.format_countdown()
         self.timer.start(1000)
@@ -228,6 +261,7 @@ class GlobalToolbar(QWidget):
             self.pause_btn.setEnabled(
                 False
             )  # disable pause when task is at its end since no tracking occuring
+            self.pause_btn.setIcon(QIcon("./icons/resume.svg"))
 
             if self.trial_index < len(self.trials):
                 self.next_btn.setEnabled(
@@ -253,15 +287,23 @@ class GlobalToolbar(QWidget):
 
         if self.session_paused:
             print("session paused")
+            self.pause_btn.setIcon(QIcon("./icons/resume.svg"))
             pause_event.clear()
             self.timer.stop()
         else:
             print("session resumed")
+            self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
             pause_event.set()
             if self.countdown > 0:
                 self.timer.start(1000)
             else:
                 pause_event.set()
+            
+    def update_recording_status(self):
+        if recording_active.is_set():
+            self.recording_btn.setIcon(QIcon("./icons/recording.svg"))
+        else:
+            self.recording_btn.setIcon(QIcon("./icons/not_recording.svg"))
 
     def open_help_menu(self):
         help_msg = QMessageBox()
@@ -329,7 +371,13 @@ class GlobalToolbar(QWidget):
             ):  # only attempt to save results if they completed at least 1 trial
                 pause_event.clear()
                 stop_event.set()
-                data_storage_complete_event.wait(timeout=5)
+                data_storage_complete_event.wait()
+                recording_stop.set()
+                while recording_active.is_set():
+                    time.sleep(0.1)
+                adjustments_finished.wait()
+                
+                time.sleep(1)
 
                 if os.path.exists(
                     os.path.join(get_save_dir(), f"Session_{self.session_id}")
