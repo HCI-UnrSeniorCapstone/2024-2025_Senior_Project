@@ -5,7 +5,6 @@
  - A user may have no studies 
  - A study may have many users with varying Read OR Read / Write Prviliges
  */
-USE DEVELOP_fulcrum;
 -- Users
 INSERT INTO user (
         user_id,
