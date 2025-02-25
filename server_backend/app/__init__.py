@@ -31,8 +31,10 @@ def create_app():
     # Register blueprints
     from app.routes.general import bp as general_bp
     from app.routes.studies import bp as studies_bp
+    from app.routes.sessions import bp as sessions_bp
 
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
+    app.register_blueprint(sessions_bp)
 
     return app
