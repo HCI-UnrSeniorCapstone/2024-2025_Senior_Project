@@ -7,7 +7,7 @@ bp = Blueprint("general", __name__)
 # Basic ping
 @bp.route("/ping", methods=["GET"])
 def ping():
-    return jsonify({"message": "Pong!"})
+    return jsonify({"message": "Pong!"}), 200
 
 
 # Test Database Connection and Fetch Data from 'user' table
@@ -26,8 +26,8 @@ def test_db():
         # Close the cursor
         cur.close()
 
-        return jsonify(results)
+        return jsonify(results), 200
 
     except Exception as e:
         # Error message
-        return jsonify({"error": str(e)})
+        return jsonify({"error": str(e)}), 500

@@ -8,7 +8,7 @@ import os
 mysql = MySQL()
 
 
-def create_app():
+def create_app(testing=False):
     # Creating app
     app = Flask(__name__)
     app.config.from_object(__name__)
@@ -20,7 +20,10 @@ def create_app():
     app.config["MYSQL_HOST"] = os.getenv("MYSQL_HOST")
     app.config["MYSQL_USER"] = os.getenv("MYSQL_USER")
     app.config["MYSQL_PASSWORD"] = os.getenv("MYSQL_PASSWORD")
-    app.config["MYSQL_DB"] = os.getenv("MYSQL_DB")
+    if testing:
+        app.config["MYSQL_DB"] = "test_db"
+    else:
+        app.config["MYSQL_DB"] = os.getenv("MYSQL_DB").strip()
     mysql.init_app(app)
 
     # Server CSV pathway configuration
