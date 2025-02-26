@@ -1,9 +1,6 @@
-import os
-import mysql.connector
 import pytest
 
 from app import create_app
-from app.utility.db_connection import get_db_connection
 
 
 @pytest.fixture
