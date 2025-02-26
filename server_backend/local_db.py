@@ -1,133 +1,131 @@
-import sqlite3
-import pandas as pd
-from local_config import DB_CONFIG, USE_SQLITE, DB_PATH
+import mysql.connector
+from mysql.connector import pooling
+import time
+from contextlib import contextmanager
+from local_config import DB_CONFIG
 
-def get_connection():
-    """Get a database connection"""
-    if USE_SQLITE:
-        # Use SQLite for local development
-        return sqlite3.connect(DB_CONFIG['SQLITE']['path'])
+# Set up connection pool for better performance
+try:
+    connection_pool = mysql.connector.pooling.MySQLConnectionPool(
+        pool_name="fulcrum_pool",
+        pool_size=5,
+        **DB_CONFIG
+    )
+except mysql.connector.Error as err:
+    print(f"Error creating connection pool: {err}")
+    connection_pool = None
+
+
+def get_db_connection():
+    """Get database connection with retry logic"""
+    max_attempts = 3
+    attempts = 0
+    
+    while attempts < max_attempts:
+        try:
+            # Try pool first, fall back to direct connection
+            if connection_pool:
+                return connection_pool.get_connection()
+            else:
+                return mysql.connector.connect(**DB_CONFIG)
+        except mysql.connector.Error as err:
+            attempts += 1
+            if attempts >= max_attempts:
+                raise Exception(f"Failed to connect to database after {max_attempts} attempts: {err}")
+            time.sleep(1)  # Wait before retry
+
+
+@contextmanager
+def db_cursor():
+    """Create a database cursor that handles connections and transactions"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)  # Return results as dictionaries
+        yield cursor
+        conn.commit()  # Auto-commit on success
+    except mysql.connector.Error as err:
+        if conn:
+            conn.rollback()  # Rollback on error
+        raise Exception(f"Database error: {err}")
+    finally:
+        # Always clean up resources
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+
+def execute_query(query, params=None, fetch_one=False):
+    """Run a query and return results"""
+    with db_cursor() as cursor:
+        cursor.execute(query, params or ())
+        
+        # Handle queries that don't return results (like INSERT)
+        if cursor.description is None:
+            return None
+            
+        # Return a single row or all rows based on parameter
+        if fetch_one:
+            return cursor.fetchone()
+        else:
+            return cursor.fetchall()
+
+
+def test_connection():
+    """Check if database connection works"""
+    try:
+        with db_cursor() as cursor:
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+            return bool(result and result.get('1') == 1)
+    except Exception as e:
+        print(f"Database connection test failed: {e}")
+        return False
+
+
+def get_schema():
+    """Get database structure for debugging"""
+    schema = {}
+    try:
+        with db_cursor() as cursor:
+            # Get all table names
+            cursor.execute(
+                "SELECT TABLE_NAME FROM information_schema.tables "
+                f"WHERE TABLE_SCHEMA = '{DB_CONFIG['database']}'"
+            )
+            tables = [row['TABLE_NAME'] for row in cursor.fetchall()]
+            
+            # Get column details for each table
+            for table in tables:
+                cursor.execute(
+                    "SELECT COLUMN_NAME, DATA_TYPE, COLUMN_KEY, EXTRA "
+                    "FROM information_schema.columns "
+                    f"WHERE TABLE_SCHEMA = '{DB_CONFIG['database']}' "
+                    f"AND TABLE_NAME = '{table}'"
+                )
+                schema[table] = cursor.fetchall()
+        
+        return schema
+    except Exception as e:
+        print(f"Error getting schema: {e}")
+        return None
+
+
+if __name__ == "__main__":
+    # Self-test when run as a script
+    if test_connection():
+        print("Database connection successful!")
+        
+        # Display database structure
+        schema = get_schema()
+        if schema:
+            print("\nDatabase Schema:")
+            for table, columns in schema.items():
+                print(f"\n{table}:")
+                for column in columns:
+                    pk = "PK" if column['COLUMN_KEY'] == 'PRI' else ""
+                    auto = "AUTO_INCREMENT" if column['EXTRA'] == 'auto_increment' else ""
+                    print(f"  - {column['COLUMN_NAME']} ({column['DATA_TYPE']}) {pk} {auto}")
     else:
-        # This would be your original code to connect to MySQL
-        # For now, fall back to SQLite
-        return sqlite3.connect(DB_CONFIG['SQLITE']['path'])
-
-def query_db(query, params=(), one=False):
-    """Query the database and return results as a list of dictionaries"""
-    conn = get_connection()
-    conn.row_factory = sqlite3.Row  # This enables dictionary-like access to rows
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    
-    rv = cursor.fetchall()
-    conn.close()
-    
-    # Convert rows to dictionaries
-    result = [dict(row) for row in rv]
-    return (result[0] if result else None) if one else result
-
-def query_df(query, params=()):
-    """Query the database and return results as a pandas DataFrame"""
-    conn = get_connection()
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-    return df
-
-def execute_db(query, params=()):
-    """Execute a database query without returning results (for INSERT, UPDATE, DELETE)"""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    conn.commit()
-    conn.close()
-    return cursor.rowcount  # Return the number of affected rows
-
-# Specific query functions for the application
-def get_studies():
-    """Get all studies"""
-    return query_db("SELECT * FROM studies")
-
-def get_participants(study_id=None):
-    """Get all participants, optionally filtered by study_id"""
-    if study_id:
-        return query_db("SELECT * FROM participants WHERE study_id = ?", (study_id,))
-    else:
-        return query_db("SELECT * FROM participants")
-
-def get_tasks():
-    """Get all tasks"""
-    return query_db("SELECT * FROM tasks")
-
-def get_performance_data(participant_id=None, task_id=None):
-    """Get performance data, optionally filtered by participant_id or task_id"""
-    query = "SELECT * FROM performance"
-    params = []
-    
-    where_clauses = []
-    if participant_id:
-        where_clauses.append("participant_id = ?")
-        params.append(participant_id)
-    if task_id:
-        where_clauses.append("task_id = ?")
-        params.append(task_id)
-    
-    if where_clauses:
-        query += " WHERE " + " AND ".join(where_clauses)
-    
-    return query_db(query, tuple(params))
-
-def get_summary_stats():
-    """Get summary statistics for the dashboard"""
-    stats = {}
-    
-    # Get participant count
-    stats['participant_count'] = query_db("SELECT COUNT(*) as count FROM participants", one=True)['count']
-    
-    # Get task count
-    stats['task_count'] = query_db("SELECT COUNT(*) as count FROM tasks", one=True)['count']
-    
-    # Get average completion time
-    stats['avg_completion_time'] = query_db(
-        "SELECT AVG(completion_time) as avg_time FROM performance", one=True)['avg_time']
-    
-    # Get success rate
-    stats['success_rate'] = query_db(
-        "SELECT AVG(success) * 100 as rate FROM performance", one=True)['rate']
-    
-    # Get total interactions
-    stats['total_interactions'] = query_db(
-        "SELECT COUNT(*) as count FROM interactions", one=True)['count']
-    
-    # Get error rate
-    stats['error_rate'] = query_db(
-        "SELECT SUM(error_count) / COUNT(*) as rate FROM performance", one=True)['rate']
-    
-    return stats
-
-def get_learning_curve_data():
-    """Get learning curve data for visualization"""
-    return query_db("""
-        SELECT 
-            trial, 
-            AVG(completion_time) as avg_completion_time,
-            AVG(error_count) as avg_error_count,
-            AVG(success) * 100 as success_rate
-        FROM performance
-        GROUP BY trial
-        ORDER BY trial
-    """)
-
-def get_task_comparison_data():
-    """Get task comparison data for visualization"""
-    return query_db("""
-        SELECT 
-            t.id as task_id,
-            t.name as task_name,
-            AVG(p.completion_time) as avg_completion_time,
-            AVG(p.error_count) as avg_error_count,
-            AVG(p.success) * 100 as success_rate
-        FROM performance p
-        JOIN tasks t ON p.task_id = t.id
-        GROUP BY t.id, t.name
-        ORDER BY t.id
-    """)
+        print("Database connection failed.")

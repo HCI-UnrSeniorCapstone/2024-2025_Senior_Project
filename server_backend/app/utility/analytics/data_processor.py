@@ -3,17 +3,8 @@ from datetime import datetime
 from collections import defaultdict
 
 def get_study_summary(conn, study_id):
-    """
-    Get summary metrics for a study
-    
-    Args:
-        conn: Database connection
-        study_id: ID of the study
-        
-    Returns:
-        Dictionary with summary metrics
-    """
-    # Query total participants
+    """Get dashboard summary metrics for a study"""
+    # Get total unique participants
     cursor = conn.cursor()
     cursor.execute(
         "SELECT COUNT(DISTINCT participant_id) FROM sessions WHERE study_id = ?",
@@ -21,7 +12,7 @@ def get_study_summary(conn, study_id):
     )
     participant_count = cursor.fetchone()[0]
     
-    # Query average completion time
+    # Calculate average time to complete sessions
     cursor.execute(
         """
         SELECT AVG(end_time - start_time) 
@@ -32,7 +23,7 @@ def get_study_summary(conn, study_id):
     )
     avg_completion_time = cursor.fetchone()[0] or 0
     
-    # Query success rate
+    # Calculate percentage of successfully completed sessions
     cursor.execute(
         """
         SELECT 
@@ -44,14 +35,14 @@ def get_study_summary(conn, study_id):
     )
     success_rate = cursor.fetchone()[0] or 0
     
-    # Query total tasks
+    # Count how many tasks are in the study
     cursor.execute(
         "SELECT COUNT(DISTINCT task_id) FROM tasks WHERE study_id = ?",
         (study_id,)
     )
     task_count = cursor.fetchone()[0]
     
-    # Query average error count
+    # Get average number of errors per task attempt
     cursor.execute(
         """
         SELECT AVG(error_count) 
@@ -62,11 +53,12 @@ def get_study_summary(conn, study_id):
     )
     avg_error_count = cursor.fetchone()[0] or 0
     
-    # Generate change values (simplified to use random values)
+    # Generate trend indicators (random for demo purposes)
     completion_time_change = round(np.random.uniform(-15, 15), 1)
     success_rate_change = round(np.random.uniform(-10, 10), 1)
     error_count_change = round(np.random.uniform(-20, 20), 1)
     
+    # Format data for dashboard display
     return {
         "participantCount": participant_count,
         "avgCompletionTime": round(avg_completion_time, 2),
@@ -105,19 +97,10 @@ def get_study_summary(conn, study_id):
     }
 
 def get_learning_curve_data(conn, study_id):
-    """
-    Get learning curve data for a study
-    
-    Args:
-        conn: Database connection
-        study_id: ID of the study
-        
-    Returns:
-        List of data points showing task completion time across attempts
-    """
+    """Get data showing how performance improves with practice"""
     cursor = conn.cursor()
     
-    # Get tasks in the study
+    # Get list of tasks in this study
     cursor.execute(
         "SELECT id, name FROM tasks WHERE study_id = ?",
         (study_id,)
@@ -127,7 +110,7 @@ def get_learning_curve_data(conn, study_id):
     result = []
     
     for task_id, task_name in tasks:
-        # Get task results for each attempt
+        # For each task, get metrics by attempt number
         cursor.execute(
             """
             SELECT 
@@ -147,6 +130,7 @@ def get_learning_curve_data(conn, study_id):
         
         task_data = cursor.fetchall()
         
+        # Format the data for the learning curve chart
         for attempt, avg_time, avg_errors in task_data:
             result.append({
                 "taskId": task_id,
@@ -159,19 +143,10 @@ def get_learning_curve_data(conn, study_id):
     return result
 
 def get_task_performance_data(conn, study_id):
-    """
-    Get task performance data for a study
-    
-    Args:
-        conn: Database connection
-        study_id: ID of the study
-        
-    Returns:
-        List of task performance metrics
-    """
+    """Get comparative performance metrics across different tasks"""
     cursor = conn.cursor()
     
-    # Get tasks in the study
+    # Get list of tasks in this study
     cursor.execute(
         "SELECT id, name FROM tasks WHERE study_id = ?",
         (study_id,)
@@ -181,7 +156,7 @@ def get_task_performance_data(conn, study_id):
     result = []
     
     for task_id, task_name in tasks:
-        # Get performance metrics for the task
+        # For each task, calculate performance metrics
         cursor.execute(
             """
             SELECT 
@@ -199,9 +174,10 @@ def get_task_performance_data(conn, study_id):
         
         avg_time, success_rate, avg_errors = cursor.fetchone()
         
-        # Calculate error rate as errors per minute
+        # Calculate errors per minute as a normalized metric
         error_rate = avg_errors / (avg_time / 60) if avg_time > 0 else 0
         
+        # Format task data for the comparison chart
         result.append({
             "taskId": task_id,
             "taskName": task_name,
@@ -214,19 +190,10 @@ def get_task_performance_data(conn, study_id):
     return result
 
 def get_participant_data(conn, study_id):
-    """
-    Get participant data for a study
-    
-    Args:
-        conn: Database connection
-        study_id: ID of the study
-        
-    Returns:
-        List of participant data
-    """
+    """Get performance data for individual participants"""
     cursor = conn.cursor()
     
-    # Get participants in the study
+    # Get list of participants in this study
     cursor.execute(
         """
         SELECT DISTINCT participant_id 
@@ -240,7 +207,7 @@ def get_participant_data(conn, study_id):
     result = []
     
     for participant_id in participants:
-        # Get session data for the participant
+        # Get all sessions for this participant
         cursor.execute(
             """
             SELECT 
@@ -256,12 +223,14 @@ def get_participant_data(conn, study_id):
         )
         
         sessions = cursor.fetchall()
+        
+        # Calculate overall metrics for this participant
         session_count = len(sessions)
         completion_time = sum(duration for _, duration, _ in sessions if duration)
         completed_sessions = sum(1 for _, _, status in sessions if status == 'completed')
         success_rate = (completed_sessions / session_count * 100) if session_count > 0 else 0
         
-        # Get task data for the participant
+        # Get total error count across all tasks
         cursor.execute(
             """
             SELECT 
@@ -277,6 +246,7 @@ def get_participant_data(conn, study_id):
         
         total_errors = cursor.fetchone()[0] or 0
         
+        # Format participant data for the table
         result.append({
             "participantId": participant_id,
             "sessionCount": session_count,
