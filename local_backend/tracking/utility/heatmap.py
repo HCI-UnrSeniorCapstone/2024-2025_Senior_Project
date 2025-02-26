@@ -2,15 +2,21 @@
 
 
 import os
+import time
 import csv
 import cv2
 import numpy as np
 from PIL import ImageGrab
-import time
+import threading
 from tracking.utility.file_management import get_save_dir
 
 
+# Used to signal heatmap gen is complete 
+heatmap_generation_complete = threading.Event()
+
+
 def generate_heatmap(session_id, task, factor):
+    
     task_name = task["taskName"].replace(" ", "")
     factor_name = factor["factorName"].replace(" ", "")
 
@@ -45,8 +51,13 @@ def generate_heatmap(session_id, task, factor):
         heatmap_path = os.path.join(dir_trial, heatmap_nm)
         cv2.imwrite(heatmap_path, overlay)
 
+
+        time.sleep(1)
+        
         # removes the initial screenshot
         os.remove(screenshot_path)
+        
+    heatmap_generation_complete.set()
 
 
 def extract_mouse_movements(log_file):
