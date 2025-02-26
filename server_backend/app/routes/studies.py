@@ -14,8 +14,8 @@ bp = Blueprint("studies", __name__)
 
 # Gets and saves data from study form page and stores it into a json file. Then uploads data into db
 # The query will need to be UPDATED since the user is hardcoded rn
-@bp.route("/create_study", methods=["POST"])
-def create_study():
+@bp.route("/create_study/<int:user_id>", methods=["POST"])
+def create_study(user_id):
     # Get request and convert to json
     submissionData = request.get_json()
 
@@ -26,8 +26,8 @@ def create_study():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        study_id = create_study_details(submissionData, conn, cur)
-        create_study_task_factor_details(study_id, submissionData, conn, cur)
+        study_id = create_study_details(submissionData, cur)
+        create_study_task_factor_details(study_id, submissionData, cur)
 
         # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
         # select_user_query = """
@@ -49,9 +49,6 @@ def create_study():
         #     """
 
         #     cur.execute(insert_user_query)
-
-        # Get new user_id
-        user_id = 1
 
         # Get owner id
         select_study_user_role_type = """
@@ -97,6 +94,18 @@ def overwrite_study(user_id, study_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # Check if study exists
+        check_study_query = """
+        SELECT study_id
+        FROM study
+        WHERE study_id = %s
+        """
+        cur.execute(check_study_query, (study_id,))
+        study_exists = cur.fetchone()
+
+        if study_exists is None:
+            return jsonify({"error": "Study does not exist"}), 404
+
         # Check if user has access
         check_user_query = """
         SELECT study_user_role_description 
@@ -112,41 +121,28 @@ def overwrite_study(user_id, study_id):
                 study_id,
             ),
         )
-        user_access_exists = cur.fetchone()[0]
+        user_access_exists = cur.fetchone()
 
         # Error Message
-        if user_access_exists == 0:
-            # Check if study exists
-            check_study_query = """
-            SELECT study_id
-            FROM study
-            WHERE study_id = %s
-            """
-            cur.execute(check_study_query, (study_id,))
-            study_exists = cur.fetchone()[0]
-
-            if study_exists == 0:
-                return jsonify({"error": "Study does not exist"}), 404
-
+        if user_access_exists is None:
             return jsonify({"error": "User does not have access to study"}), 404
-        print(user_access_exists)
         # Error Message
-        if user_access_exists == "Viewer":
+        if user_access_exists[0] == "Viewer":
             return jsonify({"error": "User may only view this study"}), 404
 
-        elif user_access_exists == "Owner" or user_access_exists == "Editor":
+        if user_access_exists[0] == "Owner" or user_access_exists[0] == "Editor":
 
             # If sessions exist, info can't be overwritten
             check_sessions_query = """
-            SELECT COUNT(*)
+            SELECT participant_session_id
             FROM participant_session
             WHERE study_id = %s 
             """
             cur.execute(check_sessions_query, (study_id,))
-            sessions_exist = cur.fetchone()[0]
+            sessions_exist = cur.fetchone()
 
             # Error Message
-            if sessions_exist != 0:
+            if sessions_exist is not None:
                 return (
                     jsonify(
                         {
@@ -205,7 +201,7 @@ def overwrite_study(user_id, study_id):
             )
 
             # Build up rest of info
-            create_study_task_factor_details(study_id, submissionData, conn, cur)
+            create_study_task_factor_details(study_id, submissionData, cur)
 
             # Commit the transaction
             conn.commit()

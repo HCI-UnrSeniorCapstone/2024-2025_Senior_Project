@@ -435,7 +435,7 @@ export default {
           path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
           response = await axios.put(path, submissionData)
         } else {
-          path = `${backendUrl}/create_study`
+          path = `${backendUrl}/create_study/1`
           response = await axios.post(path, submissionData)
         }
         this.studySaveStatus('success', 'Study saved successfully!')
