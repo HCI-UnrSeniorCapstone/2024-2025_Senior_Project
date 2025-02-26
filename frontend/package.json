@@ -17,12 +17,14 @@
     "@mdi/font": "^7.4.47",
     "axios": "^1.7.7",
     "chart.js": "^4.4.6",
+    "d3": "^7.9.0",
     "papaparse": "^5.4.1",
     "pinia": "^2.2.4",
     "vee-validate": "^4.14.3",
     "vue": "^3.5.11",
     "vue-router": "^4.4.5",
-    "vuetify": "^3.7.2"
+    "vuetify": "^3.7.2",
+    "vuex": "^4.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",
