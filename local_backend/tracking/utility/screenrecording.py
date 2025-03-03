@@ -8,7 +8,7 @@ import time
 import os
 import subprocess
 import threading
-from tracking.utility.file_management import get_save_dir
+from tracking.utility.file_management import get_file_path
 from imageio_ffmpeg import get_ffmpeg_exe
 
 ffmpeg_path = get_ffmpeg_exe()
@@ -20,7 +20,7 @@ recording_active = threading.Event()
 adjustments_finished = threading.Event()
 
 
-def record_screen(session_id, task, factor):
+def record_screen(dir_output_base, filename_base):
     # Reset 
     recording_stop.clear()
     adjustments_finished.clear()
@@ -28,14 +28,7 @@ def record_screen(session_id, task, factor):
     # Signal we are recording 
     recording_active.set()
     
-    # Getting path to save to
-    task_name = task["taskName"].replace(" ", "")
-    factor_name = factor["factorName"].replace(" ", "")
-    dir_results = get_save_dir()
-    dir_session = os.path.join(dir_results, f"Session_{session_id}")
-    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
-    os.makedirs(dir_trial, exist_ok=True)
-    filename = os.path.join(dir_trial, "screen_recording.mp4")
+    file_path = get_file_path(dir_output_base, filename_base, "screen_recording", "mp4")
     
     temp_fps = 15
     delay = 1 / temp_fps
@@ -44,7 +37,7 @@ def record_screen(session_id, task, factor):
         monitor = sct.monitors[1]
         codec = cv2.VideoWriter_fourcc(*"mp4v")
         # Creating a VideoWriter object
-        out = cv2.VideoWriter(filename, codec, temp_fps, (monitor['width'], monitor['height']))
+        out = cv2.VideoWriter(file_path, codec, temp_fps, (monitor['width'], monitor['height']))
 
         start_time = time.time()
         next_frame_time = start_time
@@ -79,27 +72,27 @@ def record_screen(session_id, task, factor):
         
         recording_active.clear()
         
-        adjuster_thread = threading.Thread(target = adjust_video, args = (filename, fps))
+        adjuster_thread = threading.Thread(target = adjust_video, args = (file_path, fps))
         adjuster_thread.daemon = True
         adjuster_thread.start()
 
 
 # Need this function because fps varies for each person so we have to correct the video using calculated fps using ffmpeg or else play speed and video length will be incorrect
-def adjust_video(fname, fps):
-    temp_fname = fname.replace(".mp4", "_temp.mp4")
+def adjust_video(f_path, fps):
+    temp_f_path = f_path.replace(".mp4", "_temp.mp4")
     
     # Ref FFmpeg https://trac.ffmpeg.org/wiki/How%20to%20speed%20up%20/%20slow%20down%20a%20video
     command = [
-        ffmpeg_path, "-y", "-i", fname,
+        ffmpeg_path, "-y", "-i", f_path,
         "-c:v", "libx264", "-preset", "fast",
         "-vf", f"setpts={15 / fps}*PTS",
-        temp_fname
+        temp_f_path
     ]
     
     subprocess.run(command, stdout = subprocess.DEVNULL, stderr = subprocess.DEVNULL) # stop FFmpeg terminal output details 
     
-    if os.path.exists(temp_fname):
-        os.replace(temp_fname, fname)
+    if os.path.exists(temp_f_path):
+        os.replace(temp_f_path, f_path)
     
     adjustments_finished.set()
 

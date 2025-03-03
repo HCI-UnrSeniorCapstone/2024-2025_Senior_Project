@@ -164,7 +164,7 @@ class GlobalToolbar(QWidget):
         # Uses a sample json found in frontend/public for easier debugging and development so we dont have to initiate session from Vue
         with open("../frontend/public/sample_study.json", "r") as file:
             data = json.load(file)
-        self.session_id, self.tasks, self.factors, self.trials = (
+        self.session_id, self.tasks, self.factors, self.trials, self.storage_dir = (
             self.parse_study_details(data)
         )
 
@@ -174,7 +174,8 @@ class GlobalToolbar(QWidget):
         tasks = data.get("tasks", {})
         factors = data.get("factors", {})
         trials = data.get("trials", [])
-        return session_id, tasks, factors, trials
+        storage_path = data.get("storagePath")
+        return session_id, tasks, factors, trials, storage_path
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
@@ -227,7 +228,7 @@ class GlobalToolbar(QWidget):
             heatmap_generation_complete.clear()
 
             trial_thread = threading.Thread(
-                target=conduct_trial, args=(self.session_id, task, factor)
+                target=conduct_trial, args=(self.session_id, task, factor, self.storage_dir)
             )
             trial_thread.start()
 
@@ -426,10 +427,10 @@ class GlobalToolbar(QWidget):
                 adjustments_finished.wait()
 
                 if os.path.exists(
-                    os.path.join(get_save_dir(), f"Session_{self.session_id}")
+                    get_save_dir(self.storage_dir, self.session_id)
                 ):
                     try:
-                        package_session_results(self.session_id)
+                        package_session_results(self.session_id, self.storage_dir)
                     except Exception as e:
                         print(f"Error packaging data: {e}")
 
