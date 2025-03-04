@@ -47,8 +47,8 @@ create_data_path_participant() {
 create_data_path_trial() {
     local trial_id=$1
     local participant_id=$2
-    local study_id=$3
-    local base_path="$RESULTS_BASE_DIR_PATH/${study_id}_study_id/${participant_id}_participant_session_id/${trial_id}_trial_id"
+    local input_path=$3
+    local base_path="$input_path/${trial_id}_trial_id"
     mkdir -p "$base_path"
     echo "$base_path"
 }
@@ -154,11 +154,11 @@ csv_counter=1
 trial_counter=1
 study_id=1
 for participant_id in {1..3}; do
-        path=$(create_data_path_participant 1 $participant_id)
+        path=$(create_data_path_participant "$study_id" "$participant_id")
         participant_session_id=$(update_database_participant_session "$participant_id")
     for trial_id in {1..4}; do
-        path=$(create_data_path_trial $trial_counter $participant_id)  
-        csv_counter=$(update_database_trial "$path" "$participant_id" "$study_id" "$csv_counter" "$participant_session_id")
+        trial_path=$(create_data_path_trial "$trial_counter" "$participant_id" "$path")
+        csv_counter=$(update_database_trial "$trial_path" "$participant_id" "$study_id" "$csv_counter" "$participant_session_id")
         trial_counter=$((trial_counter + 1))
     done
 done
