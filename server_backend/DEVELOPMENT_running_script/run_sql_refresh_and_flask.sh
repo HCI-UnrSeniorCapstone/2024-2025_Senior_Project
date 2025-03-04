@@ -126,7 +126,7 @@ update_database_trial() {
         session_data_instance_id=$(mysql -e "$insert_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
         # Check for successful session_data_instance insert
         if [ $? -eq 0 ]; then
-            echo "Session data instance for trial $trial_id inserted successfully." >&2
+            echo "Session data instance $session_data_instance_id for trial $trial_id inserted successfully." >&2
         else
             echo "ERROR: Inserting session data instance for trial $trial_id." >&2
             exit 1
@@ -139,7 +139,7 @@ update_database_trial() {
 generate_data() {
     local file_path=$1
     local start_time=$2
-    local num_records=25
+    local num_records=20
     
     for i in $(seq 1 $num_records); do
         local time=$(date -u -d "@$(( $(date -d "$start_time" +%s) + i ))" +"%H:%M:%S")
