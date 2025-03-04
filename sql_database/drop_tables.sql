@@ -1,5 +1,3 @@
-USE DEVELOP_fulcrum;
-
 DELIMITER $$
 
 CREATE PROCEDURE drop_all_tables() 

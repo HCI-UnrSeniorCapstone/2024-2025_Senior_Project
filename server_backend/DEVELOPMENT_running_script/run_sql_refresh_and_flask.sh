@@ -3,11 +3,15 @@
 # Assuming you're already in the 'server_backend' directory and in venv
 
 # Load specific environment variables from the .env file
-export $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=' ../.env | xargs)
+export $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=|^MYSQL_DB=' ../.env | xargs)
+
+DB_NAME=$MYSQL_DB
+# Remove any carriage return (\r) that might exist if editing on Windows
+DB_NAME=$(echo $DB_NAME | tr -d '\r')
 
 # Run the SQL files in the specified order
 echo "Running drop_tables.sql..."
-mysql < ../sql_database/drop_tables.sql
+mysql $DB_NAME < ../sql_database/drop_tables.sql
 if [ $? -eq 0 ]; then
     echo "drop_tables.sql completed successfully."
 else
@@ -16,7 +20,7 @@ else
 fi
 
 echo "Running create_tables.sql..."
-mysql < ../sql_database/create_tables.sql
+mysql $DB_NAME < ../sql_database/create_tables.sql
 
 if [ $? -eq 0 ]; then
     echo "create_tables.sql completed successfully."
@@ -26,7 +30,7 @@ else
 fi
 
 echo "Running inserts_all.sql..."
-mysql < ../sql_database/sample_data/insert_all.sql
+mysql $DB_NAME < ../sql_database/sample_data/insert_all.sql
 
 if [ $? -eq 0 ]; then
     echo "inserts_all.sql completed successfully."

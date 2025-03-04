@@ -1,4 +1,3 @@
-USE DEVELOP_fulcrum;
 CREATE TABLE user (
     user_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(255),
