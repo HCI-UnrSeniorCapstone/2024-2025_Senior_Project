@@ -132,6 +132,10 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         cur.execute(select_participant_session_ids_query, (participant_id,))
         id_results = cur.fetchall()
 
+        # If no participant sessions are found, return an error
+        if not id_results:
+            return jsonify({"error": "No session data found for this participant"}), 404
+
         # Build already-grouped data: list of (group_key, list of (record, size) tuples)
         grouped_data = []
         for result in id_results:
@@ -156,7 +160,7 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# All csv for a participant session
+# All CSV for a participant session
 @bp.route(
     "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
@@ -166,11 +170,7 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get a flat list of (record, size) tuples
-        results_with_size = get_all_participant_session_csv_files(
-            participant_session_id, cur
-        )
-
+        # Get session creation timestamp
         select_participant_session_creation_query = """
             SELECT ps.created_at
             FROM participant_session AS ps 
@@ -179,8 +179,24 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         cur.execute(
             select_participant_session_creation_query, (participant_session_id,)
         )
-        session_time_stamp = cur.fetchone()[0]
+        session_info = cur.fetchone()
+
+        if not session_info:
+            return jsonify({"error": "Participant session not found"}), 404
+
+        session_time_stamp = session_info[0]
+
+        # Get all CSV files for the session
+        results_with_size = get_all_participant_session_csv_files(
+            participant_session_id, cur
+        )
         cur.close()
+
+        if not results_with_size:
+            return (
+                jsonify({"error": "No CSV data found for this participant session"}),
+                404,
+            )
 
         zip_buffer = zip_csv_files(results_with_size, group_by=None, record_offset=0)
         return send_file(
@@ -195,7 +211,7 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Only 1 specific csv
+# Only 1 specific CSV
 @bp.route(
     "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
 )
@@ -204,8 +220,12 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # Fetch single CSV file
         result = get_one_csv_file(session_data_instance_id, cur)
         cur.close()
+
+        if not result:
+            return jsonify({"error": "Session data instance not found"}), 404
 
         # Wrap the single record in a list as (record, dummy_size)
         zip_buffer = zip_csv_files([(result, 0)], group_by=None, record_offset=0)
@@ -222,22 +242,33 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# All csv for a study
+# All CSV for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        results_with_size = get_all_study_csv_files(study_id, cur)
+        # Check if study exists
         select_study_name_query = """
             SELECT s.study_name
             FROM study AS s
             WHERE s.study_id = %s
         """
         cur.execute(select_study_name_query, (study_id,))
-        study_name = cur.fetchone()[0]
+        study_info = cur.fetchone()
+
+        if not study_info:
+            return jsonify({"error": "Study not found"}), 404
+
+        study_name = study_info[0]
+
+        # Fetch all CSV files for the study
+        results_with_size = get_all_study_csv_files(study_id, cur)
         cur.close()
+
+        if not results_with_size:
+            return jsonify({"error": "No CSV data found for this study"}), 404
 
         zip_buffer = zip_csv_files(
             results_with_size,
