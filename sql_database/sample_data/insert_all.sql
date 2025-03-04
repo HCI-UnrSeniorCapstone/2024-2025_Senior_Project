@@ -381,7 +381,9 @@ INSERT INTO measurement_option (measurement_option_id, measurement_option_name)
 VALUES (1, 'Mouse Movement'),
     (2, 'Mouse Scrolls'),
     (3, 'Mouse Clicks'),
-    (4, 'Keyboard Inputs');
+    (4, 'Keyboard Inputs'),
+    (5, 'Screen Recording'),
+    (6, 'Heat Map');
 -- Task Measurement
 INSERT INTO task_measurement (task_id, measurement_option_id)
 VALUES (1, 1),

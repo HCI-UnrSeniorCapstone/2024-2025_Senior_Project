@@ -113,7 +113,7 @@ update_database() {
 
     # Update session_data_instance with the generated CSV path
     update_path_session_data_instance="USE DEVELOP_fulcrum;
-    UPDATE session_data_instance SET csv_results_path = '$file_path'
+    UPDATE session_data_instance SET results_path = '$file_path'
     WHERE session_data_instance_id = '$session_data_instance_id'"
 
     # Run the update query

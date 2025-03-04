@@ -11,7 +11,7 @@ def extract_file_info(record, offset=0):
 
     Expected record layout (relative to offset):
       offset+0: session_data_instance_id
-      offset+1: csv_results_path
+      offset+1: results_path
       offset+2: task_id
       offset+3: task_name
       offset+4: measurement_option_id
@@ -103,7 +103,7 @@ def sort_csv_by_size(results):
 # Gets all csvs for a participant session
 def get_all_participant_session_csv_files(participant_session_id, cur):
     select_session_data_instance_route_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
+        SELECT sdi.session_data_instance_id, sdi.results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
         FROM session_data_instance sdi
         INNER JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id
@@ -124,7 +124,7 @@ def get_all_participant_session_csv_files(participant_session_id, cur):
 
 def get_one_csv_file(session_data_instance_id, cur):
     select_session_data_instance_route_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
+        SELECT sdi.session_data_instance_id, sdi.results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
         FROM session_data_instance sdi
         INNER JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id
@@ -149,7 +149,7 @@ def get_all_study_csv_files(study_id, cur):
         SELECT 
             sdi.session_data_instance_id, 
             ps.participant_session_id,
-            sdi.csv_results_path, 
+            sdi.results_path, 
             sdi.task_id, 
             t.task_name, 
             sdi.measurement_option_id, 

@@ -91,7 +91,7 @@ def save_session_data_instance(
         # Add pathway for database
         update_path_session_data_instance = """
         UPDATE session_data_instance
-        SET csv_results_path = %s
+        SET results_path = %s
         WHERE session_data_instance_id = %s
         """
         cur.execute(
@@ -466,7 +466,7 @@ def get_participant_session_data(study_id, participant_session_id):
         cur = conn.cursor()
 
         select_participant_session_data_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
+        SELECT sdi.session_data_instance_id, sdi.results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
         FROM session_data_instance sdi
         JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id

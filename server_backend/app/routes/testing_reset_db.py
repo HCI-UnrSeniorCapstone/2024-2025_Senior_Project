@@ -144,7 +144,7 @@ def testing_update_database(file_path, participant_id, measurement_option_id):
             # Update session_data_instance with the generated CSV path
             update_path_session_data_instance = f"""
                 UPDATE session_data_instance 
-                SET csv_results_path = '{file_path}'
+                SET results_path = '{file_path}'
                 WHERE session_data_instance_id = {session_data_instance_id};
             """
             cur.execute(update_path_session_data_instance)
