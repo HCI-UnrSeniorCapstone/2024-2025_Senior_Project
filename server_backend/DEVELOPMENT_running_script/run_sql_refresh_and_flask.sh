@@ -1,286 +1,168 @@
 #!/bin/bash
 
-# Assuming you're already in the 'server_backend' directory and in venv
-
 # Load specific environment variables from the .env file
 export $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=|^MYSQL_DB=' ../.env | xargs)
 
-DB_NAME=$MYSQL_DB
-# Remove any carriage return (\r) that might exist if editing on Windows
-DB_NAME=$(echo $DB_NAME | tr -d '\r')
+DB_NAME=$(echo $MYSQL_DB | tr -d '\r')
 
-# Run the SQL files in the specified order
-echo "Running drop_tables.sql..."
-mysql $DB_NAME < ../sql_database/drop_tables.sql
-if [ $? -eq 0 ]; then
-    echo "drop_tables.sql completed successfully."
-else
-    echo "Error running drop_tables.sql."
-    exit 1
-fi
-
-echo "Running create_tables.sql..."
-mysql $DB_NAME < ../sql_database/create_tables.sql
-
-if [ $? -eq 0 ]; then
-    echo "create_tables.sql completed successfully."
-else
-    echo "Error running create_tables.sql."
-    exit 1
-fi
-
-echo "Running inserts_all.sql..."
-mysql $DB_NAME < ../sql_database/sample_data/insert_all.sql
-
-if [ $? -eq 0 ]; then
-    echo "inserts_all.sql completed successfully."
-else
-    echo "Error running inserts_all.sql."
-    exit 1
-fi
-
-echo "Removing directories within $RESULTS_BASE_DIR_PATH..."
-rm -rf $RESULTS_BASE_DIR_PATH/*
-
-if [ $? -eq 0 ]; then
-    echo "Directories removed successfully."
-else
-    echo "Error removing directories."
-fi
-
-
-# Define the start time
-start_time="21:46:20"
-
-start_seconds=$(date -d "$start_time" +%s)
-# Initialize seconds offset
-seconds_offset=0
-
-
-# Insert participants into participant_session dynamically
-insert_participant_sessions() {
-    #local participant_id=$1
-    for i in {1..3}; do
-        participant_id=$i
-        study_id=1
-        # Generate a random ended_at time
-        ended_at=$(date -d "NOW + $((RANDOM % 60 + 1)) minute" +"'%Y-%m-%d %H:%M:%S'")
-        
-        # Generate a random comment
-        if (( $i == 1 )); then
-            comments="'Participant is too smart. Terminate him'"
-            is_valid=0
-        else
-            comments="'They were very nice'"
-            is_valid=1
-        fi
-        # Generate the SQL INSERT statement for participant_session
-        insert_stmt="USE DEVELOP_fulcrum;
-        INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
-        VALUES ($participant_id, $study_id, $ended_at, $comments, $is_valid);"
-        
-        # Execute the insert statement using mysql
-        mysql -e "$(printf "$insert_stmt" "$participant_id" "$study_id" "$ended_at" "$comments" "$is_valid")"
-
-        if [ $? -eq 0 ]; then
-            echo "Participant $participant_id inserted successfully."
-        else
-            echo "Error inserting Participant $participant_id."
-            exit 1
-        fi
-    done
-}
-insert_participant_sessions
-update_database() {
-    local file_path=$1 
-    local i=$2
-    local measurement_option_id=$3
-    # Insert the session data instance
-    create_session_data_instance="USE DEVELOP_fulcrum;
-        INSERT INTO session_data_instance(participant_session_id, task_id, measurement_option_id, factor_id)
-        VALUES ($i, 1, $measurement_option_id, $i);
-    "
-
-    # Execute the insert and retrieve the last inserted ID in the same session
-    session_data_instance_id=$(mysql -e "$create_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
-
+run_sql_file() {
+    local file=$1
+    echo "Running $file..."
+    mysql $DB_NAME < "../sql_database/$file"
     if [ $? -eq 0 ]; then
-        echo "Last inserted session_data_instance_id: $session_data_instance_id"
+        echo "$file completed successfully."
     else
-        echo "Error inserting into session_data_instance."
-        exit 1
-    fi
-
-    # Update session_data_instance with the generated CSV path
-    update_path_session_data_instance="USE DEVELOP_fulcrum;
-    UPDATE session_data_instance SET results_path = '$file_path'
-    WHERE session_data_instance_id = '$session_data_instance_id'"
-
-    # Run the update query
-    echo "Updating session_data_instance with CSV path..."
-    mysql -e "$update_path_session_data_instance"
-
-    if [ $? -eq 0 ]; then
-        echo "session_data_instance updated with CSV path."
-    else
-        echo "Error updating session_data_instance."
+        echo "Error running $file."
         exit 1
     fi
 }
 
-# Mouse Movements
-generate_mouse_movements() {
-    local file_path=$1        
-    local start_seconds=$2      
-    local seconds_offset=$3
-    local num=$4
+run_sql_file "drop_tables.sql"
+run_sql_file "create_tables.sql"
+run_sql_file "sample_data/insert_all.sql"
 
-    for i in {1..25}; do
-        # Calculate new time in seconds
-        current_seconds=$((start_seconds + seconds_offset))
-        # Convert back to HH:MM:SS format
-        time=$(date -u -d "1970-01-01 $current_seconds sec" +"%H:%M:%S")
-
-        value1=$(echo "scale=2; $RANDOM/1000" | bc)
-        value2=$((RANDOM % 1000))
-        value3=$((RANDOM % 500))
-        echo "$time,$value1,$value2,$value3" >> "$file_path"
-
-    done
-    echo "CSV file created at: $file_path"
-    update_database "$file_path" "$num" "1"
+clear_results_directory() {
+    echo "Removing directories within $RESULTS_BASE_DIR_PATH..."
+    rm -rf "$RESULTS_BASE_DIR_PATH/*"
+    [ $? -eq 0 ] && echo "Directories removed successfully." || echo "Error removing directories."
 }
 
-# Mouse Scrolls
-generate_mouse_scrolls() {
-    local file_path=$1        
-    local start_seconds=$2      
-    local seconds_offset=$3
-    local num=$4
+clear_results_directory
 
-    for i in {1..25}; do
-        seconds_offset=$((seconds_offset + RANDOM % 2))
-
-        # Calculate new time in seconds
-        current_seconds=$((start_seconds + seconds_offset))
-        # Convert back to HH:MM:SS format
-        time=$(date -d @$current_seconds +"%H:%M:%S")
-
-        # Calculate new time
-        time=$(date -u -d "1970-01-01 $current_seconds sec" +"%H:%M:%S")
-
-        value1=$(echo "scale=2; $RANDOM/1000" | bc)
-        value2=$((400 + RANDOM % 801))
-        value3=$((350 + RANDOM % 101))
-
-        # Append to file
-        echo "$time,$value1,$value2,$value3" >> "$file_path"
-    done
-    echo "CSV file created at: $file_path"
-    update_database "$file_path" "$num" "2"
+create_data_path_participant() {
+    local study_id=$1
+    local participant_id=$2
+    local base_path="$RESULTS_BASE_DIR_PATH/${study_id}_study_id/${participant_id}_participant_session_id"
+    mkdir -p "$base_path"
+    echo "$base_path"
 }
 
-# Mouse clicks
-generate_mouse_clicks() {
-    local file_path=$1        
-    local start_seconds=$2      
-    local seconds_offset=$3
-    local num=$4
-
-    for i in {1..25}; do
-        seconds_offset=$((seconds_offset + RANDOM % 2))
-
-        # Calculate new time in seconds
-        current_seconds=$((start_seconds + seconds_offset))
-        # Convert back to HH:MM:SS format
-        time=$(date -u -d "1970-01-01 $current_seconds sec" +"%H:%M:%S")
-
-        value1=$(echo "scale=2; $RANDOM/1000" | bc)
-        value2=$((400 + RANDOM % 801))
-        value3=$((350 + RANDOM % 101)) 
-
-        # Append to file
-        echo "$time,$value1,$value2,$value3" >> "$file_path"
-    done
-    echo "CSV file created at: $file_path"
-    update_database "$file_path" "$num" "3"
+create_data_path_trial() {
+    local trial_id=$1
+    local participant_id=$2
+    local base_path="$RESULTS_BASE_DIR_PATH/${study_id}_study_id/${participant_id}_participant_session_id/${trial_id}_trial_id"
+    mkdir -p "$base_path"
+    echo "$base_path"
 }
 
-generate_keyboard_inputs() {
-    local file_path=$1        
-    local start_seconds=$2      
-    local seconds_offset=$3
-    local num=$4
+update_database_participant_session() {
+    local participant_id=$1
+    local ended_at=$(date -d "NOW + $((RANDOM % 60 + 1)) minute" +"'%Y-%m-%d %H:%M:%S'")
+    local comments="'Good Data'"
+    local is_valid=1
 
-    for i in {1..25}; do
-        seconds_offset=$((seconds_offset + RANDOM % 2))
+    # Generate the SQL INSERT statement for participant_session
+    insert_participant_session="USE $DB_NAME;
+    INSERT INTO participant_session (participant_id, study_id, ended_at, comments, is_valid)
+    VALUES ($participant_id, $study_id, $ended_at, $comments, $is_valid);"
+    
+    # Execute the insert statement for participant_session
+    participant_session_id=$(mysql -e "$insert_participant_session; SELECT LAST_INSERT_ID();" -s -N)
 
-        # Calculate new time in seconds
-        current_seconds=$((start_seconds + seconds_offset))
-        # Convert back to HH:MM:SS format
-        time=$(date -u -d "1970-01-01 $current_seconds sec" +"%H:%M:%S")
+    echo "$participant_session_id"
+}
 
-        value1=$(echo "scale=2; $RANDOM/1000" | bc)
-        value2=$((400 + RANDOM % 801))
-        value3=$((350 + RANDOM % 101))
+update_database_trial() {
+    local path=$1
+    local participant_id=$2
+    local study_id=$3
+    local csv_counter=$4
 
-        # Append to file
+
+    
+    # Check for successful execution of participant_session insert
+    # if [ $? -eq 0 ]; then
+    #     echo "Participant Session $participant_session_id inserted successfully."
+    # else
+    #     echo "ERROR: Inserting Participant Session $participant_session_id."
+    #     exit 1
+    # fi
+
+    
+    # Check if participant_session_id is valid
+    # if [ -z "$participant_session_id" ]; then
+    #     echo "ERROR: Failed to retrieve participant_session_id $participant_session_id"
+    #     exit 1
+    # fi
+
+    # Now insert into the trial table
+    local task_id=1
+    local factor_id=1
+    insert_trial="USE $DB_NAME;
+    INSERT INTO trial (participant_session_id, task_id, factor_id)
+    VALUES ($participant_session_id, $task_id, $factor_id);"
+
+    trial_id=$(mysql -e "$insert_trial; SELECT LAST_INSERT_ID();" -s -N)
+
+    # Check for successful trial insert 
+    # if [ $? -eq 0 ]; then
+    #     echo "Trial inserted successfully with trial_id $trial_id."
+    # else
+    #     echo "ERROR inserting trial for participant_session_id $participant_session_id."
+    #     exit 1
+    # fi
+
+    # Check if trial_id is valid
+    # if [ -z "$trial_id" ]; then
+    #     echo "ERROR: Failed to retrieve trial_id $trial_id"
+    #     exit 1
+    # fi
+
+    # Insert into session_data_instance table for each CSV file
+    for csv in {1..4}; do
+        start_time="21:46:20"
+        file_path="$path/${csv_counter}.csv"
+        generate_data "$file_path" "$start_time"
+
+        insert_session_data_instance="USE $DB_NAME;
+        INSERT INTO session_data_instance (trial_id, measurement_option_id, results_path)
+        VALUES ($trial_id, $csv, '$file_path');"
+        
+        session_data_instance_id=$(mysql -e "$insert_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
+        # Check for successful session_data_instance insert
+        # if [ $? -eq 0 ]; then
+        #     echo "Session data instance for trial $trial_id inserted successfully."
+        # else
+        #     echo "ERROR: Inserting session data instance for trial $trial_id."
+        #     exit 1
+        # fi
+        csv_counter=$((csv_counter + 1))
+
+    done
+    echo "$csv_counter"
+}
+
+
+generate_data() {
+    local file_path=$1
+    local start_time=$2
+    local num_records=25
+    
+    for i in $(seq 1 $num_records); do
+        local time=$(date -u -d "@$(( $(date -d "$start_time" +%s) + i ))" +"%H:%M:%S")
+        local value1=$(echo "scale=2; $RANDOM/1000" | bc)
+        local value2=$((RANDOM % 1000))
+        local value3=$((RANDOM % 500))
         echo "$time,$value1,$value2,$value3" >> "$file_path"
     done
-    echo "CSV file created at: $file_path"
-    update_database "$file_path" "$num" "4"
 }
-# Make data for the 3 participants in the database
+
 csv_counter=1
-for i in {1..3}; do
-    file_path_dir="/home/hci/Documents/participants_results/1_study_id/${i}_participant_session_id/"
-    mkdir -p "$(dirname "$file_path_dir")"
-    index=$i
-    #insert_participant_sessions "$i"
-
-    #for j in {1..4}; do
-        j=1 
-        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
-        mkdir -p "$(dirname "$file_path")"
-        generate_mouse_movements "$file_path" "$start_seconds" "$seconds_offset" "$index"
-        csv_counter=$((csv_counter + 1))
-
-        j=2
-        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
-        mkdir -p "$(dirname "$file_path")"
-        generate_mouse_scrolls "$file_path" "$start_seconds" "$seconds_offset" "$index"
-        csv_counter=$((csv_counter + 1))
-
-        j=3
-        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
-        mkdir -p "$(dirname "$file_path")"
-        generate_mouse_clicks "$file_path" "$start_seconds" "$seconds_offset" "$index"
-        csv_counter=$((csv_counter + 1))
-
-        j=4
-        file_path="${file_path_dir}${csv_counter}_session_data_instance_id/${csv_counter}.csv"
-        mkdir -p "$(dirname "$file_path")"
-        generate_keyboard_inputs "$file_path" "$start_seconds" "$seconds_offset" "$index"
-        csv_counter=$((csv_counter + 1))
-    #done
+trial_counter=1
+study_id=1
+for participant_id in {1..3}; do
+        path=$(create_data_path_participant 1 $participant_id)
+        participant_session_id=$(update_database_participant_session "$participant_id")
+    for trial_id in {1..4}; do
+        path=$(create_data_path_trial $trial_counter $participant_id)  
+        csv_counter=$(update_database_trial "$path" "$participant_id" "$study_id" "$csv_counter" "$participant_session_id")
+        trial_counter=$((trial_counter + 1))
+    done
 done
-# Get the Flask port from the environment variable
-FLASK_PORT=$VUE_APP_BACKEND_PORT
 
-# Stop any process running on the specified port
-# Remove any carriage return (\r) that might exist if editing on Windows
-FLASK_PORT=$(echo $FLASK_PORT | tr -d '\r')
-MYSQL_HOST=$(echo $MYSQL_HOST | tr -d '\r')
-
-# Find the PID of the process using the port and kill it
+FLASK_PORT=$(echo $VUE_APP_BACKEND_PORT | tr -d '\r')
 FLASK_PID=$(lsof -t -i :$FLASK_PORT)
-if [ -z "$FLASK_PID" ]; then
-  echo "No process found on port $FLASK_PORT."
-else
-  kill -9 $FLASK_PID
-  echo "Process on port $FLASK_PORT has been stopped."
-fi
+[ -n "$FLASK_PID" ] && kill -9 $FLASK_PID
 
-# Start Flask in the background
-echo "Starting Flask app on port $VUE_APP_BACKEND_PORT..."
-flask run --host=0.0.0.0 --port=$VUE_APP_BACKEND_PORT --debug
+echo "Starting Flask app on port $FLASK_PORT..."
+flask run --host=0.0.0.0 --port=$FLASK_PORT --debug
