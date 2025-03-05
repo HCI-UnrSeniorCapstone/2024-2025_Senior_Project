@@ -3,16 +3,14 @@ import os
 import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
-    build_archive_name,
     generate_session_data_from_csv,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
     get_file_name_for_folder,
     get_one_csv_file,
+    get_one_trial,
     get_participant_session_name_for_folder,
     get_participant_session_order,
-    get_study_name_for_folder,
-    get_trial_name_for_folder,
     get_trial_order_for_folder,
     get_zip,
     # zip_csv_files,
@@ -288,6 +286,60 @@ def get_one_session_data_instance_zip(session_data_instance_id):
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{file_name}.zip",
+        )
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+
+# All for a trial
+@bp.route(
+    "/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
+)
+def get_all_session_data_instance_for_a_trial_zip(trial_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """
+        SELECT s.study_id, ps.participant_session_id, t.task_name, f.factor_name
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        INNER JOIN trial tr
+        ON tr.participant_session_id = ps.participant_session_id
+        INNER JOIN task AS t
+        ON t.task_id = tr.task_id
+        INNER JOIN factor AS f
+        ON f.factor_id = tr.factor_id
+        WHERE tr.trial_id = %s
+        """
+        cur.execute(query, (trial_id,))
+        query_result = cur.fetchone()
+        study_id = query_result[0]
+        participant_session_id = query_result[1]
+        task_name = query_result[2]
+        factor_name = query_result[3]
+
+        # Get the results and size from the function you mentioned
+        results_with_size = get_one_trial(trial_id, cur)
+        cur.close()
+
+        trial_order = get_trial_order_for_folder(
+            participant_session_id, conn.cursor()
+        ).get(trial_id, "UnknownTrialOrdering")
+
+        # If no CSV data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this trial"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="trial")
+
+        return send_file(
+            memory_file,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{task_name}_{factor_name}_{trial_order}.zip",
         )
 
     except Exception as e:

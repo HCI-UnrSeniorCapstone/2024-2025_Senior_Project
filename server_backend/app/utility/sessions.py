@@ -88,7 +88,7 @@ def get_zip(results_with_size, study_id, conn, mode):
                 zip_file_path = (
                     f"{trial_folder}/{measurement_option_name}{file_extension}"
                 )
-            elif mode == "one file":
+            elif mode == "one file" or mode == "trial":
                 # Extract the file extension
                 file_extension = os.path.splitext(results_path)[1]
                 zip_file_path = f"{measurement_option_name}{file_extension}"
@@ -177,43 +177,53 @@ def get_participant_session_name_for_folder(study_id, cur):
     return participant_sessions
 
 
-def get_trial_name_for_folder(study_id, cur):
-    query = """
-    SELECT t.task_id, t.task_name, f.factor_id, f.factor_name
-    FROM study AS s
-    INNER JOIN task AS t
-    ON t.study_id = s.study_id
-    INNER JOIN factor AS f
-    ON f.study_id = s.study_id
-    WHERE s.study_id = %s
-    """
-    cur.execute(query, (study_id,))
-    results = cur.fetchall()
-    tasks = {}
-    factors = {}
+# def get_task_factor_names_for_folder(study_id, cur):
+#     query = """
+#     SELECT t.task_id, t.task_name, f.factor_id, f.factor_name
+#     FROM study AS s
+#     INNER JOIN task AS t
+#     ON t.study_id = s.study_id
+#     INNER JOIN factor AS f
+#     ON f.study_id = s.study_id
+#     WHERE s.study_id = %s
+#     """
+#     cur.execute(query, (study_id,))
+#     results = cur.fetchall()
+#     tasks = {}
+#     factors = {}
 
-    for task_id, task_name, factor_id, factor_name in results:
-        # Add task to tasks dictionary (using task_id as key)
-        if task_id not in tasks:
-            tasks[task_id] = {
-                "task_name": task_name,
-                "factors": {},  # We will map factors for this task here
-            }
+#     for task_id, task_name, factor_id, factor_name in results:
+#         # Add task to tasks dictionary (using task_id as key)
+#         if task_id not in tasks:
+#             tasks[task_id] = {
+#                 "task_name": task_name,
+#                 "factors": {},  # We will map factors for this task here
+#             }
 
-        # Add factor to factors dictionary (using factor_id as key)
-        if factor_id not in factors:
-            factors[factor_id] = {
-                "factor_name": factor_name,
-                "tasks": {},  # We will map tasks for this factor here
-            }
+#         # Add factor to factors dictionary (using factor_id as key)
+#         if factor_id not in factors:
+#             factors[factor_id] = {
+#                 "factor_name": factor_name,
+#                 "tasks": {},  # We will map tasks for this factor here
+#             }
 
-        # Link the factor to the task in the tasks dictionary
-        tasks[task_id]["factors"][factor_id] = factors[factor_id]
+#         # Link the factor to the task in the tasks dictionary
+#         tasks[task_id]["factors"][factor_id] = factors[factor_id]
 
-        # Link the task to the factor in the factors dictionary
-        factors[factor_id]["tasks"][task_id] = tasks[task_id]
+#         # Link the task to the factor in the factors dictionary
+#         factors[factor_id]["tasks"][task_id] = tasks[task_id]
 
-    return {"tasks": tasks, "factors": factors}
+#     return {"tasks": tasks, "factors": factors}
+
+
+# def get_combined_trial_name(trial_id, trial_names):
+#     for task_id, task_info in trial_names["tasks"].items():
+#         if trial_id in task_info["factors"]:
+#             factor_info = task_info["factors"][trial_id]
+#             task_name = task_info["task_name"]
+#             factor_name = factor_info["factor_name"]
+#             return f"{task_name} - {factor_name}"
+#     return "UnknownSession"
 
 
 def get_file_name_for_folder(study_id, cur):
@@ -380,7 +390,13 @@ def get_all_study_csv_files(study_id, cur):
     )
     cur.execute(query, (study_id,))
     results = cur.fetchall()
-    # return sort_csv_by_size(results)
+    return results
+
+
+def get_one_trial(trial_id, cur):
+    query = get_core_csv_files_query() + "WHERE tr.trial_id = %s"
+    cur.execute(query, (trial_id,))
+    results = cur.fetchall()
     return results
 
 
