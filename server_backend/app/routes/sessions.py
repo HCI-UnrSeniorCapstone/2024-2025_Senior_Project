@@ -3,7 +3,6 @@ import os
 import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
-    generate_session_data_from_csv,
     get_all_participant_csv_files,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
@@ -12,10 +11,8 @@ from app.utility.sessions import (
     get_one_trial,
     get_participant_name_for_folder,
     get_participant_session_name_for_folder,
-    get_participant_session_order,
     get_trial_order_for_folder,
     get_zip,
-    # zip_csv_files,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -124,7 +121,7 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# 1. All CSV from a participant
+# All session data from a participant
 @bp.route(
     "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
@@ -144,16 +141,14 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         cur.execute(study_id_query, (participant_id,))
         study_id = cur.fetchone()[0]
 
-        # Get the results and size from the function you mentioned
         results_with_size = get_all_participant_csv_files(participant_id, cur)
         cur.close()
 
         # # Fetch the required data for folder naming
         participant_names = get_participant_name_for_folder(study_id, conn.cursor())
-
         participant_name = participant_names.get(participant_id, "UnknownParticipant")
 
-        # If no CSV data found, return an error
+        # If no file data found, return an error
         if not results_with_size:
             return jsonify({"error": "No data found for this participant"}), 404
 
@@ -170,7 +165,7 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# 2. All CSV for a participant session (each trial folder within that session)
+# All session data for a participant session
 @bp.route(
     "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
@@ -190,7 +185,6 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         cur.execute(study_id_query, (participant_session_id,))
         study_id = cur.fetchone()[0]
 
-        # Get the results and size from the function you mentioned
         results_with_size = get_all_participant_session_csv_files(
             participant_session_id, cur
         )
@@ -200,12 +194,11 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         participant_sessions = get_participant_session_name_for_folder(
             study_id, conn.cursor()
         )
-
         participant_session_name = participant_sessions.get(
             participant_session_id, "UnknownSession"
         )
 
-        # If no CSV data found, return an error
+        # If no file data found, return an error
         if not results_with_size:
             return jsonify({"error": "No data found for this participant session"}), 404
 
@@ -224,7 +217,7 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# 3. Only one specific CSV
+# Only one specific file of data
 @bp.route(
     "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
 )
@@ -247,16 +240,14 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         cur.execute(study_id_query, (session_data_instance_id,))
         study_id = cur.fetchone()[0]
 
-        # Get the results and size from the function you mentioned
         results_with_size = get_one_csv_file(session_data_instance_id, cur)
         cur.close()
 
         # Fetch the required data for folder naming
         file_names = get_file_name_for_folder(study_id, conn.cursor())
-
         file_name = file_names.get(session_data_instance_id, "UnknownSession")
 
-        # If no CSV data found, return an error
+        # If no file data found, return an error
         if not results_with_size:
             return jsonify({"error": "No data found for this data instance file"}), 404
 
@@ -273,7 +264,7 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# All for a trial
+# All session data for a trial
 @bp.route(
     "/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
 )
@@ -302,15 +293,15 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
         task_name = query_result[2]
         factor_name = query_result[3]
 
-        # Get the results and size from the function you mentioned
         results_with_size = get_one_trial(trial_id, cur)
         cur.close()
 
+        # Fetch the required data for folder naming
         trial_order = get_trial_order_for_folder(
             participant_session_id, conn.cursor()
         ).get(trial_id, "UnknownTrialOrdering")
 
-        # If no CSV data found, return an error
+        # If no file data found, return an error
         if not results_with_size:
             return jsonify({"error": "No data found for this trial"}), 404
 
@@ -327,7 +318,7 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# All CSV for a study (grouped by trial)
+# All session data for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
@@ -342,11 +333,10 @@ def get_all_session_data_instance_zip(study_id):
         cur.execute(study_name_query, (study_id,))
         study_name = cur.fetchone()[0]
 
-        # Get the results and size from the function you mentioned
         results_with_size = get_all_study_csv_files(study_id, cur)
         cur.close()
 
-        # If no CSV data found, return an error
+        # If no file data found, return an error
         if not results_with_size:
             return jsonify({"error": "No data found for this study"}), 404
 
@@ -361,37 +351,6 @@ def get_all_session_data_instance_zip(study_id):
 
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
-
-
-# Gets all CSV data for a study
-# Uses streaming
-@bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
-def get_all_session_data_instance(study_id):
-    try:
-        # Connect to the database
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        results_with_size = get_all_study_csv_files(study_id, cur)
-
-        # Close the cursor after processing
-        cur.close()
-
-        # How many rows read per CSV
-        chunk_size = 2000
-        # Return the response as a streamed response
-        return Response(
-            generate_session_data_from_csv(results_with_size, chunk_size),
-            content_type="application/json",
-            status=200,
-        )
-
-    except Exception as e:
-        # Error handling
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
