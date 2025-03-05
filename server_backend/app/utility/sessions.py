@@ -4,173 +4,219 @@ import pandas as pd
 import json
 import os
 
+from app.utility.db_connection import get_db_connection
 
-def extract_file_info(record, offset=0):
+
+def get_participant_session_order(participant_session_id):
     """
-    Extracts the CSV file path and builds a custom filename from a record.
-
-    Expected record layout (relative to offset):
-      offset+0: session_data_instance_id
-      offset+1: results_path
-      offset+2: task_id
-      offset+3: task_name
-      offset+4: measurement_option_id
-      offset+5: measurement_option_name
-      offset+6: factor_id
-      offset+7: factor_name
+    Returns the order (count) of a given participant_session_id based on its created_at timestamp.
+    This function opens a new connection (optimize as needed).
     """
-    csv_path = record[offset + 1]
-    task_name = record[offset + 3]
-    measurement_option_name = record[offset + 5]
-    factor_name = record[offset + 7]
-    ext = os.path.splitext(csv_path)[1]
-
-    # Parse the path to extract study_id, participant_session_id, and trial_id
-    path_parts = csv_path.split(os.sep)
-    try:
-        study_id = path_parts[path_parts.index("participants_results") + 1]
-        participant_session_id = path_parts[
-            path_parts.index("participants_results") + 2
-        ]
-        trial_id = path_parts[path_parts.index("participants_results") + 3]
-    except (ValueError, IndexError):
-        raise ValueError(
-            "Invalid file path structure. Expected participants_results/study_id/participant_session_id/trial_id/file.csv"
-        )
-
-    custom_name = f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
-    archive_path = f"{study_id}/{participant_session_id}/{trial_id}/{custom_name}"
-
-    return csv_path, archive_path
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT participant_id, created_at FROM participant_session WHERE participant_session_id = %s",
+        (participant_session_id,),
+    )
+    row = cur.fetchone()
+    if not row:
+        cur.close()
+        conn.close()
+        return None
+    participant_id, created_at = row
+    cur.execute(
+        "SELECT COUNT(*) FROM participant_session WHERE participant_id = %s AND created_at <= %s",
+        (participant_id, created_at),
+    )
+    order_count = cur.fetchone()[0]
+    cur.close()
+    conn.close()
+    return order_count
 
 
-def zip_csv_files(
-    data,
-    *,
-    group_by: callable = None,
-    already_grouped: bool = False,
-    record_offset: int = 0,
-):
+# --- Updated SQL Query ---
+def get_core_csv_files_query():
+    return """
+        SELECT 
+            sdi.session_data_instance_id,
+            sdi.results_path,
+            tr.trial_id,
+            tr.task_id,
+            t.task_name,
+            sdi.measurement_option_id,
+            mo.measurement_option_name,
+            tr.factor_id,
+            f.factor_name,
+            ps.participant_session_id
+        FROM session_data_instance sdi
+        INNER JOIN trial tr
+          ON tr.trial_id = sdi.trial_id
+        INNER JOIN participant_session ps
+          ON ps.participant_session_id = tr.participant_session_id
+        INNER JOIN task AS t
+          ON t.study_id = ps.study_id AND t.task_id = tr.task_id
+        INNER JOIN factor AS f
+          ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
+        INNER JOIN measurement_option AS mo
+          ON mo.measurement_option_id = sdi.measurement_option_id
     """
-    Use cases:
-      - Zip one CSV: Call with a flat list of one tuple, no grouping.
-      - Zip multiple CSVs (flat): Call with a flat list, group_by=None.
-      - Zip multiple CSVs with folders (flat): Call with a flat list and supply group_by.
-      - Zip multiple CSVs with folders (already grouped): Call with already_grouped=True,
+
+
+def extract_study_name(results_path):
     """
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        if already_grouped:
-            for group_key, group_records in data:
-                for record_with_size in group_records:
-                    record, _ = record_with_size
-                    csv_path, archive_path = extract_file_info(
-                        record, offset=record_offset
-                    )
-                    if os.path.exists(csv_path):
-                        zip_file.write(csv_path, arcname=archive_path)
-                    else:
-                        print(f"Missing file: {csv_path}")
-        elif group_by is not None:
-            groups = {}
-            for record_with_size in data:
-                record, _ = record_with_size
-                key = group_by(record)
-                groups.setdefault(key, []).append(record)
-            for group_key, records in groups.items():
-                for record in records:
-                    csv_path, archive_path = extract_file_info(
-                        record, offset=record_offset
-                    )
-                    if os.path.exists(csv_path):
-                        zip_file.write(csv_path, arcname=archive_path)
-                    else:
-                        print(f"Missing file: {csv_path}")
-        else:
-            for record_with_size in data:
-                record, _ = record_with_size
-                csv_path, archive_path = extract_file_info(record, offset=record_offset)
-                if os.path.exists(csv_path):
-                    zip_file.write(csv_path, arcname=archive_path)
-                else:
-                    print(f"Missing file: {csv_path}")
-
-    zip_buffer.seek(0)
-    return zip_buffer
+    Extracts the study folder (e.g. "1_study_id") from the results path.
+    Modify this function if you want to map it to a friendlier study name.
+    """
+    parts = results_path.split(os.sep)
+    for part in parts:
+        if "study_id" in part:
+            return part
+    return "unknown_study"
 
 
-# Sort the results by the size of the CSV files so that the user sees data quicker by loading smallest first
+def build_archive_name(row):
+    """
+    Given a row tuple with the following order:
+      (session_data_instance_id, results_path, trial_id, task_id,
+       task_name, measurement_option_id, measurement_option_name,
+       factor_id, factor_name, participant_session_id)
+
+    Build the internal path for the zip archive:
+      <study_name>/<participant_session_id>/<task_name__factor_name>/<measurement_option_name>.csv
+    """
+    (
+        session_data_instance_id,
+        results_path,
+        trial_id,
+        task_id,
+        task_name,
+        measurement_option_id,
+        measurement_option_name,
+        factor_id,
+        factor_name,
+        participant_session_id,
+    ) = row
+
+    study_name = extract_study_name(results_path)
+    return os.path.join(
+        study_name,
+        str(participant_session_id),
+        f"{task_name}__{factor_name}",
+        f"{measurement_option_name}.csv",
+    )
+
+
+# --- Updated zip_csv_files ---
+# def zip_csv_files(
+#     data,
+#     *,
+#     group_by: callable = None,
+#     already_grouped: bool = False,
+#     record_offset: int = 0,
+# ):
+#     """
+#     Creates a zip archive from CSV files.
+
+#     In the group_by branch the group key is expected to be a tuple:
+#       (study_name, participant_session_count, trial_id)
+#     which will be passed to extract_file_info.
+#     """
+#     zip_buffer = io.BytesIO()
+#     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+#         if already_grouped:
+#             # Each item in data is (group_key, list of (record, size))
+#             for group_key, group_records in data:
+#                 # group_key is expected to be (study_name, participant_session_count, trial_id)
+#                 study_name, participant_session_count, trial_id = group_key
+#                 for record_with_size in group_records:
+#                     record, _ = record_with_size
+#                     csv_path, archive_path = extract_file_info(
+#                         record,
+#                         offset=record_offset,
+#                         study_name=study_name,
+#                         participant_session_count=participant_session_count,
+#                         trial_id_override=trial_id,
+#                     )
+#                     if os.path.exists(csv_path):
+#                         zip_file.write(csv_path, arcname=archive_path)
+#                     else:
+#                         print(f"Missing file: {csv_path}")
+#         elif group_by is not None:
+#             groups = {}
+#             for record_with_size in data:
+#                 record, _ = record_with_size
+#                 key = group_by(record)
+#                 groups.setdefault(key, []).append(record)
+#             for group_key, records in groups.items():
+#                 # group_key is (study_name, participant_session_count, trial_id)
+#                 study_name, participant_session_count, trial_id = group_key
+#                 for record in records:
+#                     csv_path, archive_path = extract_file_info(
+#                         record,
+#                         offset=record_offset,
+#                         study_name=study_name,
+#                         participant_session_count=participant_session_count,
+#                         trial_id_override=trial_id,
+#                     )
+#                     if os.path.exists(csv_path):
+#                         zip_file.write(csv_path, arcname=archive_path)
+#                     else:
+#                         print(f"Missing file: {csv_path}")
+#         else:
+#             for record_with_size in data:
+#                 record, _ = record_with_size
+#                 csv_path, archive_path = extract_file_info(record, offset=record_offset)
+#                 if os.path.exists(csv_path):
+#                     zip_file.write(csv_path, arcname=archive_path)
+#                 else:
+#                     print(f"Missing file: {csv_path}")
+#     zip_buffer.seek(0)
+#     return zip_buffer
+
+
+# --- Updated Sorting Function ---
 def sort_csv_by_size(results):
     results_with_size = []
     for result in results:
         file_size = os.path.getsize(result[1])
         results_with_size.append((result, file_size))
-
     results_with_size.sort(key=lambda x: x[1])
     return results_with_size
 
 
-# This is most of the query that only needs to be appended at the end
-def get_core_csv_files_query():
-    return """
-        SELECT sdi.session_data_instance_id, sdi.results_path, tr.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, tr.factor_id, f.factor_name
-        FROM session_data_instance sdi
-        INNER JOIN trial tr
-        ON tr.trial_id = sdi.trial_id
-        INNER JOIN participant_session ps
-        ON ps.participant_session_id = tr.participant_session_id
-        INNER JOIN task AS t
-        ON t.study_id = ps.study_id AND t.task_id = tr.task_id
-        INNER JOIN factor AS f
-        ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
-        INNER JOIN measurement_option AS mo
-        ON mo.measurement_option_id = sdi.measurement_option_id
-        """
-
-
-# Gets all csvs for a participant session
 def get_all_participant_session_csv_files(participant_session_id, cur):
-    select_session_data_instance_route_query = (
-        get_core_csv_files_query() + """WHERE ps.participant_session_id = %s"""
-    )
-
-    cur.execute(select_session_data_instance_route_query, (participant_session_id,))
-
+    query = get_core_csv_files_query() + "WHERE ps.participant_session_id = %s"
+    cur.execute(query, (participant_session_id,))
     results = cur.fetchall()
     return sort_csv_by_size(results)
 
 
 def get_one_csv_file(session_data_instance_id, cur):
-    select_session_data_instance_route_query = (
-        get_core_csv_files_query() + """WHERE sdi.session_data_instance_id = %s"""
-    )
-
-    cur.execute(select_session_data_instance_route_query, (session_data_instance_id,))
-
+    query = get_core_csv_files_query() + "WHERE sdi.session_data_instance_id = %s"
+    cur.execute(query, (session_data_instance_id,))
     result = cur.fetchone()
     return result
 
 
 def get_all_study_csv_files(study_id, cur):
-    # SQL query to get session data instance details
-    select_session_data_instance_routes_query = (
+    query = (
         get_core_csv_files_query()
-        + """WHERE ps.study_id = %s
-        ORDER BY sdi.session_data_instance_id """
+        + "WHERE ps.study_id = %s ORDER BY sdi.session_data_instance_id"
     )
-
-    cur.execute(select_session_data_instance_routes_query, (study_id,))
+    cur.execute(query, (study_id,))
     results = cur.fetchall()
-    return sort_csv_by_size(results)
+    # return sort_csv_by_size(results)
+    return results
 
 
 def generate_session_data_from_csv(results_with_size, chunk_size):
+    """
+    Stream CSV content by first sending metadata and then CSV data in chunks.
+    """
     for result, _ in results_with_size:
         (
             session_data_instance_id,
             _,
-            csv_path,
             task_id,
             _,
             measurement_option_id,
@@ -178,7 +224,6 @@ def generate_session_data_from_csv(results_with_size, chunk_size):
             factor_id,
             _,
         ) = result
-        # Send metadata ONCE per session instance
         metadata = {
             "session_data_instance_id": session_data_instance_id,
             "task_id": task_id,
@@ -186,8 +231,6 @@ def generate_session_data_from_csv(results_with_size, chunk_size):
             "factor_id": factor_id,
         }
         yield json.dumps({"metadata": metadata}, separators=(",", ":")) + "\n"
-
-        # Read the CSV file in chunks
-        for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
+        for chunk in pd.read_csv(result[1], chunksize=chunk_size):
             chunk_list = chunk.values.tolist()
             yield json.dumps({"data": chunk_list}, separators=(",", ":")) + "\n"
