@@ -1,11 +1,18 @@
+import io
 import os
+import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
-    generate_session_data_from_csv,
+    get_all_participant_csv_files,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
+    get_file_name_for_folder,
     get_one_csv_file,
-    zip_csv_files,
+    get_one_trial,
+    get_participant_name_for_folder,
+    get_participant_session_name_for_folder,
+    get_trial_order_for_folder,
+    get_zip,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -91,7 +98,7 @@ def save_session_data_instance(
         # Add pathway for database
         update_path_session_data_instance = """
         UPDATE session_data_instance
-        SET csv_results_path = %s
+        SET results_path = %s
         WHERE session_data_instance_id = %s
         """
         cur.execute(
@@ -114,7 +121,7 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# All csv from a participant
+# All session data from a participant
 @bp.route(
     "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
@@ -124,43 +131,41 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        select_participant_session_ids_query = """
-            SELECT ps.participant_session_id
-            FROM participant_session AS ps
-            WHERE ps.participant_id = %s
+        study_id_query = """
+        SELECT ps.study_id
+        FROM participant_session AS ps
+        INNER JOIN participant AS p
+        ON p.participant_id = ps.participant_id
+        WHERE p.participant_id = %s
         """
-        cur.execute(select_participant_session_ids_query, (participant_id,))
-        id_results = cur.fetchall()
+        cur.execute(study_id_query, (participant_id,))
+        study_id = cur.fetchone()[0]
 
-        # If no participant sessions are found, return an error
-        if not id_results:
-            return jsonify({"error": "No session data found for this participant"}), 404
-
-        # Build already-grouped data: list of (group_key, list of (record, size) tuples)
-        grouped_data = []
-        for result in id_results:
-            participant_session_id = result[0]
-            csv_records = get_all_participant_session_csv_files(
-                participant_session_id, cur
-            )
-            # Here the group key is a folder name
-            grouped_data.append((f"session_{participant_session_id}", csv_records))
+        results_with_size = get_all_participant_csv_files(participant_id, cur)
         cur.close()
 
-        zip_buffer = zip_csv_files(grouped_data, already_grouped=True, record_offset=0)
+        # # Fetch the required data for folder naming
+        participant_names = get_participant_name_for_folder(study_id, conn.cursor())
+        participant_name = participant_names.get(participant_id, "UnknownParticipant")
+
+        # If no file data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this participant"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="participant")
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name="participant.zip",
+            download_name=f"{participant_name}_participant.zip",
         )
+
     except Exception as e:
-        error_type = type(e).__name__
-        error_message = str(e)
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# All CSV for a participant session
+# All session data for a participant session
 @bp.route(
     "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
@@ -170,48 +175,49 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get session creation timestamp
-        select_participant_session_creation_query = """
-            SELECT ps.created_at
-            FROM participant_session AS ps 
-            WHERE ps.participant_session_id = %s 
+        study_id_query = """
+        SELECT s.study_id
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        WHERE ps.participant_session_id = %s
         """
-        cur.execute(
-            select_participant_session_creation_query, (participant_session_id,)
-        )
-        session_info = cur.fetchone()
+        cur.execute(study_id_query, (participant_session_id,))
+        study_id = cur.fetchone()[0]
 
-        if not session_info:
-            return jsonify({"error": "Participant session not found"}), 404
-
-        session_time_stamp = session_info[0]
-
-        # Get all CSV files for the session
         results_with_size = get_all_participant_session_csv_files(
             participant_session_id, cur
         )
         cur.close()
 
-        if not results_with_size:
-            return (
-                jsonify({"error": "No CSV data found for this participant session"}),
-                404,
-            )
+        # Fetch the required data for folder naming
+        participant_sessions = get_participant_session_name_for_folder(
+            study_id, conn.cursor()
+        )
+        participant_session_name = participant_sessions.get(
+            participant_session_id, "UnknownSession"
+        )
 
-        zip_buffer = zip_csv_files(results_with_size, group_by=None, record_offset=0)
+        # If no file data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this participant session"}), 404
+
+        memory_file = get_zip(
+            results_with_size, study_id, conn, mode="participant_session"
+        )
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"{session_time_stamp}_participant_session.zip",
+            download_name=f"{participant_session_name}_participant_session.zip",
         )
+
     except Exception as e:
-        error_type = type(e).__name__
-        error_message = str(e)
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# Only 1 specific CSV
+# Only one specific file of data
 @bp.route(
     "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
 )
@@ -220,103 +226,131 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Fetch single CSV file
-        result = get_one_csv_file(session_data_instance_id, cur)
+        study_id_query = """
+        SELECT s.study_id
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        INNER JOIN trial t
+        ON t.participant_session_id = ps.participant_session_id
+        INNER JOIN session_data_instance sdi
+        ON sdi.trial_id = t.trial_id
+        WHERE sdi.session_data_instance_id = %s
+        """
+        cur.execute(study_id_query, (session_data_instance_id,))
+        study_id = cur.fetchone()[0]
+
+        results_with_size = get_one_csv_file(session_data_instance_id, cur)
         cur.close()
 
-        if not result:
-            return jsonify({"error": "Session data instance not found"}), 404
+        # Fetch the required data for folder naming
+        file_names = get_file_name_for_folder(study_id, conn.cursor())
+        file_name = file_names.get(session_data_instance_id, "UnknownSession")
 
-        # Wrap the single record in a list as (record, dummy_size)
-        zip_buffer = zip_csv_files([(result, 0)], group_by=None, record_offset=0)
-        download_name = f"{result[3]}_{result[7]}_{result[5]}.zip"
+        # If no file data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this data instance file"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="one file")
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=download_name,
+            download_name=f"{file_name}.zip",
         )
+
     except Exception as e:
-        error_type = type(e).__name__
-        error_message = str(e)
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# All CSV for a study
+# All session data for a trial
+@bp.route(
+    "/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
+)
+def get_all_session_data_instance_for_a_trial_zip(trial_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """
+        SELECT s.study_id, ps.participant_session_id, t.task_name, f.factor_name
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        INNER JOIN trial tr
+        ON tr.participant_session_id = ps.participant_session_id
+        INNER JOIN task AS t
+        ON t.task_id = tr.task_id
+        INNER JOIN factor AS f
+        ON f.factor_id = tr.factor_id
+        WHERE tr.trial_id = %s
+        """
+        cur.execute(query, (trial_id,))
+        query_result = cur.fetchone()
+        study_id = query_result[0]
+        participant_session_id = query_result[1]
+        task_name = query_result[2]
+        factor_name = query_result[3]
+
+        results_with_size = get_one_trial(trial_id, cur)
+        cur.close()
+
+        # Fetch the required data for folder naming
+        trial_order = get_trial_order_for_folder(
+            participant_session_id, conn.cursor()
+        ).get(trial_id, "UnknownTrialOrdering")
+
+        # If no file data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this trial"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="trial")
+
+        return send_file(
+            memory_file,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"{task_name}_{factor_name}_{trial_order}.zip",
+        )
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+
+# All session data for a study
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Check if study exists
-        select_study_name_query = """
-            SELECT s.study_name
-            FROM study AS s
-            WHERE s.study_id = %s
+        study_name_query = """
+        SELECT s.study_name
+        FROM study AS s
+        WHERE s.study_id = %s
         """
-        cur.execute(select_study_name_query, (study_id,))
-        study_info = cur.fetchone()
+        cur.execute(study_name_query, (study_id,))
+        study_name = cur.fetchone()[0]
 
-        if not study_info:
-            return jsonify({"error": "Study not found"}), 404
-
-        study_name = study_info[0]
-
-        # Fetch all CSV files for the study
         results_with_size = get_all_study_csv_files(study_id, cur)
         cur.close()
 
+        # If no file data found, return an error
         if not results_with_size:
-            return jsonify({"error": "No CSV data found for this study"}), 404
+            return jsonify({"error": "No data found for this study"}), 404
 
-        zip_buffer = zip_csv_files(
-            results_with_size,
-            group_by=lambda record: f"session_{record[1]}",
-            already_grouped=False,
-            record_offset=1,
-        )
+        memory_file = get_zip(results_with_size, study_id, conn, mode="study")
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
             download_name=f"{study_name}.zip",
         )
-    except Exception as e:
-        error_type = type(e).__name__
-        error_message = str(e)
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
-
-
-# Gets all CSV data for a study
-# Uses streaming
-@bp.route("/get_all_session_data_instance/<int:study_id>", methods=["GET"])
-def get_all_session_data_instance(study_id):
-    try:
-        # Connect to the database
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        results_with_size = get_all_study_csv_files(study_id, cur)
-
-        # Close the cursor after processing
-        cur.close()
-
-        # How many rows read per CSV
-        chunk_size = 2000
-        # Return the response as a streamed response
-        return Response(
-            generate_session_data_from_csv(results_with_size, chunk_size),
-            content_type="application/json",
-            status=200,
-        )
 
     except Exception as e:
-        # Error handling
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
@@ -466,7 +500,7 @@ def get_participant_session_data(study_id, participant_session_id):
         cur = conn.cursor()
 
         select_participant_session_data_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
+        SELECT sdi.session_data_instance_id, sdi.results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
         FROM session_data_instance sdi
         JOIN participant_session ps
         ON ps.participant_session_id = sdi.participant_session_id

@@ -4,198 +4,212 @@ import pandas as pd
 import json
 import os
 
+from app.utility.db_connection import get_db_connection
 
-def extract_file_info(record, offset=0):
+
+def get_zip(results_with_size, study_id, conn, mode):
+
+    # Fetch the required data for folder naming
+    participant_sessions = get_participant_session_name_for_folder(
+        study_id, conn.cursor()
+    )
+
+    # Create an in-memory ZIP file
+    memory_file = io.BytesIO()
+
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+
+        # Iterate over the session data results and organize files in the ZIP
+        for (
+            study_name,
+            session_data_instance_id,
+            results_path,
+            trial_id,
+            task_id,
+            task_name,
+            measurement_option_id,
+            measurement_option_name,
+            factor_id,
+            factor_name,
+            participant_session_id,
+        ) in results_with_size:
+
+            participant_session_name = participant_sessions.get(
+                participant_session_id, "UnknownSession"
+            )
+            trial_order = get_trial_order_for_folder(
+                participant_session_id, conn.cursor()
+            ).get(trial_id, "UnknownTrialOrdering")
+
+            if mode == "study" or mode == "participant":
+                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
+                participant_session_folder = (
+                    f"{participant_session_name}_participant_session/{trial_folder}"
+                )
+
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = f"{participant_session_folder}/{measurement_option_name}{file_extension}"
+            elif mode == "participant_session":
+                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
+
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = (
+                    f"{trial_folder}/{measurement_option_name}{file_extension}"
+                )
+            elif mode == "one file" or mode == "trial":
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = f"{measurement_option_name}{file_extension}"
+
+            with open(results_path, "rb") as file:
+                zipf.writestr(zip_file_path, file.read())
+
+    memory_file.seek(0)
+    return memory_file
+
+
+def get_core_csv_files_query():
+    return """
+SELECT 
+    s.study_name,
+    sdi.session_data_instance_id,
+    sdi.results_path,
+    tr.trial_id,
+    tr.task_id,
+    t.task_name,
+    sdi.measurement_option_id,
+    mo.measurement_option_name,
+    tr.factor_id,
+    f.factor_name,
+    ps.participant_session_id
+FROM session_data_instance sdi
+INNER JOIN trial tr
+    ON tr.trial_id = sdi.trial_id
+INNER JOIN participant_session ps
+    ON ps.participant_session_id = tr.participant_session_id
+INNER JOIN task AS t
+    ON t.study_id = ps.study_id AND t.task_id = tr.task_id
+INNER JOIN factor AS f
+    ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
+INNER JOIN study AS s
+    ON s.study_id = f.study_id
+INNER JOIN measurement_option AS mo
+    ON mo.measurement_option_id = sdi.measurement_option_id
     """
-    Extracts the CSV file path and builds a custom filename from a record.
 
-    Expected record layout (relative to offset):
-      offset+0: session_data_instance_id
-      offset+1: csv_results_path
-      offset+2: task_id
-      offset+3: task_name
-      offset+4: measurement_option_id
-      offset+5: measurement_option_name
-      offset+6: factor_id
-      offset+7: factor_name
+
+def get_trial_order_for_folder(participant_session_id, cur):
+    query = """
+    SELECT t.trial_id, t.created_at
+    FROM trial AS t
+    WHERE participant_session_id = %s
+    ORDER BY t.created_at DESC
     """
-    csv_path = record[offset + 1]
-    task_name = record[offset + 3]
-    measurement_option_name = record[offset + 5]
-    factor_name = record[offset + 7]
-    ext = os.path.splitext(csv_path)[1]
-    custom_name = f"{task_name}_{factor_name}_{measurement_option_name}{ext}"
-    return csv_path, custom_name
-
-
-def zip_csv_files(
-    data,
-    *,
-    group_by: callable = None,
-    already_grouped: bool = False,
-    record_offset: int = 0,
-):
-    """
-    Use cases:
-      - Zip one CSV: Call with a flat list of one tuple, no grouping.
-      - Zip multiple CSVs (flat): Call with a flat list, group_by=None.
-      - Zip multiple CSVs with folders (flat): Call with a flat list and supply group_by.
-      - Zip multiple CSVs with folders (already grouped): Call with already_grouped=True,
-    """
-    zip_buffer = io.BytesIO()
-
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        if already_grouped:
-            # Data is already grouped: iterate over groups
-            for group_key, group_records in data:
-                for record_with_size in group_records:
-                    record, _ = record_with_size
-                    csv_path, custom_name = extract_file_info(
-                        record, offset=record_offset
-                    )
-                    if os.path.exists(csv_path):
-                        arcname = f"{group_key}/{custom_name}"
-                        zip_file.write(csv_path, arcname=arcname)
-                    else:
-                        print(f"Missing file: {csv_path}")
-        elif group_by is not None:
-            # Data is flat, so group it on the fly
-            groups = {}
-            for record_with_size in data:
-                record, _ = record_with_size
-                key = group_by(record)
-                groups.setdefault(key, []).append(record)
-            for group_key, records in groups.items():
-                for record in records:
-                    csv_path, custom_name = extract_file_info(
-                        record, offset=record_offset
-                    )
-                    if os.path.exists(csv_path):
-                        arcname = f"{group_key}/{custom_name}"
-                        zip_file.write(csv_path, arcname=arcname)
-                    else:
-                        print(f"Missing file: {csv_path}")
-        else:
-            # No grouping just write all files to the zip archive root
-            for record_with_size in data:
-                record, _ = record_with_size
-                csv_path, custom_name = extract_file_info(record, offset=record_offset)
-                if os.path.exists(csv_path):
-                    zip_file.write(csv_path, arcname=custom_name)
-                else:
-                    print(f"Missing file: {csv_path}")
-
-    zip_buffer.seek(0)
-    return zip_buffer
-
-
-# Sort the results by the size of the CSV files so that the user sees data quicker by loading smallest first
-def sort_csv_by_size(results):
-    results_with_size = []
-    for result in results:
-        file_size = os.path.getsize(result[1])
-        results_with_size.append((result, file_size))
-
-    results_with_size.sort(key=lambda x: x[1])
-    return results_with_size
-
-
-# Gets all csvs for a participant session
-def get_all_participant_session_csv_files(participant_session_id, cur):
-    select_session_data_instance_route_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
-        FROM session_data_instance sdi
-        INNER JOIN participant_session ps
-        ON ps.participant_session_id = sdi.participant_session_id
-        INNER JOIN task AS t
-        ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
-        INNER JOIN factor AS f
-        ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
-        INNER JOIN measurement_option AS mo
-        ON mo.measurement_option_id = sdi.measurement_option_id
-        WHERE ps.participant_session_id = %s
-        """
-
-    cur.execute(select_session_data_instance_route_query, (participant_session_id,))
-
+    cur.execute(query, (participant_session_id,))
     results = cur.fetchall()
-    return sort_csv_by_size(results)
+
+    trial_order = {}
+    counter = 1
+    for result in results:
+        trial_order[result[0]] = counter
+        counter += 1
+    return trial_order
+
+
+def get_participant_session_name_for_folder(study_id, cur):
+    query = """
+    SELECT ps.participant_session_id, ps.created_at
+    FROM participant_session AS ps
+    WHERE study_id = %s
+    ORDER BY ps.created_at ASC
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+
+    participant_sessions = {}
+    counter = 1
+    for result in results:
+        participant_sessions[result[0]] = counter
+        counter += 1
+    return participant_sessions
+
+
+def get_participant_name_for_folder(study_id, cur):
+    query = """
+    SELECT ps.participant_id, p.created_at
+    FROM participant_session AS ps
+    INNER JOIN participant AS p
+    ON p.participant_id = ps.participant_id
+    WHERE study_id = %s
+    ORDER BY ps.created_at ASC
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+
+    participant_sessions = {}
+    counter = 1
+    for result in results:
+        participant_sessions[result[0]] = counter
+        counter += 1
+    return participant_sessions
+
+
+def get_file_name_for_folder(study_id, cur):
+    query = """
+    SELECT sdi.session_data_instance_id, mo.measurement_option_name
+    FROM session_data_instance AS sdi
+    INNER JOIN measurement_option AS mo
+    ON mo.measurement_option_id = sdi.measurement_option_id
+    INNER JOIN trial AS t
+    ON t.trial_id = sdi.trial_id
+    INNER JOIN participant_session AS ps
+    ON ps.participant_session_id = t.participant_session_id
+    WHERE ps.study_id = %s
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+    file_names = {}
+
+    for result in results:
+        file_names[result[0]] = result[1]
+    return file_names
+
+
+def get_all_participant_csv_files(participant_id, cur):
+    query = get_core_csv_files_query() + "WHERE ps.participant_id = %s"
+    cur.execute(query, (participant_id,))
+    results = cur.fetchall()
+    return results
+
+
+def get_all_participant_session_csv_files(participant_session_id, cur):
+    query = get_core_csv_files_query() + "WHERE ps.participant_session_id = %s"
+    cur.execute(query, (participant_session_id,))
+    results = cur.fetchall()
+    return results
 
 
 def get_one_csv_file(session_data_instance_id, cur):
-    select_session_data_instance_route_query = """
-        SELECT sdi.session_data_instance_id, sdi.csv_results_path, sdi.task_id, t.task_name, sdi.measurement_option_id, mo.measurement_option_name, sdi.factor_id, f.factor_name
-        FROM session_data_instance sdi
-        INNER JOIN participant_session ps
-        ON ps.participant_session_id = sdi.participant_session_id
-        INNER JOIN task AS t
-        ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
-        INNER JOIN factor AS f
-        ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
-        INNER JOIN measurement_option AS mo
-        ON mo.measurement_option_id = sdi.measurement_option_id
-        WHERE sdi.session_data_instance_id = %s
-        """
-
-    cur.execute(select_session_data_instance_route_query, (session_data_instance_id,))
-
-    result = cur.fetchone()
-    return result
+    query = get_core_csv_files_query() + "WHERE sdi.session_data_instance_id = %s"
+    cur.execute(query, (session_data_instance_id,))
+    results = cur.fetchall()
+    return results
 
 
 def get_all_study_csv_files(study_id, cur):
-    # SQL query to get session data instance details
-    select_session_data_instance_routes_query = """
-        SELECT 
-            sdi.session_data_instance_id, 
-            ps.participant_session_id,
-            sdi.csv_results_path, 
-            sdi.task_id, 
-            t.task_name, 
-            sdi.measurement_option_id, 
-            mo.measurement_option_name, 
-            sdi.factor_id, 
-            f.factor_name
-        FROM session_data_instance sdi
-        INNER JOIN participant_session ps
-            ON ps.participant_session_id = sdi.participant_session_id
-        INNER JOIN task AS t
-            ON t.study_id = ps.study_id AND t.task_id = sdi.task_id
-        INNER JOIN factor AS f
-            ON f.study_id = ps.study_id AND f.factor_id = sdi.factor_id
-        INNER JOIN measurement_option AS mo
-            ON mo.measurement_option_id = sdi.measurement_option_id
-        WHERE ps.study_id = %s
-        ORDER BY sdi.session_data_instance_id
-    """
-    cur.execute(select_session_data_instance_routes_query, (study_id,))
+    query = (
+        get_core_csv_files_query()
+        + "WHERE ps.study_id = %s ORDER BY sdi.session_data_instance_id"
+    )
+    cur.execute(query, (study_id,))
     results = cur.fetchall()
-    return sort_csv_by_size(results)
+    return results
 
 
-def generate_session_data_from_csv(results_with_size, chunk_size):
-    for result, _ in results_with_size:
-        (
-            session_data_instance_id,
-            _,
-            csv_path,
-            task_id,
-            _,
-            measurement_option_id,
-            _,
-            factor_id,
-            _,
-        ) = result
-        # Send metadata ONCE per session instance
-        metadata = {
-            "session_data_instance_id": session_data_instance_id,
-            "task_id": task_id,
-            "measurement_option_id": measurement_option_id,
-            "factor_id": factor_id,
-        }
-        yield json.dumps({"metadata": metadata}, separators=(",", ":")) + "\n"
-
-        # Read the CSV file in chunks
-        for chunk in pd.read_csv(csv_path, chunksize=chunk_size):
-            chunk_list = chunk.values.tolist()
-            yield json.dumps({"data": chunk_list}, separators=(",", ":")) + "\n"
+def get_one_trial(trial_id, cur):
+    query = get_core_csv_files_query() + "WHERE tr.trial_id = %s"
+    cur.execute(query, (trial_id,))
+    results = cur.fetchall()
+    return results

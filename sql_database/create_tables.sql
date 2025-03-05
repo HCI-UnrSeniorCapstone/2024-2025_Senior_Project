@@ -120,6 +120,7 @@ CREATE TABLE participant (
     gender_type_id TINYINT UNSIGNED NULL,
     highest_education_type_id TINYINT UNSIGNED NULL,
     technology_competence TINYINT UNSIGNED NULL CHECK (technology_competence BETWEEN 0 AND 10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     FOREIGN KEY (gender_type_id) REFERENCES gender_type(gender_type_id),
     FOREIGN KEY (highest_education_type_id) REFERENCES highest_education_type(highest_education_type_id)
 );
@@ -147,6 +148,19 @@ CREATE TABLE participant_session (
     FOREIGN KEY (study_id) REFERENCES study(study_id),
     CHECK (is_valid IN (0, 1))
 );
+
+CREATE TABLE trial (
+    trial_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    participant_session_id INT,
+    task_id INT,
+    factor_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, -- THIS SHOULD BE INPUT EACH TIME A PROGRESSION IS MADE
+    ended_at TIMESTAMP NULL,
+    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
+    FOREIGN KEY (task_id) REFERENCES task(task_id) ON DELETE CASCADE,
+    FOREIGN KEY (factor_id) REFERENCES factor(factor_id) ON DELETE CASCADE
+);
+
 /*
  NOTE: A session can do the same task / factor instance multiple times
  SINCE they are not PKs. Need to double check, but since their values
@@ -154,16 +168,12 @@ CREATE TABLE participant_session (
  */
 CREATE TABLE session_data_instance (
     session_data_instance_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    participant_session_id INT,
-    task_id INT,
+    trial_id INT,
     measurement_option_id INT,
-    factor_id INT,
     -- This is where it is stored on hci
-    csv_results_path VARCHAR(255) NULL,
-    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
-    FOREIGN KEY (task_id) REFERENCES task_measurement(task_id) ON DELETE CASCADE,
-    FOREIGN KEY (measurement_option_id) REFERENCES task_measurement(measurement_option_id) ON DELETE CASCADE,
-    FOREIGN KEY (factor_id) REFERENCES factor(factor_id) ON DELETE CASCADE
+    results_path VARCHAR(255) NULL,
+    FOREIGN KEY (trial_id) REFERENCES trial(trial_id),
+    FOREIGN KEY (measurement_option_id) REFERENCES measurement_option(measurement_option_id) ON DELETE CASCADE
 );
 CREATE TABLE deleted_study (
     study_id INT NOT NULL PRIMARY KEY,

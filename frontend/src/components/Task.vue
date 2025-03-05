@@ -36,6 +36,8 @@
           'Mouse Scrolls',
           'Mouse Clicks',
           'Keyboard Inputs',
+          'Screen Recording',
+          'Heat Map',
         ]"
         label="Measurement Options"
         chips
