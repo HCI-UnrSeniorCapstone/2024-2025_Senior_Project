@@ -2,33 +2,28 @@
 
 
 import os
+import time
 import csv
 import cv2
 import numpy as np
 from PIL import ImageGrab
-import time
-from tracking.utility.file_management import get_save_dir
+import threading
+from tracking.utility.file_management import get_file_path
 
 
-def generate_heatmap(session_id, task, factor):
-    task_name = task["taskName"].replace(" ", "")
-    factor_name = factor["factorName"].replace(" ", "")
+# Used to signal heatmap gen is complete
+heatmap_generation_complete = threading.Event()
 
-    dir_fulcrum = get_save_dir()
-    dir_session = os.path.join(dir_fulcrum, f"Session_{session_id}")
-    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
-    os.makedirs(dir_trial, exist_ok=True)
 
-    screenshot_nm = f"screenshot_{session_id}_{task_name}_{factor_name}.png"
-    screenshot_path = os.path.join(dir_trial, screenshot_nm)
-
+def generate_heatmap(dir_trial, filename_base):
+    # Capture screenshot
+    screenshot_path = get_file_path(dir_trial, filename_base, "screenshot", "png")
     screenshot = ImageGrab.grab()
     screenshot.save(screenshot_path)
-
     screenshot = cv2.imread(screenshot_path)
 
-    mouse_data_nm = f"{session_id}_{task_name}_{factor_name}_MouseMovement_data.csv"
-    mouse_data_path = os.path.join(dir_trial, mouse_data_nm)
+    # Retrieve path to the mouse movement csv needed to create the heatmap
+    mouse_data_path = get_file_path(dir_trial, filename_base, "MouseMovement", "csv")
 
     # Extract mouse movement coordinates
     coordinates = extract_mouse_movements(mouse_data_path)
@@ -41,12 +36,15 @@ def generate_heatmap(session_id, task, factor):
         overlay = overlay_heatmap(heatmap, screenshot)
 
         # Save the output
-        heatmap_nm = f"{session_id}_{task_name}_{factor_name}_MouseMovement_heatmap.png"
-        heatmap_path = os.path.join(dir_trial, heatmap_nm)
+        heatmap_path = get_file_path(dir_trial, filename_base, "heatmap", "png")
         cv2.imwrite(heatmap_path, overlay)
+
+        time.sleep(1)
 
         # removes the initial screenshot
         os.remove(screenshot_path)
+
+    heatmap_generation_complete.set()
 
 
 def extract_mouse_movements(log_file):

@@ -5,7 +5,7 @@ import os
 from pynput import keyboard, mouse
 import time
 from datetime import datetime
-from tracking.utility.file_management import write_to_csv, get_save_dir
+from tracking.utility.file_management import write_to_csv
 
 # Global listeners
 mouse_listener = None
@@ -39,7 +39,7 @@ curr_time = 0
 prev_time = 0
 
 
-def on_move(x, y, session_id, task, factor):
+def on_move(x, y, task, dir_trial, filename_base):
     global PREV_XPOS, PREV_YPOS, curr_time, prev_time, running_time, mouse_move_data
 
     if not pause_event.is_set():  # ignore logging when paused
@@ -60,13 +60,13 @@ def on_move(x, y, session_id, task, factor):
             len(mouse_move_data) >= 250
         ):  # write in batch sizes of 250 to improve performance rather than at the end of a task when there may be tens of thousands of data points
             write_to_csv(
-                session_id,
                 "MouseMovement",
                 "mouse",
                 mouse_move_data,
                 "mouse",
                 task,
-                factor,
+                dir_trial,
+                filename_base,
             )
             mouse_move_data.clear()
 
@@ -162,7 +162,7 @@ def stop_keyboard_ps():
 
 
 # Manages the actual data collection, using measurement flags to know what to collect for the current trial
-def record_measurements(session_id, task, factor, tracking_flags):
+def record_measurements(task, tracking_flags, dir_trial, filename_base):
     global mouse_listener, key_listener, running_time, keyboard_data, running_time, paused_time, mouse_move_data, mouse_click_data, mouse_scroll_data
 
     running_time = time.time()
@@ -175,7 +175,7 @@ def record_measurements(session_id, task, factor, tracking_flags):
             stop_keyboard_ps()
 
         def on_move_params(x, y):
-            on_move(x, y, session_id, task, factor)
+            on_move(x, y, task, dir_trial, filename_base)
 
         # Initialize mouse listener if needed
         if (
@@ -214,49 +214,42 @@ def record_measurements(session_id, task, factor, tracking_flags):
         if key_listener:
             stop_keyboard_ps()
 
-        task_nm = task["taskName"].replace(" ", "")
-        factor_nm = factor["factorName"].replace(" ", "")
-        dir_results = get_save_dir()
-        dir_session = os.path.join(dir_results, f"Session_{session_id}")
-        dir_trial = os.path.join(dir_session, f"{task_nm}_{factor_nm}")
-        os.makedirs(dir_trial, exist_ok=True)
-
         # Writing before the current task ends
         write_to_csv(
-            session_id,
             "MouseMovement",
             "mouse",
             mouse_move_data,
             tracking_flags["mouse_movement"],
             task,
-            factor,
+            dir_trial,
+            filename_base,
         )
         write_to_csv(
-            session_id,
             "KeyboardInputs",
             "keyboard",
             keyboard_data,
             tracking_flags["keyboard_inputs"],
             task,
-            factor,
+            dir_trial,
+            filename_base,
         )
         write_to_csv(
-            session_id,
             "MouseClicks",
             "mouse",
             mouse_click_data,
             tracking_flags["mouse_clicks"],
             task,
-            factor,
+            dir_trial,
+            filename_base,
         )
         write_to_csv(
-            session_id,
             "MouseScrolls",
             "mouse",
             mouse_scroll_data,
             tracking_flags["mouse_scrolls"],
             task,
-            factor,
+            dir_trial,
+            filename_base,
         )
 
         # Resetting for next trial

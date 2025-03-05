@@ -25,7 +25,12 @@
   ],
   "tasks": {
     "21": {
-      "measurementOptions": ["Mouse Movement", "Mouse Scrolls"],
+      "measurementOptions": [
+        "Mouse Movement",
+        "Keyboard Inputs",
+        "Mouse Scrolls",
+        "Mouse Clicks"
+      ],
       "taskDescription": "Task Des",
       "taskDirections": "Move your mouse foo",
       "taskDuration": "5.000",
@@ -48,5 +53,6 @@
       "factorDescription": "Factor Der",
       "factorName": "Table"
     }
-  }
+  },
+  "storagePath": "C:/Users/brand/Fulcrum_Results"
 }

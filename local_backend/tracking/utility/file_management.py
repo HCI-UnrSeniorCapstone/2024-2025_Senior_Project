@@ -7,30 +7,40 @@ import zipfile
 import shutil  # used to remove folder once zip is created
 
 
-# Ref https://www.tutorialspoint.com/how-to-get-the-home-directory-in-python#:~:text=By%20calling%20%22os.,regardless%20of%20the%20operating%20system.
-def get_save_dir():
-    dir_home = os.path.expanduser("~")
-    dir_fulcrum = os.path.join(dir_home, "Fulcrum_Results")
-    os.makedirs(dir_fulcrum, exist_ok=True)
-    return dir_fulcrum
+# Returns the path to a directory for a session or trial depending on what parameters are passed
+def get_save_dir(storage_path, sess_id, task=None, factor=None):
+    # path to session folder
+    dir_session = os.path.join(storage_path, f"Session_{sess_id}")
+
+    if task is None or factor is None:
+        return dir_session
+
+    # path to trial folder
+    task_name = task["taskName"].replace(" ", "")
+    factor_name = factor["factorName"].replace(" ", "")
+
+    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
+
+    return dir_trial
 
 
-# Generating a unique csv for each measurement type for each trial
+# Constructs the full file path and enforces a naming convention
+def get_file_path(dir_trial, filename_trial_base, measurement_type, file_format):
+    file_name = f"{filename_trial_base}_{measurement_type}.{file_format}"
+    full_path = os.path.join(dir_trial, file_name)
+
+    return full_path
+
+
+# Generating a unique csv based on the measurement type during a given trial
 def write_to_csv(
-    session_id, measurement_type, feature, arr_data, is_used, task, factor
+    measurement_type, feature, arr_data, is_used, task, dir_trial, filename_base
 ):
     if not is_used:
         return
 
-    task_name = task["taskName"].replace(" ", "")
-    factor_name = factor["factorName"].replace(" ", "")
-
-    dir_results = get_save_dir()
-    dir_session = os.path.join(dir_results, f"Session_{session_id}")
-    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
-    os.makedirs(dir_trial, exist_ok=True)
-    filename = f"{session_id}_{task_name}_{factor_name}_{measurement_type}_data.csv"
-    file_path = os.path.join(dir_trial, filename)
+    file_path = get_file_path(dir_trial, filename_base, measurement_type, "csv")
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
     # Prevent writing values that exceeded task duration due to delay between signaling task end and stopping tracking threads
     task_dur = task.get("taskDuration")
@@ -47,6 +57,7 @@ def write_to_csv(
     elif feature == "keyboard":
         df = pd.DataFrame(updated_data, columns=["Time", "running_time", "keys"])
 
+    # Unique behavior for mouse movement CSVs because we did batch writes
     if os.path.exists(
         file_path
     ):  # CSV already exists so we just append and don't add headers
@@ -55,6 +66,7 @@ def write_to_csv(
         df.to_csv(file_path, index=False)
 
 
+# Creates a zip
 def zip_folder(folder_path, zip_name):
     with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
         for root, dirs, files in os.walk(folder_path):
@@ -64,15 +76,16 @@ def zip_folder(folder_path, zip_name):
                 zipf.write(file_path, arcname)
 
 
-def package_session_results(session_id):
-    dir_fulcrum = get_save_dir()
-    dir_session = os.path.join(dir_fulcrum, f"Session_{session_id}")
+# Packages a folder containing all session data into a zip file
+def package_session_results(session_id, storage_path):
+    dir_session = get_save_dir(storage_path, session_id)
 
-    zip_path = os.path.join(dir_fulcrum, f"session_results_{session_id}.zip")
+    zip_path = os.path.join(storage_path, f"session_results_{session_id}.zip")
+
     try:
         zip_folder(dir_session, zip_path)
         shutil.rmtree(dir_session)
-        print(f"Session {session_id} results saved!")
+        print(f"Session {session_id} results saved to {zip_path}!")
     except Exception as e:
         print(f"Error occured while trying to package session {session_id}: {e}")
 
