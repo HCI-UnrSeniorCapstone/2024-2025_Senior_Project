@@ -47,8 +47,7 @@ SELECT
     mo.measurement_option_name,
     tr.factor_id,
     f.factor_name,
-    ps.participant_session_id,
-    ROW_NUMBER() OVER (PARTITION BY tr.trial_id ORDER BY ps.participant_session_id) AS trial_order
+    ps.participant_session_id
 FROM session_data_instance sdi
 INNER JOIN trial tr
     ON tr.trial_id = sdi.trial_id
@@ -61,6 +60,24 @@ INNER JOIN factor AS f
 INNER JOIN measurement_option AS mo
     ON mo.measurement_option_id = sdi.measurement_option_id
     """
+
+
+def get_trial_order_for_folder(participant_session_id, cur):
+    query = """
+    SELECT t.trial_id, t.created_at
+    FROM trial AS t
+    WHERE participant_session_id = %s
+    ORDER BY t.created_at ASC
+    """
+    cur.execute(query, (participant_session_id,))
+    results = cur.fetchall()
+
+    trial_order = {}
+    counter = 1
+    for result in results:
+        trial_order[result[0]] = counter
+        counter += 1
+    return trial_order
 
 
 def get_study_name_for_folder(study_id, cur):

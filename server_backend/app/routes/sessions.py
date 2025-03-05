@@ -13,6 +13,7 @@ from app.utility.sessions import (
     get_participant_session_order,
     get_study_name_for_folder,
     get_trial_name_for_folder,
+    get_trial_order_for_folder,
     # zip_csv_files,
 )
 from app.utility.db_connection import get_db_connection
@@ -372,11 +373,14 @@ def get_all_session_data_instance_zip(study_id):
                     .get(result[7], {})
                     .get("factor_name", "UnknownTrial")
                 )
+                trial_order = get_trial_order_for_folder(
+                    participant_session_id, conn.cursor()
+                ).get(result[2], "UnknownTrialOrdering")
 
                 trial_key = f"{trial_task_name}_{trial_factor_name}_{trial_id}"
                 trial_counts[trial_key] = trial_counts.get(trial_key, 0) + 1
                 trial_folder = (
-                    f"{trial_task_name}_{trial_factor_name}_trial_{result[10]}"
+                    f"{trial_task_name}_{trial_factor_name}_trial_{trial_order}"
                 )
 
                 folder_name = f"{study_name}/{participant_session_name}_participant_session/{trial_folder}"
