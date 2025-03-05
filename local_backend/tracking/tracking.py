@@ -23,17 +23,19 @@ def conduct_trial(sess_id, task, factor, storage_path):
         "mouse_scrolls": "Mouse Scrolls" in measurements,
         "keyboard_inputs": "Keyboard Inputs" in measurements,
     }
-    
+
     # Find the base trial dir path to save to
     dir_trial = get_save_dir(storage_path, sess_id, task, factor)
     os.makedirs(dir_trial, exist_ok=True)
-    
+
     # Finding the base filename convention (excludes the file format and measurement type)
     task_name = task["taskName"].replace(" ", "")
     factor_name = factor["factorName"].replace(" ", "")
     filename_base = f"{sess_id}_{task_name}_{factor_name}"
-    
-    recorder_thread = threading.Thread(target = record_screen, args = (dir_trial, filename_base))
+
+    recorder_thread = threading.Thread(
+        target=record_screen, args=(dir_trial, filename_base)
+    )
     recorder_thread.start()
 
     # Start tracking as long as at least 1 option was selected for the current task
@@ -45,12 +47,13 @@ def conduct_trial(sess_id, task, factor, storage_path):
     if measurement_flags["mouse_movement"]:
         data_storage_complete_event.wait()
         heatmap_generation_complete.clear()
-        heatmap_thread = threading.Thread(target = generate_heatmap, args = (dir_trial, filename_base))
+        heatmap_thread = threading.Thread(
+            target=generate_heatmap, args=(dir_trial, filename_base)
+        )
         heatmap_thread.start()
-    else: 
+    else:
         heatmap_generation_complete.set()
-    
+
     recording_stop.set()
     while recording_active.is_set():
         time.sleep(0.1)
-        

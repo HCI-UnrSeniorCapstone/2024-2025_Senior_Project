@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QWidget,
     QLabel,
     QMessageBox,
-    QDialog
+    QDialog,
 )
 from tracking.tracking import conduct_trial
 from tracking.utility.file_management import package_session_results, get_save_dir
@@ -30,7 +30,7 @@ from tracking.utility.measure import (
 from tracking.utility.screenrecording import (
     recording_stop,
     recording_active,
-    adjustments_finished
+    adjustments_finished,
 )
 from tracking.utility.heatmap import heatmap_generation_complete
 
@@ -91,10 +91,10 @@ class GlobalToolbar(QWidget):
             else:
                 button.setIconSize(QSize(25, 25))
             button.setStyleSheet(btn_style)
-            
+
             if action is not None:
                 button.clicked.connect(action)
-                
+
             vbox.addWidget(button, alignment=Qt.AlignmentFlag.AlignCenter)
 
             tool_desc = QLabel(label)
@@ -137,7 +137,7 @@ class GlobalToolbar(QWidget):
             "color: white; font-size: 16px; padding: 5px 10px; border-radius: 12px; border: 1px solid #444"
         )
         layout.addWidget(self.progress)
-        
+
         # Recording status (button but does nothing, however, making it this ways makes it consistent with the rest of the ui)
         recording_layout, self.recording_btn, self.recording_label = create_btn(
             "./icons/not_recording.svg", "Recording", None
@@ -152,7 +152,6 @@ class GlobalToolbar(QWidget):
             "./icons/help.svg", "Help", self.open_help_menu
         )
         layout.addLayout(help_layout)
-        
 
         # Quit button
         quit_layout, self.quit_btn, self.quit_label = create_btn(
@@ -179,7 +178,6 @@ class GlobalToolbar(QWidget):
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
-        
 
     def move_next_task(self):
         # Get next trial's details
@@ -209,26 +207,27 @@ class GlobalToolbar(QWidget):
                 pause_event.clear()
                 data_storage_complete_event.wait()
                 heatmap_generation_complete.wait()
-                
+
                 # Recording signals
                 recording_stop.set()
                 while recording_active.is_set():
                     time.sleep(0.1)
-                
+
             self.start_btn.setEnabled(False)  # disable for the rest of the session
             self.session_paused = False
-            
+
             self.pause_btn.setEnabled(True)
             self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
             self.pause_label.setText("Pause")
-            
+
             pause_event.set()  # start tracking
             stop_event.clear()
             data_storage_complete_event.clear()
             heatmap_generation_complete.clear()
 
             trial_thread = threading.Thread(
-                target=conduct_trial, args=(self.session_id, task, factor, self.storage_dir)
+                target=conduct_trial,
+                args=(self.session_id, task, factor, self.storage_dir),
             )
             trial_thread.start()
 
@@ -249,12 +248,11 @@ class GlobalToolbar(QWidget):
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
 
-
     # Starts the countdown timer
     def initiate_countdown(self, duration):
         self.next_btn.setEnabled(False)
         self.pause_btn.setEnabled(True)
-        
+
         self.countdown = duration
         self.format_countdown()
         self.timer.start(1000)
@@ -262,7 +260,7 @@ class GlobalToolbar(QWidget):
     # Updates the countdown (decreasing by 1 sec)
     def update_countdown(self):
         # Added this because of a delay where the pause button would briefly be enabled even though the countdown hit zero, breaking program when clicked so I added a buffer to resolve
-        if (self.countdown == 1):
+        if self.countdown == 1:
             self.pause_btn.setEnabled(
                 False
             )  # disable pause when task is at its end since no tracking occuring
@@ -273,7 +271,7 @@ class GlobalToolbar(QWidget):
             self.format_countdown()
         else:
             self.timer.stop()
-            
+
             if self.trial_index < len(self.trials):
                 self.next_btn.setEnabled(
                     True
@@ -311,7 +309,7 @@ class GlobalToolbar(QWidget):
                 self.timer.start(1000)
             else:
                 pause_event.set()
-            
+
     def update_recording_status(self):
         if recording_active.is_set():
             self.recording_btn.setIcon(QIcon("./icons/recording.svg"))
@@ -382,53 +380,54 @@ class GlobalToolbar(QWidget):
             if (
                 self.trial_index > 0
             ):  # only attempt to save results if they completed at least 1 trial
-                
+
                 # Add pop-up in case local saving results (mp4, heatmap, csv's) takes a while before the app can close so user doesn't mistake for frozen
                 save_msg = QDialog(self)
                 save_msg.setWindowTitle("Session Complete!")
                 save_msg.setWindowFlags(
-                    Qt.WindowType.Dialog |
-                    Qt.WindowType.WindowStaysOnTopHint |
-                    Qt.WindowType.CustomizeWindowHint |
-                    Qt.WindowType.WindowTitleHint
+                    Qt.WindowType.Dialog
+                    | Qt.WindowType.WindowStaysOnTopHint
+                    | Qt.WindowType.CustomizeWindowHint
+                    | Qt.WindowType.WindowTitleHint
                 )
-                
+
                 save_msg.setFixedSize(400, 100)
-                
+
                 screen = QApplication.primaryScreen().geometry()
                 box_w = save_msg.width()
                 box_h = save_msg.height()
                 x_pos = (screen.width() - box_w) // 2
                 y_pos = (screen.height() - box_h) // 2
                 save_msg.move(x_pos, y_pos)
-                
+
                 layout = QVBoxLayout(save_msg)
                 save_label = QLabel("Saving results... This may take a while.")
                 save_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 save_label.setStyleSheet("color: white; font-size: 12pt;")
                 layout.addWidget(save_label)
-                
+
                 save_msg.show()
                 QApplication.processEvents()
-                
+
                 pause_event.clear()
                 stop_event.set()
-                
+
                 # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
-                while not data_storage_complete_event.is_set() or not heatmap_generation_complete.is_set():
+                while (
+                    not data_storage_complete_event.is_set()
+                    or not heatmap_generation_complete.is_set()
+                ):
                     time.sleep(0.1)
                     QApplication.processEvents()
-                
+
                 recording_stop.set()
                 while recording_active.is_set():
                     time.sleep(0.1)
                     QApplication.processEvents()
-                    
+
                 adjustments_finished.wait()
 
-                if os.path.exists(
-                    get_save_dir(self.storage_dir, self.session_id)
-                ):
+                if os.path.exists(get_save_dir(self.storage_dir, self.session_id)):
                     try:
                         package_session_results(self.session_id, self.storage_dir)
                     except Exception as e:

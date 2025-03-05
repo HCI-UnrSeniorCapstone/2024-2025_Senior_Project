@@ -11,13 +11,13 @@ import threading
 from tracking.utility.file_management import get_file_path
 
 
-# Used to signal heatmap gen is complete 
+# Used to signal heatmap gen is complete
 heatmap_generation_complete = threading.Event()
 
 
 def generate_heatmap(dir_trial, filename_base):
     # Capture screenshot
-    screenshot_path = get_file_path(dir_trial, filename_base, "screenshot", "png" )
+    screenshot_path = get_file_path(dir_trial, filename_base, "screenshot", "png")
     screenshot = ImageGrab.grab()
     screenshot.save(screenshot_path)
     screenshot = cv2.imread(screenshot_path)
@@ -39,12 +39,11 @@ def generate_heatmap(dir_trial, filename_base):
         heatmap_path = get_file_path(dir_trial, filename_base, "heatmap", "png")
         cv2.imwrite(heatmap_path, overlay)
 
-
         time.sleep(1)
-        
+
         # removes the initial screenshot
         os.remove(screenshot_path)
-        
+
     heatmap_generation_complete.set()
 
 

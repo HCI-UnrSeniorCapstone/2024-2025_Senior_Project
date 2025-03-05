@@ -8,19 +8,19 @@ import shutil  # used to remove folder once zip is created
 
 
 # Returns the path to a directory for a session or trial depending on what parameters are passed
-def get_save_dir(storage_path, sess_id, task = None, factor = None):
+def get_save_dir(storage_path, sess_id, task=None, factor=None):
     # path to session folder
     dir_session = os.path.join(storage_path, f"Session_{sess_id}")
-    
+
     if task is None or factor is None:
         return dir_session
-    
+
     # path to trial folder
     task_name = task["taskName"].replace(" ", "")
     factor_name = factor["factorName"].replace(" ", "")
-    
+
     dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
-    
+
     return dir_trial
 
 
@@ -28,7 +28,7 @@ def get_save_dir(storage_path, sess_id, task = None, factor = None):
 def get_file_path(dir_trial, filename_trial_base, measurement_type, file_format):
     file_name = f"{filename_trial_base}_{measurement_type}.{file_format}"
     full_path = os.path.join(dir_trial, file_name)
-    
+
     return full_path
 
 
@@ -79,9 +79,9 @@ def zip_folder(folder_path, zip_name):
 # Packages a folder containing all session data into a zip file
 def package_session_results(session_id, storage_path):
     dir_session = get_save_dir(storage_path, session_id)
-    
+
     zip_path = os.path.join(storage_path, f"session_results_{session_id}.zip")
-    
+
     try:
         zip_folder(dir_session, zip_path)
         shutil.rmtree(dir_session)

@@ -66,7 +66,7 @@ def on_move(x, y, task, dir_trial, filename_base):
                 "mouse",
                 task,
                 dir_trial,
-                filename_base
+                filename_base,
             )
             mouse_move_data.clear()
 
@@ -222,7 +222,7 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
             tracking_flags["mouse_movement"],
             task,
             dir_trial,
-            filename_base
+            filename_base,
         )
         write_to_csv(
             "KeyboardInputs",
@@ -231,7 +231,7 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
             tracking_flags["keyboard_inputs"],
             task,
             dir_trial,
-            filename_base
+            filename_base,
         )
         write_to_csv(
             "MouseClicks",
@@ -240,7 +240,7 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
             tracking_flags["mouse_clicks"],
             task,
             dir_trial,
-            filename_base
+            filename_base,
         )
         write_to_csv(
             "MouseScrolls",
@@ -249,7 +249,7 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
             tracking_flags["mouse_scrolls"],
             task,
             dir_trial,
-            filename_base
+            filename_base,
         )
 
         # Resetting for next trial
