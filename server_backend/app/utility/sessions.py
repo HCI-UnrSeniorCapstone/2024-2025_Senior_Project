@@ -38,6 +38,7 @@ def get_participant_session_order(participant_session_id):
 def get_core_csv_files_query():
     return """
 SELECT 
+    s.study_name,
     sdi.session_data_instance_id,
     sdi.results_path,
     tr.trial_id,
@@ -57,6 +58,8 @@ INNER JOIN task AS t
     ON t.study_id = ps.study_id AND t.task_id = tr.task_id
 INNER JOIN factor AS f
     ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
+INNER JOIN study AS s
+    ON s.study_id = f.study_id
 INNER JOIN measurement_option AS mo
     ON mo.measurement_option_id = sdi.measurement_option_id
     """
@@ -67,7 +70,7 @@ def get_trial_order_for_folder(participant_session_id, cur):
     SELECT t.trial_id, t.created_at
     FROM trial AS t
     WHERE participant_session_id = %s
-    ORDER BY t.created_at ASC
+    ORDER BY t.created_at DESC
     """
     cur.execute(query, (participant_session_id,))
     results = cur.fetchall()

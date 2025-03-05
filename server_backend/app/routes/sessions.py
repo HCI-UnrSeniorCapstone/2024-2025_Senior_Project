@@ -324,72 +324,81 @@ def get_all_session_data_instance_zip(study_id):
             return jsonify({"error": "No data found for this study"}), 404
 
         # Fetch the required data for folder naming
-        study_name = get_study_name_for_folder(study_id, conn.cursor())
+        # study_name = get_study_name_for_folder(study_id, conn.cursor())
         participant_sessions = get_participant_session_name_for_folder(
             study_id, conn.cursor()
         )
-        trials = get_trial_name_for_folder(study_id, conn.cursor())
-        file_names = get_file_name_for_folder(study_id, conn.cursor())
+        # trials = get_trial_name_for_folder(study_id, conn.cursor())
+        # file_names = get_file_name_for_folder(study_id, conn.cursor())
 
         # Create an in-memory ZIP file
         memory_file = io.BytesIO()
 
         with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-            trial_counts = {}
+            # trial_counts = {}
 
             # Iterate over the session data results and organize files in the ZIP
-            for result in results_with_size:
-                file_path = result[1]
-                measurement_option = result[6]
-                session_data_instance_id = result[0]
+            for (
+                study_name,
+                session_data_instance_id,
+                results_path,
+                trial_id,
+                task_id,
+                task_name,
+                measurement_option_id,
+                measurement_option_name,
+                factor_id,
+                factor_name,
+                participant_session_id,
+            ) in results_with_size:
 
-                if not isinstance(file_path, str):
+                if not isinstance(results_path, str):
                     return jsonify({"error": "File path is not a valid string"}), 400
 
-                file_name = file_names.get(file_path, "UnknownFile")
-                path_parts = file_path.split("/")
+                # file_name = file_names.get(file_path, "UnknownFile")
+                path_parts = results_path.split("/")
 
-                try:
-                    participant_session_id = int(path_parts[-3].split("_")[0])
-                    trial_id = int(path_parts[-2].split("_")[0])
-                except ValueError:
-                    return (
-                        jsonify(
-                            {
-                                "error": "Invalid participant session ID or trial ID in file path"
-                            }
-                        ),
-                        400,
-                    )
+                # try:
+                #     participant_session_id = int(path_parts[-3].split("_")[0])
+                #     trial_id = int(path_parts[-2].split("_")[0])
+                # except ValueError:
+                #     return (
+                #         jsonify(
+                #             {
+                #                 "error": "Invalid participant session ID or trial ID in file path"
+                #             }
+                #         ),
+                #         400,
+                #     )
 
                 participant_session_name = participant_sessions.get(
                     participant_session_id, "UnknownSession"
                 )
-                trial_task_name = (
-                    trials["tasks"].get(result[3], {}).get("task_name", "UnknownTrial")
-                )
-                trial_factor_name = (
-                    trials["factors"]
-                    .get(result[7], {})
-                    .get("factor_name", "UnknownTrial")
-                )
+                # trial_task_name = (
+                #     trials["tasks"].get(result[3], {}).get("task_name", "UnknownTrial")
+                # )
+                # trial_factor_name = (
+                #     trials["factors"]
+                #     .get(result[7], {})
+                #     .get("factor_name", "UnknownTrial")
+                # )
                 trial_order = get_trial_order_for_folder(
                     participant_session_id, conn.cursor()
-                ).get(result[2], "UnknownTrialOrdering")
+                ).get(trial_id, "UnknownTrialOrdering")
 
-                trial_key = f"{trial_task_name}_{trial_factor_name}_{trial_id}"
-                trial_counts[trial_key] = trial_counts.get(trial_key, 0) + 1
-                trial_folder = (
-                    f"{trial_task_name}_{trial_factor_name}_trial_{trial_order}"
-                )
+                trial_key = f"{task_name}_{factor_name}_{trial_id}"
+                # trial_counts[trial_key] = trial_counts.get(trial_key, 0) + 1
+                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
 
                 folder_name = f"{study_name}/{participant_session_name}_participant_session/{trial_folder}"
 
                 # Extract the file extension
-                file_extension = os.path.splitext(file_path)[1]
-                zip_file_path = f"{folder_name}/{measurement_option}{file_extension}"
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = (
+                    f"{folder_name}/{measurement_option_name}{file_extension}"
+                )
 
-                with open(file_path, "rb") as file:
+                with open(results_path, "rb") as file:
                     zipf.writestr(zip_file_path, file.read())
 
         memory_file.seek(0)
