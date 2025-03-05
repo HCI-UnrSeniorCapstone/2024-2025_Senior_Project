@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QDialog,
+    QFileDialog
 )
 from tracking.tracking import conduct_trial
 from tracking.utility.file_management import package_session_results, get_save_dir
@@ -40,7 +41,8 @@ class GlobalToolbar(QWidget):
     def __init__(self):
         super().__init__()
         self.setup_ui()
-        self.load_session()
+        self.show()
+        self.initiate_setup()
         self.trial_index = 0
         self.oldPos = None  # track toolbar pos on screen
         self.session_paused = False
@@ -159,25 +161,127 @@ class GlobalToolbar(QWidget):
         )
         layout.addLayout(quit_layout)
 
+
+    def initiate_setup(self):
+        self.load_session()
+        self.facilitator_setup()
+ 
+        
     def load_session(self):
         # Uses a sample json found in frontend/public for easier debugging and development so we dont have to initiate session from Vue
         with open("../frontend/public/sample_study.json", "r") as file:
             data = json.load(file)
-        self.session_id, self.tasks, self.factors, self.trials, self.storage_dir = (
+        self.session_id, self.tasks, self.factors, self.trials = (
             self.parse_study_details(data)
         )
-
+      
+        
     # Getting all study info parsed
     def parse_study_details(self, data):
         session_id = data.get("participantSessId")
         tasks = data.get("tasks", {})
         factors = data.get("factors", {})
         trials = data.get("trials", [])
-        storage_path = data.get("storagePath")
-        return session_id, tasks, factors, trials, storage_path
+        return session_id, tasks, factors, trials
+    
+    
+    def facilitator_setup(self):
+        welcome_msg = QDialog(self)
+        welcome_msg.setWindowTitle("Facilitator Use Only")
+        welcome_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        welcome_msg.setFixedSize(450, 200)
+
+        x_pos, y_pos = self.get_dialog_placement_pos(welcome_msg)
+        welcome_msg.move(x_pos, y_pos)
+
+        layout = QVBoxLayout(welcome_msg)
+        
+        welcome_label = QLabel("Welcome to the Experiment Setup!")
+        welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
+        
+        instuctions_label = QLabel("Please select a folder to store session results.")
+        instuctions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        instuctions_label.setStyleSheet("color: white; font-size: 14pt;")
+        
+        select_btn = QPushButton("Select Folder")
+        select_btn.setStyleSheet("color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;")
+        select_btn.clicked.connect(welcome_msg.accept)
+        
+        layout.addWidget(welcome_label)
+        layout.addWidget(instuctions_label)
+        layout.addWidget(select_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        welcome_msg.exec()
+        
+        self.storage_dir = (self.get_storage_loc())
+        
+        self.session_ready()
+        
+    
+    def session_ready(self):
+        ready_msg = QDialog(self)
+        ready_msg.setWindowTitle("End of Facilitator Use")
+        ready_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        ready_msg.setFixedSize(450, 300)
+
+        x_pos, y_pos = self.get_dialog_placement_pos(ready_msg)
+        ready_msg.move(x_pos, y_pos)
+
+        layout = QVBoxLayout(ready_msg)
+        
+        ready_label = QLabel("Ready to Go!")
+        ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ready_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
+        
+        checkmark_label = QLabel("✅")
+        checkmark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        checkmark_label.setStyleSheet("font-size: 48pt")
+        
+        instructions_label = QLabel("Once the Participant is ready,\n click Continue to begin")
+        instructions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        instructions_label.setStyleSheet("color: white; font-size: 14pt;")
+        
+        continue_btn = QPushButton("Continue")
+        continue_btn.setStyleSheet("color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;")
+        continue_btn.clicked.connect(ready_msg.accept)
+        
+        layout.addWidget(ready_label)
+        layout.addWidget(checkmark_label)
+        layout.addWidget(instructions_label)
+        layout.addWidget(continue_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        ready_msg.exec()
+        
+    
+    
+    # Need to get a dir path to know where to save the results locally (for redundancy)
+    def get_storage_loc(self):
+        storage_dir = None
+        
+        while not storage_dir:
+            storage_dir = QFileDialog.getExistingDirectory(self, "Storage Location")
+            if not storage_dir:
+                QMessageBox.warning(self, "Folder Selection Required", "Please try again! Storage Location Required to Continue.")
+                
+        return storage_dir
+        
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
+
 
     def move_next_task(self):
         # Get next trial's details
@@ -248,6 +352,7 @@ class GlobalToolbar(QWidget):
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
 
+
     # Starts the countdown timer
     def initiate_countdown(self, duration):
         self.next_btn.setEnabled(False)
@@ -256,6 +361,7 @@ class GlobalToolbar(QWidget):
         self.countdown = duration
         self.format_countdown()
         self.timer.start(1000)
+
 
     # Updates the countdown (decreasing by 1 sec)
     def update_countdown(self):
@@ -283,12 +389,14 @@ class GlobalToolbar(QWidget):
             pause_event.clear()
             stop_event.set()
 
+
     # Showing time in HH:MM:SS format
     def format_countdown(self):
         hrs = self.countdown // 3600
         mins = (self.countdown % 3600) // 60
         secs = self.countdown % 60
         self.timer_label.setText(f"Time Remaining: {hrs:02}:{mins:02}:{secs:02}")
+
 
     # Inverting state, as if we are running we pause and if we are paused we resume
     def pause_session(self):
@@ -310,11 +418,13 @@ class GlobalToolbar(QWidget):
             else:
                 pause_event.set()
 
+
     def update_recording_status(self):
         if recording_active.is_set():
             self.recording_btn.setIcon(QIcon("./icons/recording.svg"))
         else:
             self.recording_btn.setIcon(QIcon("./icons/not_recording.svg"))
+
 
     def open_help_menu(self):
         help_msg = QMessageBox()
@@ -346,6 +456,7 @@ class GlobalToolbar(QWidget):
 
         help_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         help_msg.exec()
+
 
     def leave_session(self):
         if self.trial_index == 0:
@@ -393,11 +504,7 @@ class GlobalToolbar(QWidget):
 
                 save_msg.setFixedSize(400, 100)
 
-                screen = QApplication.primaryScreen().geometry()
-                box_w = save_msg.width()
-                box_h = save_msg.height()
-                x_pos = (screen.width() - box_w) // 2
-                y_pos = (screen.height() - box_h) // 2
+                x_pos, y_pos = self.get_dialog_placement_pos(save_msg)
                 save_msg.move(x_pos, y_pos)
 
                 layout = QVBoxLayout(save_msg)
@@ -435,14 +542,25 @@ class GlobalToolbar(QWidget):
 
             QApplication.quit()
 
+
     # Ref https://stackoverflow.com/questions/41784521/move-qtwidgets-qtwidget-using-mouse for how to make toolbar draggable
     def mousePressEvent(self, evt):
         self.oldPos = evt.globalPosition().toPoint()
+
 
     def mouseMoveEvent(self, evt):
         delta = evt.globalPosition().toPoint() - self.oldPos
         self.move(self.x() + delta.x(), self.y() + delta.y())
         self.oldPos = evt.globalPosition().toPoint()
+        
+        
+    def get_dialog_placement_pos(self, box):
+        screen = QApplication.primaryScreen().geometry()
+        x_pos = (screen.width() - box.width()) // 2
+        y_pos = (screen.height() - box.height()) // 2
+        
+        return x_pos, y_pos
+
 
 
 if __name__ == "__main__":

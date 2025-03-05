@@ -31,12 +31,7 @@
     <div>
       <v-select
         v-model="task.measurementOptions"
-        :items="[
-          'Mouse Movement',
-          'Mouse Scrolls',
-          'Mouse Clicks',
-          'Keyboard Inputs',
-        ]"
+        :items="updateVisibleMeasurementOptions"
         label="Measurement Options"
         chips
         multiple
@@ -103,6 +98,46 @@ export default {
         rule => rule(this.task.taskDuration) === true,
       )
       return taskNameCheck && taskDescCheck && taskDirCheck && taskDurCheck
+    },
+  },
+
+  // Used to remove Heat Map selection if Mouse Movement is deselected since it is dependent on it
+  watch: {
+    'task.measurementOptions'(newSelection) {
+      if (!newSelection.includes('Mouse Movement')) {
+        this.$emit('update:task', {
+          ...this.task,
+          measurementOptions: newSelection.filter(
+            option => option !== 'Heat Map',
+          ),
+        })
+      }
+    },
+  },
+
+  // Changes selection options to include Heat Map when Mouse Movement is actively selected and vice versa
+  computed: {
+    updateVisibleMeasurementOptions() {
+      if (this.task.measurementOptions.includes('Mouse Movement')) {
+        return [
+          // Heat Map should be visible since MM is selected
+          'Mouse Movement',
+          'Mouse Scrolls',
+          'Mouse Clicks',
+          'Keyboard Inputs',
+          'Screen Recording',
+          'Heat Map',
+        ]
+      } else {
+        return [
+          // Heat Map unavailable when Mouse Movement not selected
+          'Mouse Movement',
+          'Mouse Scrolls',
+          'Mouse Clicks',
+          'Keyboard Inputs',
+          'Screen Recording',
+        ]
+      }
     },
   },
 }

@@ -37,7 +37,7 @@
       "taskName": "Task A"
     },
     "22": {
-      "measurementOptions": ["Keyboard Inputs"],
+      "measurementOptions": ["Mouse Movement", "Heat Map", "Screen Recording"],
       "taskDescription": "Task Des",
       "taskDirections": "Start spamming keyboard lil bru",
       "taskDuration": null,
@@ -53,6 +53,5 @@
       "factorDescription": "Factor Der",
       "factorName": "Table"
     }
-  },
-  "storagePath": "C:/Users/brand/Fulcrum_Results"
+  }
 }

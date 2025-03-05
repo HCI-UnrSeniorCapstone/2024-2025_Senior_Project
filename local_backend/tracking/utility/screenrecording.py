@@ -74,9 +74,9 @@ def record_screen(dir_output_base, filename_base):
 
         recording_active.clear()
 
-        # adjuster_thread = threading.Thread(target = adjust_video, args = (file_path, fps))
-        # adjuster_thread.daemon = True
-        # adjuster_thread.start()
+        adjuster_thread = threading.Thread(target = adjust_video, args = (file_path, fps))
+        adjuster_thread.daemon = True
+        adjuster_thread.start()
 
 
 # Need this function because fps varies for each person so we have to correct the video using calculated fps using ffmpeg or else play speed and video length will be incorrect
