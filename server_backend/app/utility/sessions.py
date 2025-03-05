@@ -71,7 +71,7 @@ def get_zip(results_with_size, study_id, conn, mode):
                 participant_session_id, conn.cursor()
             ).get(trial_id, "UnknownTrialOrdering")
 
-            if mode == "study":
+            if mode == "study" or mode == "participant":
                 trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
                 participant_session_folder = (
                     f"{participant_session_name}_participant_session/{trial_folder}"
@@ -163,6 +163,26 @@ def get_participant_session_name_for_folder(study_id, cur):
     query = """
     SELECT ps.participant_session_id, ps.created_at
     FROM participant_session AS ps
+    WHERE study_id = %s
+    ORDER BY ps.created_at ASC
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+
+    participant_sessions = {}
+    counter = 1
+    for result in results:
+        participant_sessions[result[0]] = counter
+        counter += 1
+    return participant_sessions
+
+
+def get_participant_name_for_folder(study_id, cur):
+    query = """
+    SELECT ps.participant_id, p.created_at
+    FROM participant_session AS ps
+    INNER JOIN participant AS p
+    ON p.participant_id = ps.participant_id
     WHERE study_id = %s
     ORDER BY ps.created_at ASC
     """
@@ -367,6 +387,13 @@ def sort_csv_by_size(results):
         results_with_size.append((result, file_size))
     results_with_size.sort(key=lambda x: x[1])
     return results_with_size
+
+
+def get_all_participant_csv_files(participant_id, cur):
+    query = get_core_csv_files_query() + "WHERE ps.participant_id = %s"
+    cur.execute(query, (participant_id,))
+    results = cur.fetchall()
+    return results
 
 
 def get_all_participant_session_csv_files(participant_session_id, cur):

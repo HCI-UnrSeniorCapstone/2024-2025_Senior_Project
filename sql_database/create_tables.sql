@@ -120,6 +120,7 @@ CREATE TABLE participant (
     gender_type_id TINYINT UNSIGNED NULL,
     highest_education_type_id TINYINT UNSIGNED NULL,
     technology_competence TINYINT UNSIGNED NULL CHECK (technology_competence BETWEEN 0 AND 10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     FOREIGN KEY (gender_type_id) REFERENCES gender_type(gender_type_id),
     FOREIGN KEY (highest_education_type_id) REFERENCES highest_education_type(highest_education_type_id)
 );

@@ -4,11 +4,13 @@ import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
     generate_session_data_from_csv,
+    get_all_participant_csv_files,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
     get_file_name_for_folder,
     get_one_csv_file,
     get_one_trial,
+    get_participant_name_for_folder,
     get_participant_session_name_for_folder,
     get_participant_session_order,
     get_trial_order_for_folder,
@@ -122,7 +124,7 @@ def save_session_data_instance(
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# 1. All CSV from a participant (grouped by trial)
+# 1. All CSV from a participant
 @bp.route(
     "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
@@ -131,60 +133,39 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # Get all participant sessions for this participant (ordered by creation time)
-        cur.execute(
-            "SELECT participant_session_id, created_at, study_id FROM participant_session WHERE participant_id = %s ORDER BY created_at",
-            (participant_id,),
-        )
-        sessions = cur.fetchall()
-        if not sessions:
-            return jsonify({"error": "No session data found for this participant"}), 404
 
-        all_records = []
-        # For each session, fetch its CSV records and annotate them with participant_session_count and study_name.
-        for idx, (participant_session_id, created_at, study_id) in enumerate(
-            sessions, start=1
-        ):
-            participant_session_count = idx
-            cur.execute("SELECT study_name FROM study WHERE study_id = %s", (study_id,))
-            study_row = cur.fetchone()
-            study_name = study_row[0] if study_row else "unknown_study"
-            csv_records = get_all_participant_session_csv_files(
-                participant_session_id, cur
-            )
-            # Append the extra info to each record (we can simply use the record as is because grouping will override trial)
-            # We'll accumulate all records from all sessions.
-            for rec, size in csv_records:
-                # Create a new tuple with the original record (rec) unchanged.
-                all_records.append(((rec), size))
+        study_id_query = """
+        SELECT ps.study_id
+        FROM participant_session AS ps
+        INNER JOIN participant AS p
+        ON p.participant_id = ps.participant_id
+        WHERE p.participant_id = %s
+        """
+        cur.execute(study_id_query, (participant_id,))
+        study_id = cur.fetchone()[0]
+
+        # Get the results and size from the function you mentioned
+        results_with_size = get_all_participant_csv_files(participant_id, cur)
         cur.close()
 
-        # Group records by a key: (study_name, participant_session_count, trial_id)
-        def group_key_func(record):
-            # Here, record[9] is participant_session_id is not used;
-            # We assume that the study_name and participant_session_count are constant per session.
-            # For grouping, we extract the trial_id from record[2] and then use the session order that we had.
-            # Since we lost the original session order, we call get_participant_session_order(record[9]) here.
-            session_order = get_participant_session_order(record[9])
-            trial_id = record[2]
-            # Also fetch study_name from the record's extra annotation if available.
-            # (Here we assume the study_name remains the same across sessions for this participant.)
-            # For simplicity, use a placeholder if not available.
-            study_name = "study"
-            return (study_name, session_order, trial_id)
+        # # Fetch the required data for folder naming
+        participant_names = get_participant_name_for_folder(study_id, conn.cursor())
 
-        zip_buffer = zip_csv_files(
-            all_records,
-            group_by=group_key_func,
-            already_grouped=False,
-            record_offset=0,
-        )
+        participant_name = participant_names.get(participant_id, "UnknownParticipant")
+
+        # If no CSV data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this participant"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="participant")
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name="participant.zip",
+            download_name=f"{participant_name}_participant.zip",
         )
+
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
