@@ -37,29 +37,118 @@ def get_participant_session_order(participant_session_id):
 # --- Updated SQL Query ---
 def get_core_csv_files_query():
     return """
-        SELECT 
-            sdi.session_data_instance_id,
-            sdi.results_path,
-            tr.trial_id,
-            tr.task_id,
-            t.task_name,
-            sdi.measurement_option_id,
-            mo.measurement_option_name,
-            tr.factor_id,
-            f.factor_name,
-            ps.participant_session_id
-        FROM session_data_instance sdi
-        INNER JOIN trial tr
-          ON tr.trial_id = sdi.trial_id
-        INNER JOIN participant_session ps
-          ON ps.participant_session_id = tr.participant_session_id
-        INNER JOIN task AS t
-          ON t.study_id = ps.study_id AND t.task_id = tr.task_id
-        INNER JOIN factor AS f
-          ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
-        INNER JOIN measurement_option AS mo
-          ON mo.measurement_option_id = sdi.measurement_option_id
+SELECT 
+    sdi.session_data_instance_id,
+    sdi.results_path,
+    tr.trial_id,
+    tr.task_id,
+    t.task_name,
+    sdi.measurement_option_id,
+    mo.measurement_option_name,
+    tr.factor_id,
+    f.factor_name,
+    ps.participant_session_id,
+    ROW_NUMBER() OVER (PARTITION BY tr.trial_id ORDER BY ps.participant_session_id) AS trial_order
+FROM session_data_instance sdi
+INNER JOIN trial tr
+    ON tr.trial_id = sdi.trial_id
+INNER JOIN participant_session ps
+    ON ps.participant_session_id = tr.participant_session_id
+INNER JOIN task AS t
+    ON t.study_id = ps.study_id AND t.task_id = tr.task_id
+INNER JOIN factor AS f
+    ON f.study_id = ps.study_id AND f.factor_id = tr.factor_id
+INNER JOIN measurement_option AS mo
+    ON mo.measurement_option_id = sdi.measurement_option_id
     """
+
+
+def get_study_name_for_folder(study_id, cur):
+    query = """
+    SELECT s.study_name
+    FROM study AS s
+    WHERE s.study_id = %s
+    """
+    cur.execute(query, (study_id,))
+    return cur.fetchone()[0]
+
+
+def get_participant_session_name_for_folder(study_id, cur):
+    query = """
+    SELECT ps.participant_session_id, ps.created_at
+    FROM participant_session AS ps
+    WHERE study_id = %s
+    ORDER BY ps.created_at ASC
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+
+    participant_sessions = {}
+    counter = 1
+    for result in results:
+        participant_sessions[result[0]] = counter
+        counter += 1
+    return participant_sessions
+
+
+def get_trial_name_for_folder(study_id, cur):
+    query = """
+    SELECT t.task_id, t.task_name, f.factor_id, f.factor_name
+    FROM study AS s
+    INNER JOIN task AS t
+    ON t.study_id = s.study_id
+    INNER JOIN factor AS f
+    ON f.study_id = s.study_id
+    WHERE s.study_id = %s
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+    tasks = {}
+    factors = {}
+
+    for task_id, task_name, factor_id, factor_name in results:
+        # Add task to tasks dictionary (using task_id as key)
+        if task_id not in tasks:
+            tasks[task_id] = {
+                "task_name": task_name,
+                "factors": {},  # We will map factors for this task here
+            }
+
+        # Add factor to factors dictionary (using factor_id as key)
+        if factor_id not in factors:
+            factors[factor_id] = {
+                "factor_name": factor_name,
+                "tasks": {},  # We will map tasks for this factor here
+            }
+
+        # Link the factor to the task in the tasks dictionary
+        tasks[task_id]["factors"][factor_id] = factors[factor_id]
+
+        # Link the task to the factor in the factors dictionary
+        factors[factor_id]["tasks"][task_id] = tasks[task_id]
+
+    return {"tasks": tasks, "factors": factors}
+
+
+def get_file_name_for_folder(study_id, cur):
+    query = """
+    SELECT sdi.results_path, mo.measurement_option_name
+    FROM session_data_instance AS sdi
+    INNER JOIN measurement_option AS mo
+    ON mo.measurement_option_id = sdi.measurement_option_id
+    INNER JOIN trial AS t
+    ON t.trial_id = sdi.trial_id
+    INNER JOIN participant_session AS ps
+    ON ps.participant_session_id = t.participant_session_id
+    WHERE ps.study_id = %s
+    """
+    cur.execute(query, (study_id,))
+    results = cur.fetchall()
+    file_names = {}
+
+    for result in results:
+        file_names[result[0]] = result[1]
+    return file_names
 
 
 def extract_study_name(results_path):

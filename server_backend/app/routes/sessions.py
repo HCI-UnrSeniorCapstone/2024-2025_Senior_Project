@@ -7,8 +7,12 @@ from app.utility.sessions import (
     generate_session_data_from_csv,
     get_all_participant_session_csv_files,
     get_all_study_csv_files,
+    get_file_name_for_folder,
     get_one_csv_file,
+    get_participant_session_name_for_folder,
     get_participant_session_order,
+    get_study_name_for_folder,
+    get_trial_name_for_folder,
     # zip_csv_files,
 )
 from app.utility.db_connection import get_db_connection
@@ -309,49 +313,90 @@ def get_all_session_data_instance_zip(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        # cur.execute("SELECT study_name FROM study WHERE study_id = %s", (study_id,))
-        # study_row = cur.fetchone()
-        # if not study_row:
-        #     return jsonify({"error": "Study not found"}), 404
-        # study_name = study_row[0]
+
+        # Get the results and size from the function you mentioned
         results_with_size = get_all_study_csv_files(study_id, cur)
         cur.close()
-        if not results_with_size:
-            return jsonify({"error": "No CSV data found for this study"}), 404
 
+        # If no CSV data found, return an error
         if not results_with_size:
-            os.abort(404, description="No data found for the provided study ID.")
+            return jsonify({"error": "No data found for this study"}), 404
 
-        # Create an in-memory binary stream to hold the zip data.
+        # Fetch the required data for folder naming
+        study_name = get_study_name_for_folder(study_id, conn.cursor())
+        participant_sessions = get_participant_session_name_for_folder(
+            study_id, conn.cursor()
+        )
+        trials = get_trial_name_for_folder(study_id, conn.cursor())
+        file_names = get_file_name_for_folder(study_id, conn.cursor())
+
+        # Create an in-memory ZIP file
         memory_file = io.BytesIO()
 
-        # Create a new zip file in memory.
-        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
-            for row in results_with_size:
-                # Build the archive name for the file.
-                arcname = build_archive_name(row)
-                results_path = row[
-                    1
-                ]  # assuming the results_path is the second element in the tuple
+        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+            trial_counts = {}
 
-                # Verify that the file exists on the filesystem.
-                if not os.path.exists(results_path):
-                    # Optionally, handle missing files (skip or log an error).
-                    continue
+            # Iterate over the session data results and organize files in the ZIP
+            for result in results_with_size:
+                file_path = result[1]
+                measurement_option = result[6]
+                session_data_instance_id = result[0]
 
-                # Write the file into the zip archive under the new folder structure.
-                zf.write(results_path, arcname=arcname)
+                if not isinstance(file_path, str):
+                    return jsonify({"error": "File path is not a valid string"}), 400
 
-        # Make sure to seek back to the start of the BytesIO object.
+                file_name = file_names.get(file_path, "UnknownFile")
+                path_parts = file_path.split("/")
+
+                try:
+                    participant_session_id = int(path_parts[-3].split("_")[0])
+                    trial_id = int(path_parts[-2].split("_")[0])
+                except ValueError:
+                    return (
+                        jsonify(
+                            {
+                                "error": "Invalid participant session ID or trial ID in file path"
+                            }
+                        ),
+                        400,
+                    )
+
+                participant_session_name = participant_sessions.get(
+                    participant_session_id, "UnknownSession"
+                )
+                trial_task_name = (
+                    trials["tasks"].get(result[3], {}).get("task_name", "UnknownTrial")
+                )
+                trial_factor_name = (
+                    trials["factors"]
+                    .get(result[7], {})
+                    .get("factor_name", "UnknownTrial")
+                )
+
+                trial_key = f"{trial_task_name}_{trial_factor_name}_{trial_id}"
+                trial_counts[trial_key] = trial_counts.get(trial_key, 0) + 1
+                trial_folder = (
+                    f"{trial_task_name}_{trial_factor_name}_trial_{result[10]}"
+                )
+
+                folder_name = f"{study_name}/{participant_session_name}_participant_session/{trial_folder}"
+
+                # Extract the file extension
+                file_extension = os.path.splitext(file_path)[1]
+                zip_file_path = f"{folder_name}/{measurement_option}{file_extension}"
+
+                with open(file_path, "rb") as file:
+                    zipf.writestr(zip_file_path, file.read())
+
         memory_file.seek(0)
 
-        # Return the zip file as a downloadable response.
         return send_file(
             memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name="session_data.zip",  # For older Flask versions, use attachment_filename
+            download_name="session_data.zip",
         )
+
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
