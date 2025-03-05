@@ -324,18 +324,14 @@ def get_all_session_data_instance_zip(study_id):
             return jsonify({"error": "No data found for this study"}), 404
 
         # Fetch the required data for folder naming
-        # study_name = get_study_name_for_folder(study_id, conn.cursor())
         participant_sessions = get_participant_session_name_for_folder(
             study_id, conn.cursor()
         )
-        # trials = get_trial_name_for_folder(study_id, conn.cursor())
-        # file_names = get_file_name_for_folder(study_id, conn.cursor())
 
         # Create an in-memory ZIP file
         memory_file = io.BytesIO()
 
         with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-            # trial_counts = {}
 
             # Iterate over the session data results and organize files in the ZIP
             for (
@@ -355,42 +351,18 @@ def get_all_session_data_instance_zip(study_id):
                 if not isinstance(results_path, str):
                     return jsonify({"error": "File path is not a valid string"}), 400
 
-                # file_name = file_names.get(file_path, "UnknownFile")
-                path_parts = results_path.split("/")
-
-                # try:
-                #     participant_session_id = int(path_parts[-3].split("_")[0])
-                #     trial_id = int(path_parts[-2].split("_")[0])
-                # except ValueError:
-                #     return (
-                #         jsonify(
-                #             {
-                #                 "error": "Invalid participant session ID or trial ID in file path"
-                #             }
-                #         ),
-                #         400,
-                #     )
-
                 participant_session_name = participant_sessions.get(
                     participant_session_id, "UnknownSession"
                 )
-                # trial_task_name = (
-                #     trials["tasks"].get(result[3], {}).get("task_name", "UnknownTrial")
-                # )
-                # trial_factor_name = (
-                #     trials["factors"]
-                #     .get(result[7], {})
-                #     .get("factor_name", "UnknownTrial")
-                # )
                 trial_order = get_trial_order_for_folder(
                     participant_session_id, conn.cursor()
                 ).get(trial_id, "UnknownTrialOrdering")
 
-                trial_key = f"{task_name}_{factor_name}_{trial_id}"
-                # trial_counts[trial_key] = trial_counts.get(trial_key, 0) + 1
                 trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
 
-                folder_name = f"{study_name}/{participant_session_name}_participant_session/{trial_folder}"
+                folder_name = (
+                    f"{participant_session_name}_participant_session/{trial_folder}"
+                )
 
                 # Extract the file extension
                 file_extension = os.path.splitext(results_path)[1]
@@ -407,7 +379,7 @@ def get_all_session_data_instance_zip(study_id):
             memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name="session_data.zip",
+            download_name=f"{study_name}_FULCRUM_study.zip",
         )
 
     except Exception as e:
