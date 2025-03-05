@@ -253,19 +253,43 @@ def get_one_session_data_instance_zip(session_data_instance_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        result = get_one_csv_file(session_data_instance_id, cur)
+
+        study_id_query = """
+        SELECT s.study_id
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        INNER JOIN trial t
+        ON t.participant_session_id = ps.participant_session_id
+        INNER JOIN session_data_instance sdi
+        ON sdi.trial_id = t.trial_id
+        WHERE sdi.session_data_instance_id = %s
+        """
+        cur.execute(study_id_query, (session_data_instance_id,))
+        study_id = cur.fetchone()[0]
+
+        # Get the results and size from the function you mentioned
+        results_with_size = get_one_csv_file(session_data_instance_id, cur)
         cur.close()
-        if not result:
-            return jsonify({"error": "Session data instance not found"}), 404
-        # For a single file, we use the non-grouped branch.
-        zip_buffer = zip_csv_files([(result, 0)], group_by=None, record_offset=0)
-        download_name = f"trial_{result[2]}_{result[4]}_{result[8]}_{result[6]}.zip"
+
+        # Fetch the required data for folder naming
+        file_names = get_file_name_for_folder(study_id, conn.cursor())
+
+        file_name = file_names.get(session_data_instance_id, "UnknownSession")
+
+        # If no CSV data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this data instance file"}), 404
+
+        memory_file = get_zip(results_with_size, study_id, conn, mode="one file")
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=download_name,
+            download_name=f"{file_name}.zip",
         )
+
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 

@@ -88,6 +88,10 @@ def get_zip(results_with_size, study_id, conn, mode):
                 zip_file_path = (
                     f"{trial_folder}/{measurement_option_name}{file_extension}"
                 )
+            elif mode == "one file":
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = f"{measurement_option_name}{file_extension}"
 
             with open(results_path, "rb") as file:
                 zipf.writestr(zip_file_path, file.read())
@@ -214,7 +218,7 @@ def get_trial_name_for_folder(study_id, cur):
 
 def get_file_name_for_folder(study_id, cur):
     query = """
-    SELECT sdi.results_path, mo.measurement_option_name
+    SELECT sdi.session_data_instance_id, mo.measurement_option_name
     FROM session_data_instance AS sdi
     INNER JOIN measurement_option AS mo
     ON mo.measurement_option_id = sdi.measurement_option_id
@@ -365,8 +369,8 @@ def get_all_participant_session_csv_files(participant_session_id, cur):
 def get_one_csv_file(session_data_instance_id, cur):
     query = get_core_csv_files_query() + "WHERE sdi.session_data_instance_id = %s"
     cur.execute(query, (session_data_instance_id,))
-    result = cur.fetchone()
-    return result
+    results = cur.fetchall()
+    return results
 
 
 def get_all_study_csv_files(study_id, cur):
