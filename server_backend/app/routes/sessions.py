@@ -14,6 +14,7 @@ from app.utility.sessions import (
     get_study_name_for_folder,
     get_trial_name_for_folder,
     get_trial_order_for_folder,
+    get_zip,
     # zip_csv_files,
 )
 from app.utility.db_connection import get_db_connection
@@ -199,48 +200,47 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute(
-            "SELECT created_at, study_id FROM participant_session WHERE participant_session_id = %s",
-            (participant_session_id,),
-        )
-        session_info = cur.fetchone()
-        if not session_info:
-            return jsonify({"error": "Participant session not found"}), 404
-        session_time_stamp, study_id = session_info
-        cur.execute("SELECT study_name FROM study WHERE study_id = %s", (study_id,))
-        study_row = cur.fetchone()
-        study_name = study_row[0] if study_row else "unknown_study"
-        participant_session_count = get_participant_session_order(
-            participant_session_id
-        )
+
+        study_id_query = """
+        SELECT s.study_id
+        FROM study AS s
+        INNER JOIN participant_session AS ps
+        ON ps.study_id = s.study_id
+        WHERE ps.participant_session_id = %s
+        """
+        cur.execute(study_id_query, (participant_session_id,))
+        study_id = cur.fetchone()[0]
+
+        # Get the results and size from the function you mentioned
         results_with_size = get_all_participant_session_csv_files(
             participant_session_id, cur
         )
         cur.close()
 
-        if not results_with_size:
-            return (
-                jsonify({"error": "No CSV data found for this participant session"}),
-                404,
-            )
-
-        # Use group_by to group records by (study_name, participant_session_count, trial_id)
-        def group_key_func(record):
-            trial_id = record[2]
-            return (study_name, participant_session_count, trial_id)
-
-        zip_buffer = zip_csv_files(
-            results_with_size,
-            group_by=group_key_func,
-            already_grouped=False,
-            record_offset=0,
+        # Fetch the required data for folder naming
+        participant_sessions = get_participant_session_name_for_folder(
+            study_id, conn.cursor()
         )
+
+        participant_session_name = participant_sessions.get(
+            participant_session_id, "UnknownSession"
+        )
+
+        # If no CSV data found, return an error
+        if not results_with_size:
+            return jsonify({"error": "No data found for this participant session"}), 404
+
+        memory_file = get_zip(
+            results_with_size, study_id, conn, mode="participant_session"
+        )
+
         return send_file(
-            zip_buffer,
+            memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"{session_time_stamp}_participant_session.zip",
+            download_name=f"{participant_session_name}_participant_session.zip",
         )
+
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
@@ -270,50 +270,20 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# 4. All CSV for a study (grouped by trial)
-# @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
-# def get_all_session_data_instance_zip(study_id):
-#     try:
-#         conn = get_db_connection()
-#         cur = conn.cursor()
-#         cur.execute("SELECT study_name FROM study WHERE study_id = %s", (study_id,))
-#         study_row = cur.fetchone()
-#         if not study_row:
-#             return jsonify({"error": "Study not found"}), 404
-#         study_name = study_row[0]
-#         results_with_size = get_all_study_csv_files(study_id, cur)
-#         cur.close()
-#         if not results_with_size:
-#             return jsonify({"error": "No CSV data found for this study"}), 404
-
-#         # Group key: (study_name, participant_session_order, trial_id)
-#         def group_key_func(record):
-#             session_order = get_participant_session_order(record[9])
-#             trial_id = record[2]
-#             return (study_name, session_order, trial_id)
-
-#         zip_buffer = zip_csv_files(
-#             results_with_size,
-#             group_by=group_key_func,
-#             already_grouped=False,
-#             record_offset=0,
-#         )
-#         return send_file(
-#             zip_buffer,
-#             mimetype="application/zip",
-#             as_attachment=True,
-#             download_name=f"{study_name}.zip",
-#         )
-#     except Exception as e:
-#         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
-
-
-# TESTING OUT NEW VERSION
+# All CSV for a study (grouped by trial)
 @bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 def get_all_session_data_instance_zip(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+
+        study_name_query = """
+        SELECT s.study_name
+        FROM study AS s
+        WHERE s.study_id = %s
+        """
+        cur.execute(study_name_query, (study_id,))
+        study_name = cur.fetchone()[0]
 
         # Get the results and size from the function you mentioned
         results_with_size = get_all_study_csv_files(study_id, cur)
@@ -323,63 +293,13 @@ def get_all_session_data_instance_zip(study_id):
         if not results_with_size:
             return jsonify({"error": "No data found for this study"}), 404
 
-        # Fetch the required data for folder naming
-        participant_sessions = get_participant_session_name_for_folder(
-            study_id, conn.cursor()
-        )
-
-        # Create an in-memory ZIP file
-        memory_file = io.BytesIO()
-
-        with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
-
-            # Iterate over the session data results and organize files in the ZIP
-            for (
-                study_name,
-                session_data_instance_id,
-                results_path,
-                trial_id,
-                task_id,
-                task_name,
-                measurement_option_id,
-                measurement_option_name,
-                factor_id,
-                factor_name,
-                participant_session_id,
-            ) in results_with_size:
-
-                if not isinstance(results_path, str):
-                    return jsonify({"error": "File path is not a valid string"}), 400
-
-                participant_session_name = participant_sessions.get(
-                    participant_session_id, "UnknownSession"
-                )
-                trial_order = get_trial_order_for_folder(
-                    participant_session_id, conn.cursor()
-                ).get(trial_id, "UnknownTrialOrdering")
-
-                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
-
-                folder_name = (
-                    f"{participant_session_name}_participant_session/{trial_folder}"
-                )
-
-                # Extract the file extension
-                file_extension = os.path.splitext(results_path)[1]
-                zip_file_path = (
-                    f"{folder_name}/{measurement_option_name}{file_extension}"
-                )
-
-                with open(results_path, "rb") as file:
-                    zipf.writestr(zip_file_path, file.read())
-
-        memory_file.seek(0)
+        memory_file = get_zip(results_with_size, study_id, conn, mode="study")
 
         return send_file(
             memory_file,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"{study_name}_FULCRUM_study.zip",
+            download_name=f"{study_name}.zip",
         )
 
     except Exception as e:

@@ -34,6 +34,68 @@ def get_participant_session_order(participant_session_id):
     return order_count
 
 
+def get_zip(results_with_size, study_id, conn, mode):
+
+    # Fetch the required data for folder naming
+    participant_sessions = get_participant_session_name_for_folder(
+        study_id, conn.cursor()
+    )
+
+    # Create an in-memory ZIP file
+    memory_file = io.BytesIO()
+
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zipf:
+
+        # Iterate over the session data results and organize files in the ZIP
+        for (
+            study_name,
+            session_data_instance_id,
+            results_path,
+            trial_id,
+            task_id,
+            task_name,
+            measurement_option_id,
+            measurement_option_name,
+            factor_id,
+            factor_name,
+            participant_session_id,
+        ) in results_with_size:
+
+            # if not isinstance(results_path, str):
+            #     return jsonify({"error": "File path is not a valid string"}), 400
+
+            participant_session_name = participant_sessions.get(
+                participant_session_id, "UnknownSession"
+            )
+            trial_order = get_trial_order_for_folder(
+                participant_session_id, conn.cursor()
+            ).get(trial_id, "UnknownTrialOrdering")
+
+            if mode == "study":
+                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
+                participant_session_folder = (
+                    f"{participant_session_name}_participant_session/{trial_folder}"
+                )
+
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = f"{participant_session_folder}/{measurement_option_name}{file_extension}"
+            elif mode == "participant_session":
+                trial_folder = f"{task_name}_{factor_name}_trial_{trial_order}"
+
+                # Extract the file extension
+                file_extension = os.path.splitext(results_path)[1]
+                zip_file_path = (
+                    f"{trial_folder}/{measurement_option_name}{file_extension}"
+                )
+
+            with open(results_path, "rb") as file:
+                zipf.writestr(zip_file_path, file.read())
+
+    memory_file.seek(0)
+    return memory_file
+
+
 # --- Updated SQL Query ---
 def get_core_csv_files_query():
     return """
@@ -297,7 +359,7 @@ def get_all_participant_session_csv_files(participant_session_id, cur):
     query = get_core_csv_files_query() + "WHERE ps.participant_session_id = %s"
     cur.execute(query, (participant_session_id,))
     results = cur.fetchall()
-    return sort_csv_by_size(results)
+    return results
 
 
 def get_one_csv_file(session_data_instance_id, cur):
