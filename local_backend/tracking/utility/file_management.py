@@ -8,7 +8,7 @@ import shutil  # used to remove folder once zip is created
 
 
 # Returns the path to a directory for a session or trial depending on what parameters are passed
-def get_save_dir(storage_path, sess_id, task=None, factor=None, trial_num = None):
+def get_save_dir(storage_path, sess_id, task=None, factor=None, trial_num=None):
     # path to session folder
     dir_session = os.path.join(storage_path, f"Session_{sess_id}")
 
@@ -19,7 +19,9 @@ def get_save_dir(storage_path, sess_id, task=None, factor=None, trial_num = None
     task_name = task["taskName"]
     factor_name = factor["factorName"]
 
-    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}_trial_{trial_num}")
+    dir_trial = os.path.join(
+        dir_session, f"{task_name}_{factor_name}_trial_{trial_num}"
+    )
 
     return dir_trial
 
@@ -33,9 +35,7 @@ def get_file_path(dir_trial, measurement_type, file_format):
 
 
 # Generating a unique csv based on the measurement type during a given trial
-def write_to_csv(
-    measurement_type, feature, arr_data, is_used, task, dir_trial
-):
+def write_to_csv(measurement_type, feature, arr_data, is_used, task, dir_trial):
     if not is_used:
         return
 

@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QDialog,
-    QFileDialog
+    QFileDialog,
 )
 from tracking.tracking import conduct_trial
 from tracking.utility.file_management import package_session_results, get_save_dir
@@ -36,6 +36,7 @@ from tracking.utility.screenrecording import (
 )
 from tracking.utility.heatmap import heatmap_generation_complete
 from routes.send_server import send_to_server
+
 
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
 class GlobalToolbar(QWidget):
@@ -164,12 +165,10 @@ class GlobalToolbar(QWidget):
         )
         layout.addLayout(quit_layout)
 
-
     def initiate_setup(self):
         self.load_session()
         self.facilitator_setup()
- 
-        
+
     def load_session(self):
         # Uses a sample json found in frontend/public for easier debugging and development so we dont have to initiate session from Vue
         with open("../frontend/public/sample_study.json", "r") as file:
@@ -178,8 +177,7 @@ class GlobalToolbar(QWidget):
         self.session_id, self.tasks, self.factors, self.trials = (
             self.parse_study_details(data)
         )
-      
-        
+
     # Getting all study info parsed
     def parse_study_details(self, data):
         session_id = data.get("participantSessId")
@@ -187,8 +185,7 @@ class GlobalToolbar(QWidget):
         factors = data.get("factors", {})
         trials = data.get("trials", [])
         return session_id, tasks, factors, trials
-    
-    
+
     def facilitator_setup(self):
         welcome_msg = QDialog(self)
         welcome_msg.setWindowTitle("Facilitator Use Only")
@@ -205,30 +202,31 @@ class GlobalToolbar(QWidget):
         welcome_msg.move(x_pos, y_pos)
 
         layout = QVBoxLayout(welcome_msg)
-        
+
         welcome_label = QLabel("Welcome to the Experiment Setup!")
         welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         welcome_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
-        
+
         instuctions_label = QLabel("Please select a folder to store session results.")
         instuctions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         instuctions_label.setStyleSheet("color: white; font-size: 14pt;")
-        
+
         select_btn = QPushButton("Select Folder")
-        select_btn.setStyleSheet("color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;")
+        select_btn.setStyleSheet(
+            "color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;"
+        )
         select_btn.clicked.connect(welcome_msg.accept)
-        
+
         layout.addWidget(welcome_label)
         layout.addWidget(instuctions_label)
         layout.addWidget(select_btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        
+
         welcome_msg.exec()
-        
-        self.storage_dir = (self.get_storage_loc())
-        
+
+        self.storage_dir = self.get_storage_loc()
+
         self.session_ready()
-        
-    
+
     def session_ready(self):
         ready_msg = QDialog(self)
         ready_msg.setWindowTitle("End of Facilitator Use")
@@ -245,61 +243,74 @@ class GlobalToolbar(QWidget):
         ready_msg.move(x_pos, y_pos)
 
         layout = QVBoxLayout(ready_msg)
-        
+
         ready_label = QLabel("Ready to Go!")
         ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ready_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
-        
+
         checkmark_label = QLabel("✅")
         checkmark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         checkmark_label.setStyleSheet("font-size: 48pt")
-        
-        instructions_label = QLabel("Once the Participant is ready,\n click Continue to begin")
+
+        instructions_label = QLabel(
+            "Once the Participant is ready,\n click Continue to begin"
+        )
         instructions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         instructions_label.setStyleSheet("color: white; font-size: 14pt;")
-        
+
         continue_btn = QPushButton("Continue")
-        continue_btn.setStyleSheet("color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;")
+        continue_btn.setStyleSheet(
+            "color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;"
+        )
         continue_btn.clicked.connect(ready_msg.accept)
-        
+
         layout.addWidget(ready_label)
         layout.addWidget(checkmark_label)
         layout.addWidget(instructions_label)
         layout.addWidget(continue_btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        
+
         ready_msg.exec()
-        
-    
-    
+
     # Need to get a dir path to know where to save the results locally (for redundancy)
-    def get_storage_loc(self):        
+    def get_storage_loc(self):
         while True:
-            storage_dir = QFileDialog.getExistingDirectory(self, "Select Storage Location")
-            
+            storage_dir = QFileDialog.getExistingDirectory(
+                self, "Select Storage Location"
+            )
+
             if not storage_dir:
-                QMessageBox.warning(self, "Selection Required", "Storage location is mandatory. Please try again!")
-            
+                QMessageBox.warning(
+                    self,
+                    "Selection Required",
+                    "Storage location is mandatory. Please try again!",
+                )
+
             elif not self.validate_storage_loc(storage_dir):
-                QMessageBox.warning(self, "Invalid Folder Selected", "No permission to write to this location. Try a new folder!")
-                
+                QMessageBox.warning(
+                    self,
+                    "Invalid Folder Selected",
+                    "No permission to write to this location. Try a new folder!",
+                )
+
             else:
                 return storage_dir
-    
-    
+
     # Some locations like OneDrive are currently problematic so avoid accepting those until I can figure out a way to validate paths better
     def validate_storage_loc(self, output_path):
         if not output_path or not os.path.exists(output_path):
             return False
-        
+
         unsupported_locations = ["OneDrive", "Google Drive", "Dropbox"]
-        if (any(keyword.lower() in output_path.lower() for keyword in unsupported_locations)):
+        if any(
+            keyword.lower() in output_path.lower() for keyword in unsupported_locations
+        ):
             return False
-        
+
         return True
-        
+
         # temp_dir = os.path.join(output_path, "temp_folder")
         # temp_file = os.path.join(temp_dir, "temp_file.txt")
-        
+
         # try:
         #     os.makedirs(temp_dir, exist_ok=True)
         #     with open(temp_file, "w") as f:
@@ -307,18 +318,16 @@ class GlobalToolbar(QWidget):
         #     os.remove(temp_file)
         #     os.rmdir(temp_dir)
         #     return True
-        
+
         # except PermissionError:
         #     return False
-        
+
         # except Exception as e:
         #     print(f"Error trying to validate storage directory: {e}")
         #     return False
-    
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
-
 
     def move_next_task(self):
         # Confirm user wants to move on
@@ -336,15 +345,17 @@ class GlobalToolbar(QWidget):
             if self.trial_index == 0:
                 # Timestamp useful for saving to filesytem
                 start_time = time.time()
-                self.sessions_start_time = datetime.fromtimestamp(start_time).strftime("%Y-%m-%d %H:%M:%S")
+                self.sessions_start_time = datetime.fromtimestamp(start_time).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
                 print(f"Start time: {self.sessions_start_time}")
             if self.trial_index > 0:
-                # Make sure prior trial's details are saved before moving fwd 
+                # Make sure prior trial's details are saved before moving fwd
                 stop_event.set()
                 pause_event.clear()
                 recording_stop.set()
                 self.wait_trial_save()
-                
+
             # Get next trial's details
             trial = self.trials[self.trial_index]
             task_id = str(trial["taskID"])
@@ -353,7 +364,7 @@ class GlobalToolbar(QWidget):
             task_dur = task.get("taskDuration", None)
             factor_id = str(trial["factorID"])
             factor = self.factors[factor_id]
-        
+
             # Display info for new trial
             self.display_new_trial_info(task_dur, task_dirs)
 
@@ -371,7 +382,13 @@ class GlobalToolbar(QWidget):
 
             trial_thread = threading.Thread(
                 target=conduct_trial,
-                args=(self.session_id, task, factor, self.storage_dir, (self.trial_index + 1)),
+                args=(
+                    self.session_id,
+                    task,
+                    factor,
+                    self.storage_dir,
+                    (self.trial_index + 1),
+                ),
             )
             trial_thread.start()
 
@@ -392,8 +409,6 @@ class GlobalToolbar(QWidget):
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
 
-
-
     # Show details of current trial in pop-up
     def display_new_trial_info(self, dur, dir):
         trial_start_msg = QMessageBox()
@@ -403,20 +418,17 @@ class GlobalToolbar(QWidget):
         else:
             trial_start_msg.setText(f"Directions: {dir}\nDuration: No time limit")
 
-        trial_start_msg.setStandardButtons(
-            QMessageBox.StandardButton.Ok
-        )
+        trial_start_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         # Customize to prevent close button from actually working
         trial_start_msg.setWindowFlags(
-            Qt.WindowType.Dialog |
-            Qt.WindowType.WindowStaysOnTopHint |
-            Qt.WindowType.CustomizeWindowHint |
-            Qt.WindowType.WindowTitleHint
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
         )
-        
+
         trial_start_msg.exec()
-        
-        
+
     # Starts the countdown timer
     def initiate_countdown(self, duration):
         self.next_btn.setEnabled(False)
@@ -425,7 +437,6 @@ class GlobalToolbar(QWidget):
         self.countdown = duration
         self.format_countdown()
         self.timer.start(1000)
-
 
     # Updates the countdown (decreasing by 1 sec)
     def update_countdown(self):
@@ -453,14 +464,12 @@ class GlobalToolbar(QWidget):
             pause_event.clear()
             stop_event.set()
 
-
     # Showing time in HH:MM:SS format
     def format_countdown(self):
         hrs = self.countdown // 3600
         mins = (self.countdown % 3600) // 60
         secs = self.countdown % 60
         self.timer_label.setText(f"Time Remaining: {hrs:02}:{mins:02}:{secs:02}")
-
 
     # Inverting state, as if we are running we pause and if we are paused we resume
     def pause_session(self):
@@ -482,13 +491,11 @@ class GlobalToolbar(QWidget):
             else:
                 pause_event.set()
 
-
     def update_recording_status(self):
         if recording_active.is_set():
             self.recording_btn.setIcon(QIcon("./icons/recording.svg"))
         else:
             self.recording_btn.setIcon(QIcon("./icons/not_recording.svg"))
-
 
     def open_help_menu(self):
         help_msg = QMessageBox()
@@ -520,7 +527,6 @@ class GlobalToolbar(QWidget):
 
         help_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         help_msg.exec()
-
 
     def leave_session(self):
         if self.trial_index == 0:
@@ -560,26 +566,30 @@ class GlobalToolbar(QWidget):
                 stop_event.set()
 
                 self.wait_trial_save()
-                
+
                 session_path = get_save_dir(self.storage_dir, self.session_id)
-                
+
                 if os.path.exists(session_path):
                     try:
                         package_session_results(self.session_id, self.storage_dir)
                     except Exception as e:
                         print(f"Error packaging data: {e}")
-                    
-                zip_path = os.path.join(self.storage_dir, f"session_results_{self.session_id}.zip")
-                
+
+                zip_path = os.path.join(
+                    self.storage_dir, f"session_results_{self.session_id}.zip"
+                )
+
                 if os.path.exists(zip_path):
                     try:
-                        self.session_json["session_start_time"] = self.sessions_start_time
+                        self.session_json["session_start_time"] = (
+                            self.sessions_start_time
+                        )
                         send_to_server(zip_path, self.session_json)
                     except Exception as e:
                         print(f"Error sending json: {e}")
 
             QApplication.quit()
-            
+
     # Used to make sure the current trial's data saved before advancing to avoid race conditions and data loss of fatter prior trials
     def wait_trial_save(self):
         # Add pop-up in case local saving results (mp4, heatmap, csv's) takes a while before the app can close so user doesn't mistake for frozen
@@ -605,55 +615,54 @@ class GlobalToolbar(QWidget):
 
         save_msg.show()
         QApplication.processEvents()
-        
+
         # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
         if not data_storage_complete_event.is_set():
-            while (not data_storage_complete_event.is_set()):
+            while not data_storage_complete_event.is_set():
                 time.sleep(0.1)
                 QApplication.processEvents()
-        
+
         curr_trial = self.trials[self.trial_index - 1]
         curr_task_id = str(curr_trial["taskID"])
         curr_task = self.tasks[curr_task_id]
         curr_measurements = curr_task["measurementOptions"]
-        
+
         if "Heat Map" in curr_measurements and not heatmap_generation_complete.is_set():
-            while (not heatmap_generation_complete.is_set()):
+            while not heatmap_generation_complete.is_set():
                 time.sleep(0.1)
                 QApplication.processEvents()
-                
+
         if recording_active.is_set():
             recording_stop.set()
             while recording_active.is_set():
                 time.sleep(0.1)
                 QApplication.processEvents()
 
-        if "Screen Recording" in curr_measurements and not adjustments_finished.is_set():
+        if (
+            "Screen Recording" in curr_measurements
+            and not adjustments_finished.is_set()
+        ):
             while not adjustments_finished.is_set():
                 time.sleep(0.1)
                 QApplication.processEvents()
-                
-        save_msg.close()
 
+        save_msg.close()
 
     # Ref https://stackoverflow.com/questions/41784521/move-qtwidgets-qtwidget-using-mouse for how to make toolbar draggable
     def mousePressEvent(self, evt):
         self.oldPos = evt.globalPosition().toPoint()
 
-
     def mouseMoveEvent(self, evt):
         delta = evt.globalPosition().toPoint() - self.oldPos
         self.move(self.x() + delta.x(), self.y() + delta.y())
         self.oldPos = evt.globalPosition().toPoint()
-        
-        
+
     def get_dialog_placement_pos(self, box):
         screen = QApplication.primaryScreen().geometry()
         x_pos = (screen.width() - box.width()) // 2
         y_pos = (screen.height() - box.height()) // 2
-        
-        return x_pos, y_pos
 
+        return x_pos, y_pos
 
 
 if __name__ == "__main__":

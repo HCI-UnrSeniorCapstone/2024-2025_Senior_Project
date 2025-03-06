@@ -74,7 +74,7 @@ def record_screen(dir_output_base):
 
         recording_active.clear()
 
-        adjuster_thread = threading.Thread(target = adjust_video, args = (file_path, fps))
+        adjuster_thread = threading.Thread(target=adjust_video, args=(file_path, fps))
         adjuster_thread.daemon = True
         adjuster_thread.start()
 

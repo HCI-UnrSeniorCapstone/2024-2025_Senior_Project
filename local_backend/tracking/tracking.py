@@ -32,9 +32,7 @@ def conduct_trial(sess_id, task, factor, storage_path, trial_num):
 
     # Only screen record current trial if requested (no longer all trials)
     if measurement_flags["screen_recording"]:
-        recorder_thread = threading.Thread(
-            target=record_screen, args=(dir_trial,)
-        )
+        recorder_thread = threading.Thread(target=record_screen, args=(dir_trial,))
         recorder_thread.start()
 
     # Start tracking as long as at least 1 option was selected for the current task
@@ -46,9 +44,7 @@ def conduct_trial(sess_id, task, factor, storage_path, trial_num):
     if measurement_flags["heat_map"]:
         data_storage_complete_event.wait()
         heatmap_generation_complete.clear()
-        heatmap_thread = threading.Thread(
-            target=generate_heatmap, args=(dir_trial,)
-        )
+        heatmap_thread = threading.Thread(target=generate_heatmap, args=(dir_trial,))
         heatmap_thread.start()
     else:
         heatmap_generation_complete.set()
