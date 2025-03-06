@@ -26,7 +26,8 @@ run_sql_file "sample_data/insert_all.sql"
 
 clear_results_directory() {
     echo "Removing directories within $RESULTS_BASE_DIR_PATH..." >&2
-    rm -rf "$RESULTS_BASE_DIR_PATH/*"
+    rm -rf ${RESULTS_BASE_DIR_PATH:?}/*
+
     if [ $? -eq 0 ]; then
         echo "Directories removed successfully." >&2
     else
@@ -121,8 +122,13 @@ update_database_trial() {
     for csv in {1..4}; do
         start_time="21:46:20"
         file_path="$path/${csv_counter}.csv"
-        generate_data "$file_path" "$start_time"
 
+        # Measurement option is keyboard
+        if [ "$csv" -eq 4 ]; then
+        generate_data_keyboard "$file_path" "$start_time"
+        else
+        generate_data_coords "$file_path" "$start_time"
+        fi
         insert_session_data_instance="USE $DB_NAME;
         INSERT INTO session_data_instance (trial_id, measurement_option_id, results_path)
         VALUES ($trial_id, $csv, '$file_path');"
@@ -140,17 +146,40 @@ update_database_trial() {
     echo "$csv_counter"
 }
 
-generate_data() {
+generate_data_keyboard() {
     local file_path=$1
     local start_time=$2
     local num_records=20
-    
+    # Escape the "-" character by placing it at the beginning or end of the set
+    local chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+={}|<>?'
+    local start_seconds=$(date -d "$start_time" +%s)
+    local running_time=1
+    for i in $(seq 1 $num_records); do
+        # Calculate the timestamp for each record
+        local time=$(date -u -d "@$((start_seconds + i))" +"%H:%M:%S")
+        local value1=$(printf "%.2f" "$running_time")
+        # Generate a random single character for the key
+        local random_input=$(echo "$chars" | fold -w1 | shuf | head -n 1)
+        
+        # Write the data to the file
+        echo "$time,$value1,$random_input" >> "$file_path"
+        running_time=$(echo "$running_time + 1" | bc)
+    done
+}
+
+
+generate_data_coords() {
+    local file_path=$1
+    local start_time=$2
+    local num_records=20
+    local running_time=1
     for i in $(seq 1 $num_records); do
         local time=$(date -u -d "@$(( $(date -d "$start_time" +%s) + i ))" +"%H:%M:%S")
-        local value1=$(echo "scale=2; $RANDOM/1000" | bc)
+        local value1=$(printf "%.2f" "$running_time")
         local value2=$((RANDOM % 1000))
         local value3=$((RANDOM % 500))
         echo "$time,$value1,$value2,$value3" >> "$file_path"
+        running_time=$(echo "$running_time + 1" | bc)
     done
 }
 
