@@ -1,5 +1,6 @@
 <template>
   <div class="study-selector">
+    <!-- Main study dropdown with search -->
     <v-select
       :value="value"
       :items="studyOptions"
@@ -14,9 +15,12 @@
       @input="$emit('input', $event)"
       @change="$emit('change', $event)"
     >
+      <!-- Study icon -->
       <template v-slot:prepend-inner>
         <v-icon small color="primary">mdi-clipboard-text</v-icon>
       </template>
+      
+      <!-- Custom display for selected study -->
       <template v-slot:selection="{ item }">
         <div class="study-selection">
           <span class="study-name">{{ item.name }}</span>
@@ -25,6 +29,8 @@
           </span>
         </div>
       </template>
+      
+      <!-- Empty state when no studies exist -->
       <template v-slot:no-data>
         <div class="pa-2 text-center">
           <v-icon color="grey lighten-1" size="24">mdi-alert-circle-outline</v-icon>
@@ -33,6 +39,7 @@
       </template>
     </v-select>
     
+    <!-- Refresh button with tooltip -->
     <v-tooltip bottom>
       <template v-slot:activator="{ on, attrs }">
         <div class="d-inline-block ml-2">
@@ -59,47 +66,38 @@
 export default {
   name: 'StudySelector',
   props: {
-    /**
-     * Currently selected study ID (v-model)
-     */
+    // Selected study ID (for v-model binding)
     value: {
       type: [String, Number],
       default: null
     },
     
-    /**
-     * List of available studies
-     */
+    // List of studies to display in dropdown
     studies: {
       type: Array,
       default: () => []
     },
     
-    /**
-     * Loading state
-     */
+    // Show loading spinner when fetching studies
     loading: {
       type: Boolean,
       default: false
     },
     
-    /**
-     * Error message to display
-     */
+    // Display error message under the select
     errorMessage: {
       type: String,
       default: ''
     },
     
-    /**
-     * Disabled state
-     */
+    // Disable interaction with the component
     disabled: {
       type: Boolean,
       default: false
     }
   },
   computed: {
+    // Process studies data for the dropdown
     studyOptions() {
       return this.studies.map(study => ({
         id: study.id,
@@ -111,9 +109,7 @@ export default {
     }
   },
   methods: {
-    /**
-     * Refresh study list
-     */
+    // Trigger parent component to refresh studies
     refreshStudies() {
       this.$emit('refresh');
     }

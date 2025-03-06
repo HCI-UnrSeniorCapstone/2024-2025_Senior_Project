@@ -3,6 +3,7 @@
     <v-card-title>
       Participant Data
       <v-spacer></v-spacer>
+      <!-- Search field to filter the table -->
       <v-text-field
         v-model="search"
         append-icon="mdi-magnify"
@@ -15,17 +16,24 @@
       ></v-text-field>
     </v-card-title>
     <v-card-text>
+      <!-- Loading state -->
       <div v-if="loading" class="loading-container">
         <v-progress-circular indeterminate color="primary" />
         <p class="mt-2">Loading participant data...</p>
       </div>
+      
+      <!-- Error state -->
       <div v-else-if="error" class="error-container">
         <v-alert type="error" dense>{{ error }}</v-alert>
       </div>
+      
+      <!-- Empty state -->
       <div v-else-if="!hasData" class="empty-container">
         <v-icon size="48" color="grey lighten-1">mdi-account-group-outline</v-icon>
         <p class="mt-2">No participant data available</p>
       </div>
+      
+      <!-- Data table display -->
       <div v-else>
         <v-data-table
           :headers="headers"
@@ -39,7 +47,7 @@
           :loading="loading"
           class="participant-table"
         >
-          <!-- Success Rate Column -->
+          <!-- Custom render for success rate with colored progress bar -->
           <template v-slot:item.successRate="{ item }">
             <v-progress-linear
               :value="item.successRate"
@@ -51,7 +59,7 @@
             </v-progress-linear>
           </template>
           
-          <!-- Format Time Column -->
+          <!-- Format time values as minutes:seconds or hours:minutes:seconds -->
           <template v-slot:item.completionTime="{ item }">
             {{ formatTime(item.completionTime) }}
           </template>
@@ -80,7 +88,7 @@ export default {
   },
   data() {
     return {
-      search: '',
+      search: '',  // Search query for filtering
       headers: [
         { text: 'ID', value: 'participantId', width: '15%' },
         { text: 'Sessions', value: 'sessionCount', width: '15%' },
@@ -91,11 +99,13 @@ export default {
     };
   },
   computed: {
+    // Quick check if we have data to display
     hasData() {
       return this.participants && this.participants.length > 0;
     }
   },
   methods: {
+    // Convert seconds to readable time format
     formatTime(seconds) {
       if (!seconds) return 'N/A';
       
@@ -113,11 +123,12 @@ export default {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     },
     
+    // Return color based on success rate percentage
     getSuccessRateColor(rate) {
-      if (rate >= 80) return 'success';
-      if (rate >= 60) return 'info';
-      if (rate >= 40) return 'warning';
-      return 'error';
+      if (rate >= 80) return 'success';  // Green for high success
+      if (rate >= 60) return 'info';     // Blue for good success
+      if (rate >= 40) return 'warning';  // Orange for moderate success
+      return 'error';                    // Red for low success
     }
   }
 };

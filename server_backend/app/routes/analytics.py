@@ -9,9 +9,15 @@ from app.utility.db_connection import get_db_connection
 import io
 import csv
 import json
+import logging
+import traceback
 from datetime import datetime
 
 analytics_bp = Blueprint('analytics', __name__, url_prefix='/api/analytics')
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @analytics_bp.route('/<study_id>/summary', methods=['GET'])
 def get_study_summary_route(study_id):
@@ -21,6 +27,17 @@ def get_study_summary_route(study_id):
         summary = get_study_summary(conn, study_id)
         conn.close()
         return jsonify(summary)
+    except Exception as e:
+        logger.error(f"Unexpected error in summary stats for study {study_id}: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/summary', methods=['GET'])
+def get_summary_stats_by_param():
+    """Get summary metrics for dashboard cards using query parameter"""
+    study_id = request.args.get('study_id', type=int)
+    try:
+        return get_study_summary_route(study_id)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -33,6 +50,16 @@ def get_learning_curve_route(study_id):
         conn.close()
         return jsonify(data)
     except Exception as e:
+        logger.error(f"Error getting learning curve data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/learning-curve', methods=['GET'])
+def get_learning_curve_by_param():
+    """Get learning curve data using query parameter"""
+    study_id = request.args.get('study_id', type=int)
+    try:
+        return get_learning_curve_route(study_id)
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @analytics_bp.route('/<study_id>/task-performance', methods=['GET'])
@@ -43,6 +70,16 @@ def get_task_performance_route(study_id):
         data = get_task_performance_data(conn, study_id)
         conn.close()
         return jsonify(data)
+    except Exception as e:
+        logger.error(f"Error getting task performance data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/task-comparison', methods=['GET'])
+def get_task_comparison():
+    """Get data for the task performance comparison chart using query parameter"""
+    study_id = request.args.get('study_id', type=int)
+    try:
+        return get_task_performance_route(study_id)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -55,6 +92,7 @@ def get_participants_route(study_id):
         conn.close()
         return jsonify(data)
     except Exception as e:
+        logger.error(f"Error getting participant data: {e}")
         return jsonify({"error": str(e)}), 500
 
 @analytics_bp.route('/<study_id>/export', methods=['GET'])
@@ -139,3 +177,181 @@ def export_data_route(study_id):
             
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# Routes for retrieving supplementary data for analytics 
+@analytics_bp.route('/studies', methods=['GET'])
+def get_studies():
+    """Get list of available studies for the selector dropdown"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get studies with participant count and last activity timestamp
+        cursor.execute("""
+            SELECT id, name, description, status,
+                (SELECT COUNT(DISTINCT participant_id) FROM sessions WHERE study_id = studies.id) as participant_count,
+                (SELECT MAX(start_time) FROM sessions WHERE study_id = studies.id) as last_activity
+            FROM studies
+            ORDER BY last_activity DESC
+        """)
+        
+        studies = []
+        for row in cursor.fetchall():
+            study = {
+                'id': row[0],
+                'name': row[1],
+                'description': row[2],
+                'status': row[3],
+                'participant_count': row[4] or 0,
+                'last_activity': row[5]
+            }
+            
+            if study['last_activity']:
+                # Convert timestamp to ISO format
+                timestamp = datetime.fromtimestamp(study['last_activity'])
+                study['last_active'] = timestamp.isoformat()
+            
+            # Structure stats object for the UI
+            study['stats'] = {
+                'participants': study['participant_count'],
+                'lastActive': study.get('last_active')
+            }
+            
+            # Remove redundant fields
+            del study['participant_count']
+            if 'last_activity' in study:
+                del study['last_activity']
+            if 'last_active' in study:
+                del study['last_active']
+                
+            studies.append(study)
+        
+        conn.close()
+        return jsonify(studies)
+    except Exception as e:
+        logger.error(f"Error fetching studies: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/participants', methods=['GET'])
+def get_participants():
+    """Get list of participant IDs for a study"""
+    study_id = request.args.get('study_id', type=int)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get unique participant IDs
+        cursor.execute("""
+            SELECT DISTINCT participant_id
+            FROM sessions
+            WHERE study_id = %s
+        """, (study_id,))
+        
+        participants = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        return jsonify(participants)
+    except Exception as e:
+        logger.error(f"Error getting participants: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/tasks', methods=['GET'])
+def get_tasks():
+    """Get list of tasks for a study"""
+    study_id = request.args.get('study_id', type=int)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get basic task info
+        cursor.execute("""
+            SELECT id, name, description
+            FROM tasks
+            WHERE study_id = %s
+        """, (study_id,))
+        
+        tasks = []
+        for row in cursor.fetchall():
+            tasks.append({
+                'id': row[0],
+                'name': row[1],
+                'description': row[2]
+            })
+            
+        conn.close()
+        return jsonify(tasks)
+    except Exception as e:
+        logger.error(f"Error getting tasks: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/performance', methods=['GET'])
+def get_performance():
+    """Get performance data for a specific participant or task"""
+    participant_id = request.args.get('participant_id')
+    task_id = request.args.get('task_id', type=int)
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Base query for participant performance
+        query = """
+            SELECT 
+                tr.attempt_number,
+                tr.completion_time,
+                tr.error_count,
+                tr.status
+            FROM task_results tr
+            JOIN sessions s ON tr.session_id = s.id
+            WHERE s.participant_id = %s
+        """
+        params = [participant_id]
+        
+        # Add task filter if specified
+        if task_id:
+            query += " AND tr.task_id = %s"
+            params.append(task_id)
+            
+        query += " ORDER BY tr.attempt_number"
+            
+        cursor.execute(query, tuple(params))
+        
+        performance_data = []
+        for row in cursor.fetchall():
+            performance_data.append({
+                'attempt_number': row[0],
+                'completion_time': row[1],
+                'error_count': row[2],
+                'status': row[3]
+            })
+            
+        conn.close()
+        return jsonify(performance_data)
+    except Exception as e:
+        logger.error(f"Error getting performance data: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@analytics_bp.route('/health', methods=['GET'])
+def health_check():
+    """API health check endpoint for monitoring"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        db_connected = cursor.fetchone() is not None
+        conn.close()
+    except Exception:
+        db_connected = False
+        
+    return jsonify({
+        "status": "ok" if db_connected else "database error", 
+        "mode": "production",
+        "database": "MySQL",
+        "db_config": {
+            "host": "*****", # Redacted for security
+            "database": "*****", # Redacted for security
+            "connected": db_connected
+        }
+    })
