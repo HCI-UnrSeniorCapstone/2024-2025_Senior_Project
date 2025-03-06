@@ -65,16 +65,16 @@
                 <v-icon
                   class="me-2"
                   size="small"
-                  @click.stop="openDrawer(item.studyID)"
+                  @click.stop="downloadStudyData(item.studyID)"
                 >
-                  mdi-arrow-expand
+                  mdi-download
                 </v-icon>
                 <v-icon
                   class="me-2"
                   size="small"
-                  @click.stop="downloadStudyData(item.studyID)"
+                  @click.stop="openDrawer(item.studyID)"
                 >
-                  mdi-download
+                  mdi-arrow-expand
                 </v-icon>
                 <v-icon
                   size="small"

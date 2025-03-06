@@ -152,6 +152,13 @@
                 <v-icon
                   class="me-2"
                   size="small"
+                  @click.stop="downloadParticipantSessionData(item.sessionID)"
+                >
+                  mdi-download
+                </v-icon>
+                <v-icon
+                  class="me-2"
+                  size="small"
                   @click.stop="openSession(item)"
                 >
                   mdi-arrow-expand
@@ -268,7 +275,32 @@ export default {
         console.error('Error fetching study details:', error)
       }
     },
+    async downloadParticipantSessionData(sessionID) {
+    try {
+      const backendUrl = this.$backendUrl
+      const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
 
+      const response = await axios.get(path, {
+        responseType: 'blob'
+      })
+
+      // Get the content-disposition header to extract the filename
+      const disposition = response.headers['content-disposition']
+      const filename = disposition
+        ? disposition.split('filename=')[1].replace(/"/g, '')  // extracting the filename from header
+        : 'download.zip'
+
+      // Download
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+
+    } catch (error) {
+      console.error('Error downloading session data:', error)
+    }
+  },
     // populating the sessions table
     async populateSessions(sessionID) {
       try {
