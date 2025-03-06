@@ -8,7 +8,7 @@ import shutil  # used to remove folder once zip is created
 
 
 # Returns the path to a directory for a session or trial depending on what parameters are passed
-def get_save_dir(storage_path, sess_id, task=None, factor=None):
+def get_save_dir(storage_path, sess_id, task=None, factor=None, trial_num=None):
     # path to session folder
     dir_session = os.path.join(storage_path, f"Session_{sess_id}")
 
@@ -16,30 +16,30 @@ def get_save_dir(storage_path, sess_id, task=None, factor=None):
         return dir_session
 
     # path to trial folder
-    task_name = task["taskName"].replace(" ", "")
-    factor_name = factor["factorName"].replace(" ", "")
+    task_name = task["taskName"]
+    factor_name = factor["factorName"]
 
-    dir_trial = os.path.join(dir_session, f"{task_name}_{factor_name}")
+    dir_trial = os.path.join(
+        dir_session, f"{task_name}_{factor_name}_trial_{trial_num}"
+    )
 
     return dir_trial
 
 
 # Constructs the full file path and enforces a naming convention
-def get_file_path(dir_trial, filename_trial_base, measurement_type, file_format):
-    file_name = f"{filename_trial_base}_{measurement_type}.{file_format}"
+def get_file_path(dir_trial, measurement_type, file_format):
+    file_name = f"{measurement_type}.{file_format}"
     full_path = os.path.join(dir_trial, file_name)
 
     return full_path
 
 
 # Generating a unique csv based on the measurement type during a given trial
-def write_to_csv(
-    measurement_type, feature, arr_data, is_used, task, dir_trial, filename_base
-):
+def write_to_csv(measurement_type, feature, arr_data, is_used, task, dir_trial):
     if not is_used:
         return
 
-    file_path = get_file_path(dir_trial, filename_base, measurement_type, "csv")
+    file_path = get_file_path(dir_trial, measurement_type, "csv")
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
     # Prevent writing values that exceeded task duration due to delay between signaling task end and stopping tracking threads
@@ -88,16 +88,3 @@ def package_session_results(session_id, storage_path):
         print(f"Session {session_id} results saved to {zip_path}!")
     except Exception as e:
         print(f"Error occured while trying to package session {session_id}: {e}")
-
-
-###################################################
-
-# @app.route("/retrieve_zip/<zip_name>", methods=["GET"])
-# def retrieve_zip(zip_name):
-#     z_path = os.path.join(os.getcwd(), zip_name)
-#     if os.path.exists(z_path) and zip_name.endswith('.zip'):
-#         return send_file(z_path, as_attachment=True)
-#     else:
-#         return "", 200
-
-###################################################

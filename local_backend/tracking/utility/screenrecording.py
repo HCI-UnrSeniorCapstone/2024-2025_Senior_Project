@@ -20,7 +20,7 @@ recording_active = threading.Event()
 adjustments_finished = threading.Event()
 
 
-def record_screen(dir_output_base, filename_base):
+def record_screen(dir_output_base):
     # Reset
     recording_stop.clear()
     adjustments_finished.clear()
@@ -28,7 +28,7 @@ def record_screen(dir_output_base, filename_base):
     # Signal we are recording
     recording_active.set()
 
-    file_path = get_file_path(dir_output_base, filename_base, "screen_recording", "mp4")
+    file_path = get_file_path(dir_output_base, "Screen Recording", "mp4")
 
     temp_fps = 15
     delay = 1 / temp_fps
@@ -74,9 +74,9 @@ def record_screen(dir_output_base, filename_base):
 
         recording_active.clear()
 
-        # adjuster_thread = threading.Thread(target = adjust_video, args = (file_path, fps))
-        # adjuster_thread.daemon = True
-        # adjuster_thread.start()
+        adjuster_thread = threading.Thread(target=adjust_video, args=(file_path, fps))
+        adjuster_thread.daemon = True
+        adjuster_thread.start()
 
 
 # Need this function because fps varies for each person so we have to correct the video using calculated fps using ffmpeg or else play speed and video length will be incorrect

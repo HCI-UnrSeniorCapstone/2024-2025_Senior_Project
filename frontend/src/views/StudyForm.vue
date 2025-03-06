@@ -53,7 +53,11 @@
                   </template>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                  <Task :ref="el => (taskRefs[index] = el)" :task="task" />
+                  <Task
+                    :ref="el => (taskRefs[index] = el)"
+                    :task="tasks[index]"
+                    @update:task="updateTask(index, $event)"
+                  />
                 </v-expansion-panel-text>
               </v-expansion-panel>
             </v-expansion-panels>
@@ -349,6 +353,10 @@ export default {
         this.factors.pop()
         this.expandedFPanels = this.expandedFPanels.filter(i => i !== fIndex)
       }
+    },
+
+    updateTask(index, updatedTask) {
+      this.tasks[index] = { ...updatedTask }
     },
 
     // prevent task expansion panels from collapsing while input is invalid

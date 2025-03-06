@@ -6,6 +6,7 @@ import json
 import threading
 import os
 import time
+from datetime import datetime
 
 # PyQt libraries
 from PyQt6.QtCore import Qt, QSize, QTimer
@@ -19,6 +20,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMessageBox,
     QDialog,
+    QFileDialog,
 )
 from tracking.tracking import conduct_trial
 from tracking.utility.file_management import package_session_results, get_save_dir
@@ -33,14 +35,18 @@ from tracking.utility.screenrecording import (
     adjustments_finished,
 )
 from tracking.utility.heatmap import heatmap_generation_complete
+from routes.send_server import send_to_server
 
 
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
 class GlobalToolbar(QWidget):
     def __init__(self):
         super().__init__()
+        self.session_json = {}
+        self.sessions_start_time = None
         self.setup_ui()
-        self.load_session()
+        self.show()
+        self.initiate_setup()
         self.trial_index = 0
         self.oldPos = None  # track toolbar pos on screen
         self.session_paused = False
@@ -159,11 +165,16 @@ class GlobalToolbar(QWidget):
         )
         layout.addLayout(quit_layout)
 
+    def initiate_setup(self):
+        self.load_session()
+        self.facilitator_setup()
+
     def load_session(self):
         # Uses a sample json found in frontend/public for easier debugging and development so we dont have to initiate session from Vue
         with open("../frontend/public/sample_study.json", "r") as file:
             data = json.load(file)
-        self.session_id, self.tasks, self.factors, self.trials, self.storage_dir = (
+            self.session_json = data
+        self.session_id, self.tasks, self.factors, self.trials = (
             self.parse_study_details(data)
         )
 
@@ -173,45 +184,189 @@ class GlobalToolbar(QWidget):
         tasks = data.get("tasks", {})
         factors = data.get("factors", {})
         trials = data.get("trials", [])
-        storage_path = data.get("storagePath")
-        return session_id, tasks, factors, trials, storage_path
+        return session_id, tasks, factors, trials
+
+    def facilitator_setup(self):
+        welcome_msg = QDialog(self)
+        welcome_msg.setWindowTitle("Facilitator Use Only")
+        welcome_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        welcome_msg.setFixedSize(450, 200)
+
+        x_pos, y_pos = self.get_dialog_placement_pos(welcome_msg)
+        welcome_msg.move(x_pos, y_pos)
+
+        layout = QVBoxLayout(welcome_msg)
+
+        welcome_label = QLabel("Welcome to the Experiment Setup!")
+        welcome_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
+
+        instuctions_label = QLabel("Please select a folder to store session results.")
+        instuctions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        instuctions_label.setStyleSheet("color: white; font-size: 14pt;")
+
+        select_btn = QPushButton("Select Folder")
+        select_btn.setStyleSheet(
+            "color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;"
+        )
+        select_btn.clicked.connect(welcome_msg.accept)
+
+        layout.addWidget(welcome_label)
+        layout.addWidget(instuctions_label)
+        layout.addWidget(select_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        welcome_msg.exec()
+
+        self.storage_dir = self.get_storage_loc()
+
+        self.session_ready()
+
+    def session_ready(self):
+        ready_msg = QDialog(self)
+        ready_msg.setWindowTitle("End of Facilitator Use")
+        ready_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        ready_msg.setFixedSize(450, 300)
+
+        x_pos, y_pos = self.get_dialog_placement_pos(ready_msg)
+        ready_msg.move(x_pos, y_pos)
+
+        layout = QVBoxLayout(ready_msg)
+
+        ready_label = QLabel("Ready to Go!")
+        ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ready_label.setStyleSheet("color: white; font-size: 18pt; font-weight: bold;")
+
+        checkmark_label = QLabel("✅")
+        checkmark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        checkmark_label.setStyleSheet("font-size: 48pt")
+
+        instructions_label = QLabel(
+            "Once the Participant is ready,\n click Continue to begin"
+        )
+        instructions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        instructions_label.setStyleSheet("color: white; font-size: 14pt;")
+
+        continue_btn = QPushButton("Continue")
+        continue_btn.setStyleSheet(
+            "color: white; font-size: 14pt; padding: 8px 20px; border-radius: 5px; border: 1px solid white;"
+        )
+        continue_btn.clicked.connect(ready_msg.accept)
+
+        layout.addWidget(ready_label)
+        layout.addWidget(checkmark_label)
+        layout.addWidget(instructions_label)
+        layout.addWidget(continue_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        ready_msg.exec()
+
+    # Need to get a dir path to know where to save the results locally (for redundancy)
+    def get_storage_loc(self):
+        while True:
+            storage_dir = QFileDialog.getExistingDirectory(
+                self, "Select Storage Location"
+            )
+
+            if not storage_dir:
+                QMessageBox.warning(
+                    self,
+                    "Selection Required",
+                    "Storage location is mandatory. Please try again!",
+                )
+
+            elif not self.validate_storage_loc(storage_dir):
+                QMessageBox.warning(
+                    self,
+                    "Invalid Folder Selected",
+                    "No permission to write to this location. Try a new folder!",
+                )
+
+            else:
+                return storage_dir
+
+    # Some locations like OneDrive are currently problematic so avoid accepting those until I can figure out a way to validate paths better
+    def validate_storage_loc(self, output_path):
+        if not output_path or not os.path.exists(output_path):
+            return False
+
+        unsupported_locations = ["OneDrive", "Google Drive", "Dropbox"]
+        if any(
+            keyword.lower() in output_path.lower() for keyword in unsupported_locations
+        ):
+            return False
+
+        return True
+
+        # temp_dir = os.path.join(output_path, "temp_folder")
+        # temp_file = os.path.join(temp_dir, "temp_file.txt")
+
+        # try:
+        #     os.makedirs(temp_dir, exist_ok=True)
+        #     with open(temp_file, "w") as f:
+        #         f.write("X" * 1024)
+        #     os.remove(temp_file)
+        #     os.rmdir(temp_dir)
+        #     return True
+
+        # except PermissionError:
+        #     return False
+
+        # except Exception as e:
+        #     print(f"Error trying to validate storage directory: {e}")
+        #     return False
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
 
     def move_next_task(self):
-        # Get next trial's details
-        trial = self.trials[self.trial_index]
-        task_id = str(trial["taskID"])
-        task = self.tasks[task_id]
-        task_dirs = task["taskDirections"]
-        task_dur = task.get("taskDuration", None)
-        factor_id = str(trial["factorID"])
-        factor = self.factors[factor_id]
-
-        # Confirm the use wants to move on
-        trial_msg = QMessageBox()
-        trial_msg.setWindowTitle(f"Task {self.trial_index + 1}")
-        if task_dur:
-            trial_msg.setText(f"Directions: {task_dirs}\nDuration: {task_dur} minutes")
+        # Confirm user wants to move on
+        trial_end_msg = QMessageBox()
+        if self.trial_index > 0:
+            trial_end_msg.setWindowTitle(f"End Task {self.trial_index}?")
         else:
-            trial_msg.setText(f"Directions: {task_dirs}\nDuration: No time limit")
-
-        trial_msg.setStandardButtons(
+            trial_end_msg.setWindowTitle(f"Begin")
+        trial_end_msg.setText(f"Are you ready to start Task {self.trial_index + 1}?")
+        trial_end_msg.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         )
 
-        if trial_msg.exec() == QMessageBox.StandardButton.Ok:
+        if trial_end_msg.exec() == QMessageBox.StandardButton.Ok:
+            if self.trial_index == 0:
+                # Timestamp useful for saving to filesytem
+                start_time = time.time()
+                self.sessions_start_time = datetime.fromtimestamp(start_time).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                print(f"Start time: {self.sessions_start_time}")
             if self.trial_index > 0:
+                # Make sure prior trial's details are saved before moving fwd
                 stop_event.set()
                 pause_event.clear()
-                data_storage_complete_event.wait()
-                heatmap_generation_complete.wait()
-
-                # Recording signals
                 recording_stop.set()
-                while recording_active.is_set():
-                    time.sleep(0.1)
+                self.wait_trial_save()
+
+            # Get next trial's details
+            trial = self.trials[self.trial_index]
+            task_id = str(trial["taskID"])
+            task = self.tasks[task_id]
+            task_dirs = task["taskDirections"]
+            task_dur = task.get("taskDuration", None)
+            factor_id = str(trial["factorID"])
+            factor = self.factors[factor_id]
+
+            # Display info for new trial
+            self.display_new_trial_info(task_dur, task_dirs)
 
             self.start_btn.setEnabled(False)  # disable for the rest of the session
             self.session_paused = False
@@ -227,7 +382,13 @@ class GlobalToolbar(QWidget):
 
             trial_thread = threading.Thread(
                 target=conduct_trial,
-                args=(self.session_id, task, factor, self.storage_dir),
+                args=(
+                    self.session_id,
+                    task,
+                    factor,
+                    self.storage_dir,
+                    (self.trial_index + 1),
+                ),
             )
             trial_thread.start()
 
@@ -247,6 +408,26 @@ class GlobalToolbar(QWidget):
 
             self.trial_index += 1
             self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
+
+    # Show details of current trial in pop-up
+    def display_new_trial_info(self, dur, dir):
+        trial_start_msg = QMessageBox()
+        trial_start_msg.setWindowTitle(f"Task {self.trial_index + 1}")
+        if dur:
+            trial_start_msg.setText(f"Directions: {dir}\nDuration: {dur} minutes")
+        else:
+            trial_start_msg.setText(f"Directions: {dir}\nDuration: No time limit")
+
+        trial_start_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        # Customize to prevent close button from actually working
+        trial_start_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        trial_start_msg.exec()
 
     # Starts the countdown timer
     def initiate_countdown(self, duration):
@@ -381,59 +562,91 @@ class GlobalToolbar(QWidget):
                 self.trial_index > 0
             ):  # only attempt to save results if they completed at least 1 trial
 
-                # Add pop-up in case local saving results (mp4, heatmap, csv's) takes a while before the app can close so user doesn't mistake for frozen
-                save_msg = QDialog(self)
-                save_msg.setWindowTitle("Session Complete!")
-                save_msg.setWindowFlags(
-                    Qt.WindowType.Dialog
-                    | Qt.WindowType.WindowStaysOnTopHint
-                    | Qt.WindowType.CustomizeWindowHint
-                    | Qt.WindowType.WindowTitleHint
-                )
-
-                save_msg.setFixedSize(400, 100)
-
-                screen = QApplication.primaryScreen().geometry()
-                box_w = save_msg.width()
-                box_h = save_msg.height()
-                x_pos = (screen.width() - box_w) // 2
-                y_pos = (screen.height() - box_h) // 2
-                save_msg.move(x_pos, y_pos)
-
-                layout = QVBoxLayout(save_msg)
-                save_label = QLabel("Saving results... This may take a while.")
-                save_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                save_label.setStyleSheet("color: white; font-size: 12pt;")
-                layout.addWidget(save_label)
-
-                save_msg.show()
-                QApplication.processEvents()
-
                 pause_event.clear()
                 stop_event.set()
 
-                # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
-                while (
-                    not data_storage_complete_event.is_set()
-                    or not heatmap_generation_complete.is_set()
-                ):
-                    time.sleep(0.1)
-                    QApplication.processEvents()
+                self.wait_trial_save()
 
-                recording_stop.set()
-                while recording_active.is_set():
-                    time.sleep(0.1)
-                    QApplication.processEvents()
+                session_path = get_save_dir(self.storage_dir, self.session_id)
 
-                adjustments_finished.wait()
-
-                if os.path.exists(get_save_dir(self.storage_dir, self.session_id)):
+                if os.path.exists(session_path):
                     try:
                         package_session_results(self.session_id, self.storage_dir)
                     except Exception as e:
                         print(f"Error packaging data: {e}")
 
+                zip_path = os.path.join(
+                    self.storage_dir, f"session_results_{self.session_id}.zip"
+                )
+
+                if os.path.exists(zip_path):
+                    try:
+                        self.session_json["session_start_time"] = (
+                            self.sessions_start_time
+                        )
+                        send_to_server(zip_path, self.session_json)
+                    except Exception as e:
+                        print(f"Error sending json: {e}")
+
             QApplication.quit()
+
+    # Used to make sure the current trial's data saved before advancing to avoid race conditions and data loss of fatter prior trials
+    def wait_trial_save(self):
+        # Add pop-up in case local saving results (mp4, heatmap, csv's) takes a while before the app can close so user doesn't mistake for frozen
+        save_msg = QDialog(self)
+        save_msg.setWindowTitle("Task Complete!")
+        save_msg.setWindowFlags(
+            Qt.WindowType.Dialog
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.CustomizeWindowHint
+            | Qt.WindowType.WindowTitleHint
+        )
+
+        save_msg.setFixedSize(400, 100)
+
+        x_pos, y_pos = self.get_dialog_placement_pos(save_msg)
+        save_msg.move(x_pos, y_pos)
+
+        layout = QVBoxLayout(save_msg)
+        save_label = QLabel("Saving results... This may take a while.")
+        save_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        save_label.setStyleSheet("color: white; font-size: 12pt;")
+        layout.addWidget(save_label)
+
+        save_msg.show()
+        QApplication.processEvents()
+
+        # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
+        if not data_storage_complete_event.is_set():
+            while not data_storage_complete_event.is_set():
+                time.sleep(0.1)
+                QApplication.processEvents()
+
+        curr_trial = self.trials[self.trial_index - 1]
+        curr_task_id = str(curr_trial["taskID"])
+        curr_task = self.tasks[curr_task_id]
+        curr_measurements = curr_task["measurementOptions"]
+
+        if "Heat Map" in curr_measurements and not heatmap_generation_complete.is_set():
+            while not heatmap_generation_complete.is_set():
+                time.sleep(0.1)
+                QApplication.processEvents()
+
+        if recording_active.is_set():
+            recording_stop.set()
+            while recording_active.is_set():
+                time.sleep(0.1)
+                QApplication.processEvents()
+
+        if (
+            "Screen Recording" in curr_measurements
+            and not adjustments_finished.is_set()
+        ):
+            while not adjustments_finished.is_set():
+                time.sleep(0.1)
+                QApplication.processEvents()
+
+        save_msg.close()
 
     # Ref https://stackoverflow.com/questions/41784521/move-qtwidgets-qtwidget-using-mouse for how to make toolbar draggable
     def mousePressEvent(self, evt):
@@ -443,6 +656,13 @@ class GlobalToolbar(QWidget):
         delta = evt.globalPosition().toPoint() - self.oldPos
         self.move(self.x() + delta.x(), self.y() + delta.y())
         self.oldPos = evt.globalPosition().toPoint()
+
+    def get_dialog_placement_pos(self, box):
+        screen = QApplication.primaryScreen().geometry()
+        x_pos = (screen.width() - box.width()) // 2
+        y_pos = (screen.height() - box.height()) // 2
+
+        return x_pos, y_pos
 
 
 if __name__ == "__main__":

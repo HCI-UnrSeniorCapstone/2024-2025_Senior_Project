@@ -39,7 +39,7 @@ curr_time = 0
 prev_time = 0
 
 
-def on_move(x, y, task, dir_trial, filename_base):
+def on_move(x, y, task, dir_trial):
     global PREV_XPOS, PREV_YPOS, curr_time, prev_time, running_time, mouse_move_data
 
     if not pause_event.is_set():  # ignore logging when paused
@@ -66,7 +66,6 @@ def on_move(x, y, task, dir_trial, filename_base):
                 "mouse",
                 task,
                 dir_trial,
-                filename_base,
             )
             mouse_move_data.clear()
 
@@ -162,7 +161,7 @@ def stop_keyboard_ps():
 
 
 # Manages the actual data collection, using measurement flags to know what to collect for the current trial
-def record_measurements(task, tracking_flags, dir_trial, filename_base):
+def record_measurements(task, tracking_flags, dir_trial):
     global mouse_listener, key_listener, running_time, keyboard_data, running_time, paused_time, mouse_move_data, mouse_click_data, mouse_scroll_data
 
     running_time = time.time()
@@ -175,7 +174,7 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
             stop_keyboard_ps()
 
         def on_move_params(x, y):
-            on_move(x, y, task, dir_trial, filename_base)
+            on_move(x, y, task, dir_trial)
 
         # Initialize mouse listener if needed
         if (
@@ -216,40 +215,36 @@ def record_measurements(task, tracking_flags, dir_trial, filename_base):
 
         # Writing before the current task ends
         write_to_csv(
-            "MouseMovement",
+            "Mouse Movement",
             "mouse",
             mouse_move_data,
             tracking_flags["mouse_movement"],
             task,
             dir_trial,
-            filename_base,
         )
         write_to_csv(
-            "KeyboardInputs",
+            "Keyboard Inputs",
             "keyboard",
             keyboard_data,
             tracking_flags["keyboard_inputs"],
             task,
             dir_trial,
-            filename_base,
         )
         write_to_csv(
-            "MouseClicks",
+            "Mouse Clicks",
             "mouse",
             mouse_click_data,
             tracking_flags["mouse_clicks"],
             task,
             dir_trial,
-            filename_base,
         )
         write_to_csv(
-            "MouseScrolls",
+            "Mouse Scrolls",
             "mouse",
             mouse_scroll_data,
             tracking_flags["mouse_scrolls"],
             task,
             dir_trial,
-            filename_base,
         )
 
         # Resetting for next trial
