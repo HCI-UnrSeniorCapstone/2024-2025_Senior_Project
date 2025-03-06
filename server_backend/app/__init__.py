@@ -29,7 +29,9 @@ def create_app(testing=False):
     # Server CSV pathway configuration
     app.config["RESULTS_BASE_DIR_PATH"] = os.getenv("RESULTS_BASE_DIR_PATH")
 
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    CORS(
+        app, resources={r"/*": {"origins": "*"}}, expose_headers=["Content-Disposition"]
+    )
 
     # Register blueprints
     from app.routes.general import bp as general_bp

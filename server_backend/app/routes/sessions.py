@@ -191,8 +191,8 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
         participant_name = participant_names.get(participant_id, "UnknownParticipant")
 
         # If no file data found, return an error
-        if not results_with_size:
-            return jsonify({"error": "No data found for this participant"}), 404
+        # if not results_with_size:
+        #     return jsonify({"error": "No data found for this participant"}), 404
 
         memory_file = get_zip(results_with_size, study_id, conn, mode="participant")
 
@@ -241,8 +241,8 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
         )
 
         # If no file data found, return an error
-        if not results_with_size:
-            return jsonify({"error": "No data found for this participant session"}), 404
+        # if not results_with_size:
+        #     return jsonify({"error": "No data found for this participant session"}), 404
 
         memory_file = get_zip(
             results_with_size, study_id, conn, mode="participant_session"
@@ -290,8 +290,8 @@ def get_one_session_data_instance_zip(session_data_instance_id):
         file_name = file_names.get(session_data_instance_id, "UnknownSession")
 
         # If no file data found, return an error
-        if not results_with_size:
-            return jsonify({"error": "No data found for this data instance file"}), 404
+        # if not results_with_size:
+        #     return jsonify({"error": "No data found for this data instance file"}), 404
 
         memory_file = get_zip(results_with_size, study_id, conn, mode="one file")
 
@@ -344,8 +344,8 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
         ).get(trial_id, "UnknownTrialOrdering")
 
         # If no file data found, return an error
-        if not results_with_size:
-            return jsonify({"error": "No data found for this trial"}), 404
+        # if not results_with_size:
+        #     return jsonify({"error": "No data found for this trial"}), 404
 
         memory_file = get_zip(results_with_size, study_id, conn, mode="trial")
 
@@ -373,14 +373,17 @@ def get_all_session_data_instance_zip(study_id):
         WHERE s.study_id = %s
         """
         cur.execute(study_name_query, (study_id,))
-        study_name = cur.fetchone()[0]
+        study_name_result = cur.fetchone()
+        if not study_name_result:
+            return jsonify({"error": "Study not found"}), 404
 
+        study_name = study_name_result[0]
         results_with_size = get_all_study_csv_files(study_id, cur)
         cur.close()
 
         # If no file data found, return an error
-        if not results_with_size:
-            return jsonify({"error": "No data found for this study"}), 404
+        # if not results_with_size:
+        #     return jsonify({"error": "No data found for this study"}), 404
 
         memory_file = get_zip(results_with_size, study_id, conn, mode="study")
 
