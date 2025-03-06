@@ -10,7 +10,7 @@ from .utility.file_management import get_save_dir
 
 
 # Running a single trial (task-factor combo) at this point
-def conduct_trial(sess_id, task, factor, storage_path):
+def conduct_trial(sess_id, task, factor, storage_path, trial_num):
     # Debugging purposes
     print(f"Starting trial for task {task['taskName']}, factor {factor['factorName']}")
 
@@ -27,32 +27,27 @@ def conduct_trial(sess_id, task, factor, storage_path):
     }
 
     # Find the base trial dir path to save to
-    dir_trial = get_save_dir(storage_path, sess_id, task, factor)
+    dir_trial = get_save_dir(storage_path, sess_id, task, factor, trial_num)
     os.makedirs(dir_trial, exist_ok=True)
-
-    # Finding the base filename convention (excludes the file format and measurement type)
-    task_name = task["taskName"].replace(" ", "")
-    factor_name = factor["factorName"].replace(" ", "")
-    filename_base = f"{sess_id}_{task_name}_{factor_name}"
 
     # Only screen record current trial if requested (no longer all trials)
     if measurement_flags["screen_recording"]:
         recorder_thread = threading.Thread(
-            target=record_screen, args=(dir_trial, filename_base)
+            target=record_screen, args=(dir_trial,)
         )
         recorder_thread.start()
 
     # Start tracking as long as at least 1 option was selected for the current task
     if any(measurement_flags.values()):
         data_storage_complete_event.clear()  # reset at the start of a trial
-        record_measurements(task, measurement_flags, dir_trial, filename_base)
+        record_measurements(task, measurement_flags, dir_trial)
 
     # will want to change this eventually so only heatmap generated if the researcher requested it instead of always when mouse movement is involved
     if measurement_flags["heat_map"]:
         data_storage_complete_event.wait()
         heatmap_generation_complete.clear()
         heatmap_thread = threading.Thread(
-            target=generate_heatmap, args=(dir_trial, filename_base)
+            target=generate_heatmap, args=(dir_trial,)
         )
         heatmap_thread.start()
     else:

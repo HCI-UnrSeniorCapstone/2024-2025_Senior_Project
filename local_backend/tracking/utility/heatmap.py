@@ -15,15 +15,15 @@ from tracking.utility.file_management import get_file_path
 heatmap_generation_complete = threading.Event()
 
 
-def generate_heatmap(dir_trial, filename_base):
+def generate_heatmap(dir_trial):
     # Capture screenshot
-    screenshot_path = get_file_path(dir_trial, filename_base, "screenshot", "png")
+    screenshot_path = get_file_path(dir_trial, "screenshot", "png")
     screenshot = ImageGrab.grab()
     screenshot.save(screenshot_path)
     screenshot = cv2.imread(screenshot_path)
 
     # Retrieve path to the mouse movement csv needed to create the heatmap
-    mouse_data_path = get_file_path(dir_trial, filename_base, "MouseMovement", "csv")
+    mouse_data_path = get_file_path(dir_trial, "Mouse Movement", "csv")
 
     # Extract mouse movement coordinates
     coordinates = extract_mouse_movements(mouse_data_path)
@@ -36,7 +36,7 @@ def generate_heatmap(dir_trial, filename_base):
         overlay = overlay_heatmap(heatmap, screenshot)
 
         # Save the output
-        heatmap_path = get_file_path(dir_trial, filename_base, "heatmap", "png")
+        heatmap_path = get_file_path(dir_trial, "Heat Map", "png")
         cv2.imwrite(heatmap_path, overlay)
 
         time.sleep(1)
