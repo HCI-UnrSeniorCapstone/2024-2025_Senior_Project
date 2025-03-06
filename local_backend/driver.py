@@ -43,13 +43,14 @@ from routes.send_server import send_to_server
 class SignalBridge(QObject):
     session_data_received = pyqtSignal(dict)
 
+
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
 class GlobalToolbar(QWidget):
     def __init__(self, signal_bridge):
         super().__init__()
         self.signal_bridge = signal_bridge
         self.signal_bridge.session_data_received.connect(self.on_session_data_received)
-        
+
         self.session_json = {}
         self.sessions_start_time = None
         self.setup_ui()
@@ -66,12 +67,14 @@ class GlobalToolbar(QWidget):
     def on_session_data_received(self, session_data):
         self.session_json.clear()
         self.session_json = session_data
-        self.session_id, self.tasks, self.factors, self.trials = self.parse_study_details(session_data)
-        
+        self.session_id, self.tasks, self.factors, self.trials = (
+            self.parse_study_details(session_data)
+        )
+
         self.facilitator_setup()
-        
+
         self.start_btn.setEnabled(True)
-        
+
     # All UI related
     def setup_ui(self):
         self.setWindowFlags(
@@ -677,10 +680,10 @@ class FlaskWrapper:
         self.signal_bridge = signal_bridge
 
         # enable CORS w/ specific routes
-        CORS(self.app, resources={r'/*': {'origins': '*'}})
-        
+        CORS(self.app, resources={r"/*": {"origins": "*"}})
+
         self.app.route("/run_study", methods=["POST"])(self.run_study)
-        
+
     def run_study(self):
         try:
             session_data = request.get_json()
@@ -688,38 +691,39 @@ class FlaskWrapper:
             #     session_data = json.load(file)
             if not session_data:
                 return jsonify({"error": "No JSON payload received"}), 400
-            
+
             print("Session Data Received:", session_data)
-            for _, task_data in session_data['tasks'].items():
-                if task_data['taskDuration'] == 'None':
-                    task_data['taskDuration'] = None
-            
+            for _, task_data in session_data["tasks"].items():
+                if task_data["taskDuration"] == "None":
+                    task_data["taskDuration"] = None
+
             self.signal_bridge.session_data_received.emit(session_data)
-            
+
             return jsonify({"message": "Session successfully started"}), 200
 
         except Exception as e:
             print(f"Error parsing JSON: {e}")
             return jsonify({"error": str(e)}), 500
-        
+
     def start(self):
         self.app.run(host="127.0.0.1", port=5001, debug=False, threaded=True)
 
+
 def start_flask(flask_app):
     flask_app.start()
-    
+
 
 if __name__ == "__main__":
     qt_app = QApplication(sys.argv)
-    
+
     bridge = SignalBridge()
-    
+
     toolbar = GlobalToolbar(bridge)
     toolbar.show()
-    
+
     flask_app = FlaskWrapper(bridge)
-    
+
     server_thread = threading.Thread(target=start_flask, args=(flask_app,), daemon=True)
     server_thread.start()
-    
+
     sys.exit(qt_app.exec())
