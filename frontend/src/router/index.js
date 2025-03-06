@@ -12,6 +12,7 @@ import TestSendCSV from '../views/TestCSVToServer.vue'
 import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
 import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
 import axios from 'axios'
+import SessionSetup from '@/views/SessionSetup.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -61,9 +62,19 @@ const router = createRouter({
           component: TestDB,
         },
         {
-          path: '/SessionForm/:id',
+          path: '/SessionSetup/:id',
+          name: 'SessionSetup',
+          component: SessionSetup,
+        },
+        {
+          path: '/SessionForm',
           name: 'SessionForm',
           component: SessionForm,
+          props: route => ({
+            formattedStudy: route.query.formattedStudy
+              ? JSON.parse(route.query.formattedStudy)
+              : null,
+          }),
         },
         {
           path: '/TestSendCSV',
