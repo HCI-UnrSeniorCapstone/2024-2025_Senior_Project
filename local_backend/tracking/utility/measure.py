@@ -60,7 +60,7 @@ def on_move(x, y, task, dir_trial):
             len(mouse_move_data) >= 250
         ):  # write in batch sizes of 250 to improve performance rather than at the end of a task when there may be tens of thousands of data points
             write_to_csv(
-                "MouseMovement",
+                "Mouse Movement",
                 "mouse",
                 mouse_move_data,
                 "mouse",

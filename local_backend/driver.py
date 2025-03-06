@@ -7,9 +7,11 @@ import threading
 import os
 import time
 from datetime import datetime
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 # PyQt libraries
-from PyQt6.QtCore import Qt, QSize, QTimer
+from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, pyqtSlot, QObject
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -38,15 +40,21 @@ from tracking.utility.heatmap import heatmap_generation_complete
 from routes.send_server import send_to_server
 
 
+class SignalBridge(QObject):
+    session_data_received = pyqtSignal(dict)
+
+
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
 class GlobalToolbar(QWidget):
-    def __init__(self):
+    def __init__(self, signal_bridge):
         super().__init__()
+        self.signal_bridge = signal_bridge
+        self.signal_bridge.session_data_received.connect(self.on_session_data_received)
+
         self.session_json = {}
         self.sessions_start_time = None
         self.setup_ui()
         self.show()
-        self.initiate_setup()
         self.trial_index = 0
         self.oldPos = None  # track toolbar pos on screen
         self.session_paused = False
@@ -54,6 +62,18 @@ class GlobalToolbar(QWidget):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_countdown)
+
+    @pyqtSlot(dict)
+    def on_session_data_received(self, session_data):
+        self.session_json.clear()
+        self.session_json = session_data
+        self.session_id, self.tasks, self.factors, self.trials = (
+            self.parse_study_details(session_data)
+        )
+
+        self.facilitator_setup()
+
+        self.start_btn.setEnabled(True)
 
     # All UI related
     def setup_ui(self):
@@ -115,6 +135,7 @@ class GlobalToolbar(QWidget):
             "./icons/start.svg", "Start", self.start_session
         )
         layout.addLayout(start_layout)
+        self.start_btn.setEnabled(False)
 
         # Pause/Resume button
         pause_layout, self.pause_btn, self.pause_label = create_btn(
@@ -164,19 +185,6 @@ class GlobalToolbar(QWidget):
             "./icons/quit.svg", "Quit", self.leave_session
         )
         layout.addLayout(quit_layout)
-
-    def initiate_setup(self):
-        self.load_session()
-        self.facilitator_setup()
-
-    def load_session(self):
-        # Uses a sample json found in frontend/public for easier debugging and development so we dont have to initiate session from Vue
-        with open("../frontend/public/sample_study.json", "r") as file:
-            data = json.load(file)
-            self.session_json = data
-        self.session_id, self.tasks, self.factors, self.trials = (
-            self.parse_study_details(data)
-        )
 
     # Getting all study info parsed
     def parse_study_details(self, data):
@@ -665,8 +673,57 @@ class GlobalToolbar(QWidget):
         return x_pos, y_pos
 
 
+class FlaskWrapper:
+    def __init__(self, signal_bridge):
+        self.app = Flask(__name__)
+        self.app.config.from_object(__name__)
+        self.signal_bridge = signal_bridge
+
+        # enable CORS w/ specific routes
+        CORS(self.app, resources={r"/*": {"origins": "*"}})
+
+        self.app.route("/run_study", methods=["POST"])(self.run_study)
+
+    def run_study(self):
+        try:
+            session_data = request.get_json()
+            # with open("../frontend/public/sample_study.json", "r") as file:
+            #     session_data = json.load(file)
+            if not session_data:
+                return jsonify({"error": "No JSON payload received"}), 400
+
+            print("Session Data Received:", session_data)
+            for _, task_data in session_data["tasks"].items():
+                if task_data["taskDuration"] == "None":
+                    task_data["taskDuration"] = None
+
+            self.signal_bridge.session_data_received.emit(session_data)
+
+            return jsonify({"message": "Session successfully started"}), 200
+
+        except Exception as e:
+            print(f"Error parsing JSON: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    def start(self):
+        self.app.run(host="127.0.0.1", port=5001, debug=False, threaded=True)
+
+
+def start_flask(flask_app):
+    flask_app.start()
+
+
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    toolbar = GlobalToolbar()
+    qt_app = QApplication(sys.argv)
+
+    bridge = SignalBridge()
+
+    toolbar = GlobalToolbar(bridge)
     toolbar.show()
-    app.exec()
+
+    flask_app = FlaskWrapper(bridge)
+
+    server_thread = threading.Thread(target=start_flask, args=(flask_app,), daemon=True)
+    server_thread.start()
+
+    sys.exit(qt_app.exec())

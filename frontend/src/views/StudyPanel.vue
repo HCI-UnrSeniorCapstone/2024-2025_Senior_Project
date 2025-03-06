@@ -8,6 +8,9 @@
     <v-toolbar flat dense color="white">
       <v-toolbar-title> {{ studyName }}</v-toolbar-title>
       <v-spacer></v-spacer>
+      <v-btn icon @click="editExistingStudy">
+        <v-icon color="secondary">mdi-pencil</v-icon>
+      </v-btn>
       <v-btn icon @click="closeDrawer">
         <v-icon color="secondary">mdi-close</v-icon>
       </v-btn>
@@ -164,9 +167,6 @@
     <v-row justify="center">
       <v-col cols="auto">
         <v-btn @click="startNewSession" color="red">Start New Session</v-btn>
-        <v-btn @click="editExistingStudy" color="purple"
-          >Edit Study Details</v-btn
-        >
       </v-col>
     </v-row>
   </v-navigation-drawer>
@@ -312,7 +312,7 @@ export default {
 
     // route to an empty study form page
     startNewSession() {
-      this.$router.push({ name: 'SessionForm', params: { id: this.studyID } })
+      this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
     },
     // route to create study form
     editExistingStudy() {

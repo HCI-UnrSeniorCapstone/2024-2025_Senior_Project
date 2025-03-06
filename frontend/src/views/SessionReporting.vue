@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+// import axios from 'axios'
 import Papa from 'papaparse'
 import {
   Chart,
@@ -46,12 +46,12 @@ export default {
 
     const main = async () => {
       //path to files of most recent session
-      const backendPath = `http://127.0.0.1:5001/retrieve_csv/`
+      // const backendPath = `http://127.0.0.1:5001/retrieve_csv/`
       const csvData = [
-        `${backendPath}1.csv`,
-        `${backendPath}2.csv`,
-        `${backendPath}3.csv`,
-        `${backendPath}4.csv`,
+        '/Task 1_keyboard_data.csv',
+        '/Task 1_mouse_clicks_data.csv',
+        '/Task 1_mouse_movement_data.csv',
+        '/Task 1_mouse_scroll_data.csv',
       ]
 
       //y-axis labels
@@ -230,35 +230,35 @@ export default {
     main()
   },
 
-  methods: {
-    async getZip() {
-      // get appropriate name based on session id since they are saved as sessionID.zip
-      const zipName = `${this.sessionID}.zip`
-      console.log(zipName)
-      try {
-        const response = await axios.get(
-          `http://127.0.0.1:5001/retrieve_zip/${zipName}`,
-          {
-            responseType: 'blob',
-          },
-        )
+  // methods: {
+  //   async getZip() {
+  //     // get appropriate name based on session id since they are saved as sessionID.zip
+  //     const zipName = `${this.sessionID}.zip`
+  //     console.log(zipName)
+  //     try {
+  //       const response = await axios.get(
+  //         `http://127.0.0.1:5001/retrieve_zip/${zipName}`,
+  //         {
+  //           responseType: 'blob',
+  //         },
+  //       )
 
-        if (response.data.size === 0) {
-          return
-        }
-        console.log('Received file size:', response.data.size)
-        const url = window.URL.createObjectURL(new Blob([response.data]))
-        const link = document.createElement('a')
-        link.href = url
-        link.setAttribute('download', zipName)
-        document.body.appendChild(link)
-        link.click()
-        link.remove()
-      } catch (error) {
-        console.error('Error downloading ZIP file:', error)
-      }
-    },
-  },
+  //       if (response.data.size === 0) {
+  //         return
+  //       }
+  //       console.log('Received file size:', response.data.size)
+  //       const url = window.URL.createObjectURL(new Blob([response.data]))
+  //       const link = document.createElement('a')
+  //       link.href = url
+  //       link.setAttribute('download', zipName)
+  //       document.body.appendChild(link)
+  //       link.click()
+  //       link.remove()
+  //     } catch (error) {
+  //       console.error('Error downloading ZIP file:', error)
+  //     }
+  //   },
+  // },
 }
 </script>
 
