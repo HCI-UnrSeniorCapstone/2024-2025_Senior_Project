@@ -1,5 +1,6 @@
 import io
 import os
+import json
 import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
@@ -17,6 +18,47 @@ from app.utility.sessions import (
 from app.utility.db_connection import get_db_connection
 
 bp = Blueprint("sessions", __name__)
+
+
+# Test endpoint for receiving the session zip results from the local script
+@bp.route("/test_local_to_server", methods=["POST"])
+def test_local_to_server():
+    try:
+        # Check file is included in payload from local script
+        if "file" not in request.files:
+            print("Missing zip file")
+            return jsonify({"error": "No zip file received"}), 400
+
+        file = request.files["file"]
+
+        # Check json with study parameters is also in payload from local script
+        json_data = request.form.get("json")
+        if not json_data:
+            print("Missing session data json")
+            return jsonify({"error": "No session data received"}), 400
+
+        # Parse the JSON
+        try:
+            session_data = json.loads(json_data)
+        except Exception as e:
+            print(f"Invalid JSON received: {e}")
+            return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+
+        # Here will go the logic for actually saving to the file system
+        #
+        #
+        #
+
+        # Show received details for debugging
+        print(f"Received Zip: {file.filename}")
+        print(f"Received Session Data: {session_data}")
+
+        # Success
+        return "", 200
+
+    except Exception as e:
+        print("Error: ", e)
+        return jsonify({"error": str(e)}), 500
 
 
 # Saves tracked data to server file system, db will have a file path to the CSVs
