@@ -1,4 +1,7 @@
 from io import BytesIO
+import os
+
+import requests
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
 import pandas as pd
@@ -7,6 +10,7 @@ from app.utility.studies import (
     create_study_task_factor_details,
 )
 from app.utility.db_connection import get_db_connection
+from app import create_app
 
 
 bp = Blueprint("studies", __name__)
@@ -18,9 +22,11 @@ bp = Blueprint("studies", __name__)
 def create_study(user_id):
     # Get request and convert to json
     submissionData = request.get_json()
+    if not submissionData:
+        return {"error": "No study data provided"}, 400
 
     # Formatting display
-    json_object = json.dumps(submissionData, indent=4)
+    # json_object = json.dumps(submissionData, indent=4)
     try:
         # Establish DB connection
         conn = get_db_connection()
@@ -358,6 +364,83 @@ def get_study_data(user_id):
         cur.close()
 
         return jsonify(results), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/copy_study/<int:study_id>/<int:user_id>", methods=["POST"])
+def copy_study(study_id, user_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if study exists
+        check_study_query = """
+        SELECT COUNT(*), study_name
+        FROM study
+        WHERE study_id = %s
+        """
+        cur.execute(check_study_query, (study_id,))
+        study_results = cur.fetchone()
+
+        if study_results[0] == 0:
+            return jsonify({"error": "Study does not exist"}), 404
+
+        # Check if user has access
+        check_user_query = """
+        SELECT study_user_role_description 
+        FROM study_user_role sur
+        INNER JOIN study_user_role_type surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
+        WHERE user_id = %s AND study_id = %s
+        """
+        cur.execute(
+            check_user_query,
+            (
+                user_id,
+                study_id,
+            ),
+        )
+        user_access_exists = cur.fetchone()
+
+        # Error Message
+        if user_access_exists is None:
+            return jsonify({"error": "User does not have access to study"}), 404
+
+        url = os.getenv("VUE_APP_BACKEND_URL").strip()
+        port = os.getenv("VUE_APP_BACKEND_PORT").strip()
+        full_url = f"http://{url}:{port}"
+
+        load_study_url = f"{full_url}/load_study/{study_id}"
+        load_response = requests.get(load_study_url)
+
+        if load_response.status_code != 200:
+            return {
+                "error": "Failed to load study data",
+                "status": load_response.status_code,
+            }, load_response.status_code
+
+        study_data = load_response.json()
+
+        # Give new study name
+        study_count = study_results[0]
+        study_data["studyName"] = study_results[1] + " (" + str(study_count) + ")"
+
+        create_study_url = f"{full_url}/create_study/{user_id}"
+        create_response = requests.post(create_study_url, json=study_data)
+        if create_response.status_code != 200:
+            return {
+                "error": "Failed to create study data",
+                "status": create_response.status_code,
+            }, create_response.status_code
+
+        return create_response.json(), 200
 
     except Exception as e:
         # Error message

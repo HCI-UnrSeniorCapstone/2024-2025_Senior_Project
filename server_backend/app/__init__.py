@@ -20,6 +20,8 @@ def create_app(testing=False):
     app.config["MYSQL_HOST"] = os.getenv("MYSQL_HOST")
     app.config["MYSQL_USER"] = os.getenv("MYSQL_USER")
     app.config["MYSQL_PASSWORD"] = os.getenv("MYSQL_PASSWORD")
+    app.config["VUE_APP_BACKEND_URL"] = os.getenv("VUE_APP_BACKEND_URL")
+    app.config["VUE_APP_BACKEND_PORT"] = os.getenv("VUE_APP_BACKEND_PORT")
     if testing:
         app.config["MYSQL_DB"] = "test_db"
     else:
