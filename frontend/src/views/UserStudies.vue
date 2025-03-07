@@ -85,6 +85,13 @@
                   mdi-file-document-edit
                 </v-icon>
                 <v-icon
+                  class="me-2"
+                  size="small"
+                  @click.stop="copyStudy(item.studyID)"
+                >
+                  mdi-content-copy
+                </v-icon>
+                <v-icon
                   size="small"
                   @click="
                     displayDialog({
@@ -270,6 +277,20 @@ export default {
         }
       } catch (error) {
         console.error("Error checking overwrite permission:", error);
+        this.isButtonVisible = false;  // Hide the button if there's an error
+      }
+    },
+    async copyStudy(studyID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/copy_study/${studyID}/${1}`
+        const response = await axios.post(path);
+
+        // Refresh the page to show changes
+        location.reload()
+        
+      } catch (error) {
+        console.error("Error copying study", error);
         this.isButtonVisible = false;  // Hide the button if there's an error
       }
     },
