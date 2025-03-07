@@ -257,10 +257,10 @@ export default {
       console.error('Error downloading study data:', error)
     }
   },
-  async checkIfOverwriteAllowed(user_id, study_id) {
+  async checkIfOverwriteAllowed(userID, studyID) {
       try {
         const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/is_overwrite_study_allowed/${user_id}/${study_id}`
+        const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
         const response = await axios.get(path);
         
         if (response.data === true) {
@@ -273,10 +273,10 @@ export default {
         this.isButtonVisible = false;  // Hide the button if there's an error
       }
     },
-  editExistingStudy() {
+  editExistingStudy(study_id) {
       this.$router.push({
         name: 'StudyForm',
-        params: { studyID: this.studyID, userID: 1 }, // 1 is hardcoded for now until we have users
+        params: { studyID: study_id, userID: 1 }, // 1 is hardcoded for now until we have users
       })
     },
     // impacts whether we actually delete the study or not based on the user input
