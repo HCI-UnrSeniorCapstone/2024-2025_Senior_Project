@@ -83,6 +83,80 @@ def create_study(user_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
+@bp.route("/is_overwrite_study_allowed/<int:user_id>/<int:study_id>", methods=["GET"])
+def is_overwrite_study_allowed(user_id, study_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Check if the user exists
+        check_user_query = """
+        SELECT COUNT(*) 
+        FROM user 
+        WHERE user_id = %s
+        """
+        cur.execute(check_user_query, (user_id,))
+        user_exists = cur.fetchone()[0]
+
+        # Error Message
+        if user_exists == 0:
+            return jsonify({"error": "User not found"}), 404
+
+        # Check if user has access
+        check_user_query = """
+        SELECT study_user_role_description 
+        FROM study_user_role sur
+        INNER JOIN study_user_role_type surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
+        WHERE user_id = %s AND study_id = %s
+        """
+        cur.execute(
+            check_user_query,
+            (
+                user_id,
+                study_id,
+            ),
+        )
+        user_access_exists = cur.fetchone()
+
+        # Error Message
+        if user_access_exists is None:
+            return jsonify(False), 200
+        # Error Message
+        if user_access_exists[0] == "Viewer":
+            return jsonify(False), 200
+
+        if user_access_exists[0] == "Owner" or user_access_exists[0] == "Editor":
+            # If sessions exist, info can't be overwritten
+            check_sessions_query = """
+            SELECT participant_session_id
+            FROM participant_session
+            WHERE study_id = %s 
+            """
+            cur.execute(check_sessions_query, (study_id,))
+            sessions_exist = cur.fetchone()
+
+            # Error Message
+            if sessions_exist is not None:
+                return (
+                    jsonify(False),
+                    200,
+                )
+            else:
+                return (
+                    jsonify(True),
+                    200,
+                )
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
 @bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["PUT"])
 def overwrite_study(user_id, study_id):
     # Get request and convert to json
