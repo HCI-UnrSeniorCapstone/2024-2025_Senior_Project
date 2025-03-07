@@ -77,6 +77,14 @@
                   mdi-arrow-expand
                 </v-icon>
                 <v-icon
+                  v-if="item.canEdit"
+                  class="me-2"
+                  size="small"
+                  @click.stop="editExistingStudy(item.studyID)"
+                >
+                  mdi-file-document-edit
+                </v-icon>
+                <v-icon
                   size="small"
                   @click="
                     displayDialog({
@@ -175,20 +183,26 @@ export default {
     // populating the studies table
     async populateStudies(userID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_data/${userID}`
-        const response = await axios.get(path)
+    const backendUrl = this.$backendUrl
+    const path = `${backendUrl}/get_study_data/${userID}`
+    const response = await axios.get(path)
 
-        if (Array.isArray(response.data)) {
-          this.studies = response.data.map(study => ({
+    if (Array.isArray(response.data)) {
+      this.studies = await Promise.all(
+        response.data.map(async (study) => {
+          const canEdit = await this.checkIfOverwriteAllowed(userID, study[1])
+          return {
             dateCreated: study[0],
             studyID: study[1],
             studyName: study[2],
             studyDesc: study[3],
             sessionCount: study[4],
             role: study[5],
-          }))
-        }
+            canEdit: canEdit, // Add the flag to the study object
+          }
+        })
+      )
+    }
       } catch (error) {
         console.error('Error retrieving studies: ', error)
       }
@@ -243,6 +257,28 @@ export default {
       console.error('Error downloading study data:', error)
     }
   },
+  async checkIfOverwriteAllowed(user_id, study_id) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/is_overwrite_study_allowed/${user_id}/${study_id}`
+        const response = await axios.get(path);
+        
+        if (response.data === true) {
+          return true
+        } else {
+          return false
+        }
+      } catch (error) {
+        console.error("Error checking overwrite permission:", error);
+        this.isButtonVisible = false;  // Hide the button if there's an error
+      }
+    },
+  editExistingStudy() {
+      this.$router.push({
+        name: 'StudyForm',
+        params: { studyID: this.studyID, userID: 1 }, // 1 is hardcoded for now until we have users
+      })
+    },
     // impacts whether we actually delete the study or not based on the user input
     async closeDialog(choice) {
       if (choice == 'yes') {

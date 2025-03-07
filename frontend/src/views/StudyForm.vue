@@ -436,8 +436,6 @@ export default {
         const backendUrl = this.$backendUrl
         let path
         let response
-        console.log(JSON.stringify(this.studyID))
-        console.log(JSON.stringify(this.userID))
         // Making new study vs editing
         if (this.studyID != '' && this.userID != '') {
           path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
