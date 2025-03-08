@@ -107,7 +107,8 @@ def save_participant_session():
                     trial_id = cur.fetchone()[0]
 
                     # Create the path for the trial-specific directory in the participant's results
-                    participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                    base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+                    participant_dir = f"{base_dir}/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
                     os.makedirs(participant_dir, exist_ok=True)
 
                     # Find and process the files in the current trial folder
