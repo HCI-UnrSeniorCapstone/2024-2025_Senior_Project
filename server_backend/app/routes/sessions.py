@@ -123,17 +123,66 @@ def test_local_to_server():
                     continue  # Skip this trial if no folder matches
                 if os.path.exists(trial_folder):
                     for file_name in os.listdir(trial_folder):
-                        if file_name.endswith(".csv"):
-                            csv_path = os.path.join(trial_folder, file_name)
+                        if (
+                            file_name.endswith(".csv")
+                            or file_name.endswith(".mp4")
+                            or file_name.endswith(".png")
+                        ):
+                            data_instance_path = os.path.join(trial_folder, file_name)
+                            file_name_without_extension = os.path.splitext(file_name)[0]
+                            file_extension = os.path.splitext(file_name)[1]
+                            get_measurement_id = """
+                            SELECT m.measurement_option_id
+                            FROM measurement_option AS m
+                            WHERE m.measurement_option_name = %s
+                            """
+                            cur.execute(
+                                get_measurement_id, (file_name_without_extension,)
+                            )
+                            measurement_option_id = cur.fetchone()[0]
+
+                            insert_session_data_instance = """
+                            INSERT INTO session_data_instance (trial_id, measurement_option_id)
+                            VALUES(%s, %s)
+                            """
+                            cur.execute(
+                                insert_session_data_instance,
+                                (
+                                    trial_id,
+                                    measurement_option_id,
+                                ),
+                            )
+                            conn.commit()
+
+                            # Get the inserted trial ID
+                            cur.execute("SELECT LAST_INSERT_ID()")
+                            session_data_instance_id = cur.fetchone()[0]
 
                             # Create the new absolute path for the file in the participant's trial folder
-                            absolute_csv_path = os.path.join(participant_dir, file_name)
+                            absolute_data_instance_path = os.path.join(
+                                participant_dir,
+                                str(session_data_instance_id) + file_extension,
+                            )
+
+                            update_results_path = """
+                            UPDATE session_data_instance
+                            SET results_path = %s
+                            WHERE session_data_instance_id = %s
+                            """
+                            cur.execute(
+                                update_results_path,
+                                (
+                                    absolute_data_instance_path,
+                                    session_data_instance_id,
+                                ),
+                            )
 
                             # Print the paths for debugging
-                            print(f"Moving file: {csv_path} -> {absolute_csv_path}")
-
+                            print(
+                                f"Moving file: {data_instance_path} -> {absolute_data_instance_path}"
+                            )
                             # Move (rename) the file to the new location
-                            os.rename(csv_path, absolute_csv_path)
+                            os.rename(data_instance_path, absolute_data_instance_path)
 
             except Exception as e:
                 conn.rollback()  # Rollback if an error occurs
