@@ -176,7 +176,7 @@ def test_local_to_server():
                                     session_data_instance_id,
                                 ),
                             )
-
+                            conn.commit()
                             # Print the paths for debugging
                             print(
                                 f"Moving file: {data_instance_path} -> {absolute_data_instance_path}"
