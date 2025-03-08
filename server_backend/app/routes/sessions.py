@@ -44,17 +44,56 @@ def test_local_to_server():
             print(f"Invalid JSON received: {e}")
             return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
-        # Here will go the logic for actually saving to the file system
-        #
-        #
-        #
+        participant_session_id = session_data.get("participantSessId")
+        trials = session_data.get("trials", [])
+
+        if not participant_session_id or not trials:
+            return jsonify({"error": "Invalid session data or no trials found"}), 400
+
+        for trial in trials:
+            task_id = trial.get("taskID")
+            factor_id = trial.get("factorID")
+            created_at = trial.get("createdAt")
+
+            if not (task_id and factor_id and created_at):
+                continue
+
+            try:
+                # Connect to the database
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                insert_trial = """
+                INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
+                VALUES(%s, %s, %s, %s)
+                """
+                cur.execute(
+                    insert_trial,
+                    (
+                        participant_session_id,
+                        task_id,
+                        factor_id,
+                        created_at,
+                    ),
+                )
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                return (
+                    jsonify(
+                        {
+                            "error": f"Rollback initiated. Database insertion failed: {str(e)}"
+                        }
+                    ),
+                    500,
+                )
 
         # Show received details for debugging
         print(f"Received Zip: {file.filename}")
         print(f"Received Session Data: {session_data}")
 
         # Success
-        return "", 200
+        return jsonify({"message": "Participant session saved successfully"}), 200
 
     except Exception as e:
         print("Error: ", e)
