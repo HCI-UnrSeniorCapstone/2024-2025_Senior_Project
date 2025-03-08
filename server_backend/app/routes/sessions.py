@@ -15,7 +15,6 @@ from app.utility.sessions import (
     get_participant_session_name_for_folder,
     get_trial_order_for_folder,
     get_zip,
-    parse_file_path,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -43,14 +42,27 @@ def test_local_to_server():
 
         participant_session_id = session_data.get("participantSessId")
         trials = session_data.get("trials", [])
+        study_id = session_data.get("study_id")
 
         if not participant_session_id or not trials:
             return jsonify({"error": "Invalid session data or no trials found"}), 400
 
         # Save and unzip the uploaded file
+        # Get the original filename (e.g., "1_participant_session.zip")
+        filename = file.filename
+
+        # Extract the base name
+        base_name = "_".join(filename.split("_"))
+
+        # Create a temporary directory
         temp_dir = tempfile.mkdtemp()
-        zip_path = os.path.join(temp_dir, "session_data.zip")
+
+        # Generate the path for the zip file using the extracted base name
+        zip_path = os.path.join(temp_dir, f"{base_name}.zip")
+
+        # Save the file to the zip path
         file.save(zip_path)
+        print("zip_path", zip_path)
 
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
@@ -62,6 +74,7 @@ def test_local_to_server():
             created_at = trial.get("createdAt")
 
             if not (task_id and factor_id and created_at):
+                print("loop skipped forward")
                 continue
 
             try:
@@ -85,19 +98,55 @@ def test_local_to_server():
                 trial_id = cur.fetchone()[0]
 
                 # Save CSVs to filesystem
-                participant_dir = f"/home/hci/Documents/participants_results/{session_data['study_id']}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
                 os.makedirs(participant_dir, exist_ok=True)
 
-                for root, _, files in os.walk(temp_dir):
-                    for file_name in files:
-                        if file_name.endswith(".csv"):
-                            relative_path = os.path.relpath(root, temp_dir)
-                            csv_path = os.path.join(root, file_name)
+                # for root, _, files in os.walk(temp_dir):
+                #     for file_name in files:
+                #         if file_name.endswith(".csv"):
+                #             # print("file_name", filename)
+                #             relative_path = os.path.relpath(root, temp_dir)
+                #             # print("relative path", relative_path)
+                #             csv_path = os.path.join(root, file_name)
+                #             # print("csv_path", csv_path)
+                #             # Save the file with absolute naming
+                #             absolute_csv_path = os.path.join(participant_dir, file_name)
+                #             print("absolute_csv_path", absolute_csv_path)
+                #             os.rename(csv_path, absolute_csv_path)
+                for root, dirs, files in os.walk(temp_dir):
+                    # Check if we are at a trial folder level
+                    if (
+                        root != temp_dir and not dirs
+                    ):  # root is a trial folder (no subdirectories)
+                        # Get the trial ID from the folder structure (assuming it's part of the folder name)
+                        trial_id = os.path.basename(
+                            root
+                        )  # Adjust this if trial_id is somewhere else in the folder name/path
 
-                            # Save the file with absolute naming
-                            absolute_csv_path = os.path.join(participant_dir, file_name)
-                            os.rename(csv_path, absolute_csv_path)
+                        # Create the path for the trial-specific directory in the participant's results
+                        participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                        os.makedirs(
+                            participant_dir, exist_ok=True
+                        )  # Ensure the trial folder exists in the participant's directory
 
+                        # Now, go through each file in the trial folder
+                        for file_name in files:
+                            if file_name.endswith(".csv"):
+                                # Build the path to the current file in the trial folder
+                                csv_path = os.path.join(root, file_name)
+
+                                # Create the new absolute path for the file in the participant's trial folder
+                                absolute_csv_path = os.path.join(
+                                    participant_dir, file_name
+                                )
+
+                                # Update name of file path
+
+                                # Print the paths for debugging
+                                print(f"Moving file: {csv_path} -> {absolute_csv_path}")
+
+                                # Move (rename) the file to the new location
+                                os.rename(csv_path, absolute_csv_path)
             except Exception as e:
                 conn.rollback()
                 # Error message
