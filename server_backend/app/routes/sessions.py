@@ -16,6 +16,7 @@ from app.utility.sessions import (
     get_participant_session_name_for_folder,
     get_trial_order_for_folder,
     get_zip,
+    process_trial_file,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -26,12 +27,14 @@ bp = Blueprint("sessions", __name__)
 @bp.route("/test_local_to_server", methods=["POST"])
 def test_local_to_server():
     try:
-        # Check file and JSON payload
+        # Check file input
         if "file" not in request.files:
             return jsonify({"error": "No zip file received"}), 400
 
         file = request.files["file"]
         json_data = request.form.get("json")
+
+        # Check JSON input
         if not json_data:
             return jsonify({"error": "No session data received"}), 400
 
@@ -41,14 +44,15 @@ def test_local_to_server():
         except Exception as e:
             return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
+        # Get info from JSON
         participant_session_id = session_data.get("participantSessId")
         trials = session_data.get("trials", [])
         study_id = session_data.get("study_id")
 
+        # Bad JSON info
         if not participant_session_id or not trials:
             return jsonify({"error": "Invalid session data or no trials found"}), 400
 
-        # Save and unzip the uploaded file
         # Get the original filename (e.g., "1_participant_session.zip")
         filename = file.filename
 
@@ -69,17 +73,16 @@ def test_local_to_server():
             zip_ref.extractall(temp_dir)
 
         trial_counter = 1
-        # Iterate over each trial folder, process files for that trial
+
+        # Iterate over each trial folder (by iterating over each trial in JSON), processing files for that SPECIFIC trial
         for trial in trials:
             task_id = trial.get("taskID")
             factor_id = trial.get("factorID")
             created_at = trial.get("createdAt")
 
             if not (task_id and factor_id and created_at):
-                print("loop skipped forward")
-                continue
+                return jsonify({"error": "Improper trial info from inputted JSON"}), 400
 
-            # Insert the trial into the database
             try:
                 # Connect to the database
                 conn = get_db_connection()
@@ -101,9 +104,9 @@ def test_local_to_server():
                 trial_id = cur.fetchone()[0]
 
                 # Print the trial ID for debugging
-                print(
-                    f"Trial {trial_id} inserted successfully for participant session {participant_session_id}"
-                )
+                # print(
+                #     f"Trial {trial_id} inserted successfully for participant session {participant_session_id}"
+                # )
 
                 # Create the path for the trial-specific directory in the participant's results
                 participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
@@ -115,77 +118,52 @@ def test_local_to_server():
                 trial_folder = os.path.join(temp_dir, f"*trial_{trial_counter}")
                 trial_folders = glob.glob(trial_folder)
 
-                # Make sure we have a match
+                # Make sure there is EXACT match for trial folder naming
                 if trial_folders:
-                    trial_folder = trial_folders[0]  # Pick the first match
+                    # Pick the first match (the trial count order should never repeat numbers but good to be safe)
+                    trial_folder = trial_folders[0]
                 else:
-                    print(f"No trial folder found for trial {trial_counter}")
-                    continue  # Skip this trial if no folder matches
+                    return (
+                        jsonify(
+                            {"error": "No trial folder found for trial {trial_counter}"}
+                        ),
+                        400,
+                    )
+
                 if os.path.exists(trial_folder):
+                    # Process each file within 1 specific trial folder
                     for file_name in os.listdir(trial_folder):
+                        # Accepted file types. Change this if we ever support more
                         if (
                             file_name.endswith(".csv")
                             or file_name.endswith(".mp4")
                             or file_name.endswith(".png")
                         ):
-                            data_instance_path = os.path.join(trial_folder, file_name)
-                            file_name_without_extension = os.path.splitext(file_name)[0]
-                            file_extension = os.path.splitext(file_name)[1]
-                            get_measurement_id = """
-                            SELECT m.measurement_option_id
-                            FROM measurement_option AS m
-                            WHERE m.measurement_option_name = %s
-                            """
-                            cur.execute(
-                                get_measurement_id, (file_name_without_extension,)
-                            )
-                            measurement_option_id = cur.fetchone()[0]
-
-                            insert_session_data_instance = """
-                            INSERT INTO session_data_instance (trial_id, measurement_option_id)
-                            VALUES(%s, %s)
-                            """
-                            cur.execute(
-                                insert_session_data_instance,
-                                (
+                            try:
+                                process_trial_file(
+                                    cur,
+                                    conn,
                                     trial_id,
-                                    measurement_option_id,
-                                ),
-                            )
-                            conn.commit()
-
-                            # Get the inserted trial ID
-                            cur.execute("SELECT LAST_INSERT_ID()")
-                            session_data_instance_id = cur.fetchone()[0]
-
-                            # Create the new absolute path for the file in the participant's trial folder
-                            absolute_data_instance_path = os.path.join(
-                                participant_dir,
-                                str(session_data_instance_id) + file_extension,
-                            )
-
-                            update_results_path = """
-                            UPDATE session_data_instance
-                            SET results_path = %s
-                            WHERE session_data_instance_id = %s
-                            """
-                            cur.execute(
-                                update_results_path,
-                                (
-                                    absolute_data_instance_path,
-                                    session_data_instance_id,
-                                ),
-                            )
-                            conn.commit()
-                            # Print the paths for debugging
-                            print(
-                                f"Moving file: {data_instance_path} -> {absolute_data_instance_path}"
-                            )
-                            # Move (rename) the file to the new location
-                            os.rename(data_instance_path, absolute_data_instance_path)
+                                    participant_dir,
+                                    trial_folder,
+                                    file_name,
+                                )
+                            except Exception as e:
+                                return (
+                                    jsonify(
+                                        {
+                                            "error": "Error processing trial file",
+                                            "file_name": file_name,
+                                            "error_type": type(e).__name__,
+                                            "error_message": str(e),
+                                        }
+                                    ),
+                                    500,
+                                )
 
             except Exception as e:
-                conn.rollback()  # Rollback if an error occurs
+                # Rollback if an error occurs
+                conn.rollback()
                 error_type = type(e).__name__
                 error_message = str(e)
                 return (
