@@ -1,3 +1,4 @@
+import glob
 import io
 import os
 import json
@@ -67,7 +68,8 @@ def test_local_to_server():
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        # Process each trial data and insert into database
+        trial_counter = 1
+        # Iterate over each trial folder, process files for that trial
         for trial in trials:
             task_id = trial.get("taskID")
             factor_id = trial.get("factorID")
@@ -77,12 +79,13 @@ def test_local_to_server():
                 print("loop skipped forward")
                 continue
 
+            # Insert the trial into the database
             try:
                 # Connect to the database
                 conn = get_db_connection()
                 cur = conn.cursor()
 
-                # Insert trial data
+                # Insert trial data into the database
                 insert_trial = """
                 INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
                 VALUES(%s, %s, %s, %s)
@@ -97,59 +100,43 @@ def test_local_to_server():
                 cur.execute("SELECT LAST_INSERT_ID()")
                 trial_id = cur.fetchone()[0]
 
-                # Save CSVs to filesystem
+                # Print the trial ID for debugging
+                print(
+                    f"Trial {trial_id} inserted successfully for participant session {participant_session_id}"
+                )
+
+                # Create the path for the trial-specific directory in the participant's results
                 participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
-                os.makedirs(participant_dir, exist_ok=True)
+                os.makedirs(
+                    participant_dir, exist_ok=True
+                )  # Ensure the trial folder exists in the participant's directory
 
-                # for root, _, files in os.walk(temp_dir):
-                #     for file_name in files:
-                #         if file_name.endswith(".csv"):
-                #             # print("file_name", filename)
-                #             relative_path = os.path.relpath(root, temp_dir)
-                #             # print("relative path", relative_path)
-                #             csv_path = os.path.join(root, file_name)
-                #             # print("csv_path", csv_path)
-                #             # Save the file with absolute naming
-                #             absolute_csv_path = os.path.join(participant_dir, file_name)
-                #             print("absolute_csv_path", absolute_csv_path)
-                #             os.rename(csv_path, absolute_csv_path)
-                for root, dirs, files in os.walk(temp_dir):
-                    # Check if we are at a trial folder level
-                    if (
-                        root != temp_dir and not dirs
-                    ):  # root is a trial folder (no subdirectories)
-                        # Get the trial ID from the folder structure (assuming it's part of the folder name)
-                        trial_id = os.path.basename(
-                            root
-                        )  # Adjust this if trial_id is somewhere else in the folder name/path
+                # Find and process the files in the current trial folder
+                trial_folder = os.path.join(temp_dir, f"*trial_{trial_counter}")
+                trial_folders = glob.glob(trial_folder)
 
-                        # Create the path for the trial-specific directory in the participant's results
-                        participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
-                        os.makedirs(
-                            participant_dir, exist_ok=True
-                        )  # Ensure the trial folder exists in the participant's directory
+                # Make sure we have a match
+                if trial_folders:
+                    trial_folder = trial_folders[0]  # Pick the first match
+                else:
+                    print(f"No trial folder found for trial {trial_counter}")
+                    continue  # Skip this trial if no folder matches
+                if os.path.exists(trial_folder):
+                    for file_name in os.listdir(trial_folder):
+                        if file_name.endswith(".csv"):
+                            csv_path = os.path.join(trial_folder, file_name)
 
-                        # Now, go through each file in the trial folder
-                        for file_name in files:
-                            if file_name.endswith(".csv"):
-                                # Build the path to the current file in the trial folder
-                                csv_path = os.path.join(root, file_name)
+                            # Create the new absolute path for the file in the participant's trial folder
+                            absolute_csv_path = os.path.join(participant_dir, file_name)
 
-                                # Create the new absolute path for the file in the participant's trial folder
-                                absolute_csv_path = os.path.join(
-                                    participant_dir, file_name
-                                )
+                            # Print the paths for debugging
+                            print(f"Moving file: {csv_path} -> {absolute_csv_path}")
 
-                                # Update name of file path
+                            # Move (rename) the file to the new location
+                            os.rename(csv_path, absolute_csv_path)
 
-                                # Print the paths for debugging
-                                print(f"Moving file: {csv_path} -> {absolute_csv_path}")
-
-                                # Move (rename) the file to the new location
-                                os.rename(csv_path, absolute_csv_path)
             except Exception as e:
-                conn.rollback()
-                # Error message
+                conn.rollback()  # Rollback if an error occurs
                 error_type = type(e).__name__
                 error_message = str(e)
                 return (
@@ -162,6 +149,7 @@ def test_local_to_server():
                     ),
                     500,
                 )
+            trial_counter += 1
 
         # Clean up temp directory
         os.system(f"rm -rf {temp_dir}")
