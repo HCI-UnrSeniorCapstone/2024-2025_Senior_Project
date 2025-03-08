@@ -26,6 +26,9 @@ bp = Blueprint("sessions", __name__)
 # Test endpoint for receiving the session zip results from the local script
 @bp.route("/test_local_to_server", methods=["POST"])
 def test_local_to_server():
+    temp_dir = None
+    conn = None
+
     try:
         # Check file input
         if "file" not in request.files:
@@ -41,7 +44,7 @@ def test_local_to_server():
         # Parse the JSON
         try:
             session_data = json.loads(json_data)
-        except Exception as e:
+        except json.JSONDecodeError as e:
             return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
         # Get info from JSON
@@ -86,60 +89,48 @@ def test_local_to_server():
             try:
                 # Connect to the database
                 conn = get_db_connection()
-                cur = conn.cursor()
-
-                # Insert trial data into the database
-                insert_trial = """
-                INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
-                VALUES(%s, %s, %s, %s)
-                """
-                cur.execute(
-                    insert_trial,
-                    (participant_session_id, task_id, factor_id, created_at),
-                )
-                conn.commit()
-
-                # Get the inserted trial ID
-                cur.execute("SELECT LAST_INSERT_ID()")
-                trial_id = cur.fetchone()[0]
-
-                # Print the trial ID for debugging
-                # print(
-                #     f"Trial {trial_id} inserted successfully for participant session {participant_session_id}"
-                # )
-
-                # Create the path for the trial-specific directory in the participant's results
-                participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
-                os.makedirs(
-                    participant_dir, exist_ok=True
-                )  # Ensure the trial folder exists in the participant's directory
-
-                # Find and process the files in the current trial folder
-                trial_folder = os.path.join(temp_dir, f"*trial_{trial_counter}")
-                trial_folders = glob.glob(trial_folder)
-
-                # Make sure there is EXACT match for trial folder naming
-                if trial_folders:
-                    # Pick the first match (the trial count order should never repeat numbers but good to be safe)
-                    trial_folder = trial_folders[0]
-                else:
-                    return (
-                        jsonify(
-                            {"error": "No trial folder found for trial {trial_counter}"}
-                        ),
-                        400,
+                with conn.cursor() as cur:
+                    # Insert trial data into the database
+                    insert_trial = """
+                    INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
+                    VALUES(%s, %s, %s, %s)
+                    """
+                    cur.execute(
+                        insert_trial,
+                        (participant_session_id, task_id, factor_id, created_at),
                     )
+                    conn.commit()
 
-                if os.path.exists(trial_folder):
-                    # Process each file within 1 specific trial folder
-                    for file_name in os.listdir(trial_folder):
-                        # Accepted file types. Change this if we ever support more
-                        if (
-                            file_name.endswith(".csv")
-                            or file_name.endswith(".mp4")
-                            or file_name.endswith(".png")
-                        ):
-                            try:
+                    # Get the inserted trial ID
+                    cur.execute("SELECT LAST_INSERT_ID()")
+                    trial_id = cur.fetchone()[0]
+
+                    # Create the path for the trial-specific directory in the participant's results
+                    participant_dir = f"/home/hci/Documents/participants_results/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                    os.makedirs(participant_dir, exist_ok=True)
+
+                    # Find and process the files in the current trial folder
+                    trial_folder = os.path.join(temp_dir, f"*trial_{trial_counter}")
+                    trial_folders = glob.glob(trial_folder)
+
+                    # Make sure there is an exact match for trial folder naming
+                    if not trial_folders:
+                        return (
+                            jsonify(
+                                {
+                                    "error": f"No trial folder found for trial {trial_counter}"
+                                }
+                            ),
+                            400,
+                        )
+
+                    trial_folder = trial_folders[0]
+
+                    if os.path.exists(trial_folder):
+                        # Process each file within 1 specific trial folder
+                        for file_name in os.listdir(trial_folder):
+                            # Accepted file types. Change this if we ever support more
+                            if file_name.endswith((".csv", ".mp4", ".png")):
                                 process_trial_file(
                                     cur,
                                     conn,
@@ -148,48 +139,27 @@ def test_local_to_server():
                                     trial_folder,
                                     file_name,
                                 )
-                            except Exception as e:
-                                return (
-                                    jsonify(
-                                        {
-                                            "error": "Error processing trial file",
-                                            "file_name": file_name,
-                                            "error_type": type(e).__name__,
-                                            "error_message": str(e),
-                                        }
-                                    ),
-                                    500,
-                                )
 
             except Exception as e:
-                # Rollback if an error occurs
-                conn.rollback()
-                error_type = type(e).__name__
-                error_message = str(e)
+                if conn:
+                    conn.rollback()
                 return (
                     jsonify(
                         {
                             "Note": "Rollback initiated. Database insertion failed",
-                            "error_type": error_type,
-                            "error_message": error_message,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
                         }
                     ),
                     500,
                 )
+
             trial_counter += 1
-
-        # Clean up temp directory
         os.system(f"rm -rf {temp_dir}")
-
         return jsonify({"message": "Participant session saved successfully"}), 200
 
     except Exception as e:
-        # Error message
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        # 500 means internal error, AKA the database probably broke
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 # Saves tracked data to server file system, db will have a file path to the CSVs
