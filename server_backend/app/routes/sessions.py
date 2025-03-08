@@ -1,6 +1,7 @@
 import io
 import os
 import json
+import tempfile
 import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
@@ -14,6 +15,7 @@ from app.utility.sessions import (
     get_participant_session_name_for_folder,
     get_trial_order_for_folder,
     get_zip,
+    parse_file_path,
 )
 from app.utility.db_connection import get_db_connection
 
@@ -24,24 +26,19 @@ bp = Blueprint("sessions", __name__)
 @bp.route("/test_local_to_server", methods=["POST"])
 def test_local_to_server():
     try:
-        # Check file is included in payload from local script
+        # Check file and JSON payload
         if "file" not in request.files:
-            print("Missing zip file")
             return jsonify({"error": "No zip file received"}), 400
 
         file = request.files["file"]
-
-        # Check json with study parameters is also in payload from local script
         json_data = request.form.get("json")
         if not json_data:
-            print("Missing session data json")
             return jsonify({"error": "No session data received"}), 400
 
         # Parse the JSON
         try:
             session_data = json.loads(json_data)
         except Exception as e:
-            print(f"Invalid JSON received: {e}")
             return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
         participant_session_id = session_data.get("participantSessId")
@@ -50,6 +47,15 @@ def test_local_to_server():
         if not participant_session_id or not trials:
             return jsonify({"error": "Invalid session data or no trials found"}), 400
 
+        # Save and unzip the uploaded file
+        temp_dir = tempfile.mkdtemp()
+        zip_path = os.path.join(temp_dir, "session_data.zip")
+        file.save(zip_path)
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        # Process each trial data and insert into database
         for trial in trials:
             task_id = trial.get("taskID")
             factor_id = trial.get("factorID")
@@ -63,41 +69,63 @@ def test_local_to_server():
                 conn = get_db_connection()
                 cur = conn.cursor()
 
+                # Insert trial data
                 insert_trial = """
                 INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
                 VALUES(%s, %s, %s, %s)
                 """
                 cur.execute(
                     insert_trial,
-                    (
-                        participant_session_id,
-                        task_id,
-                        factor_id,
-                        created_at,
-                    ),
+                    (participant_session_id, task_id, factor_id, created_at),
                 )
                 conn.commit()
+
+                # Get the inserted trial ID
+                cur.execute("SELECT LAST_INSERT_ID()")
+                trial_id = cur.fetchone()[0]
+
+                # Save CSVs to filesystem
+                participant_dir = f"/home/hci/Documents/participants_results/{session_data['study_id']}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                os.makedirs(participant_dir, exist_ok=True)
+
+                for root, _, files in os.walk(temp_dir):
+                    for file_name in files:
+                        if file_name.endswith(".csv"):
+                            relative_path = os.path.relpath(root, temp_dir)
+                            csv_path = os.path.join(root, file_name)
+
+                            # Save the file with absolute naming
+                            absolute_csv_path = os.path.join(participant_dir, file_name)
+                            os.rename(csv_path, absolute_csv_path)
+
             except Exception as e:
                 conn.rollback()
+                # Error message
+                error_type = type(e).__name__
+                error_message = str(e)
                 return (
                     jsonify(
                         {
-                            "error": f"Rollback initiated. Database insertion failed: {str(e)}"
+                            "Note": "Rollback initiated. Database insertion failed",
+                            "error_type": error_type,
+                            "error_message": error_message,
                         }
                     ),
                     500,
                 )
 
-        # Show received details for debugging
-        print(f"Received Zip: {file.filename}")
-        print(f"Received Session Data: {session_data}")
+        # Clean up temp directory
+        os.system(f"rm -rf {temp_dir}")
 
-        # Success
         return jsonify({"message": "Participant session saved successfully"}), 200
 
     except Exception as e:
-        print("Error: ", e)
-        return jsonify({"error": str(e)}), 500
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
 # Saves tracked data to server file system, db will have a file path to the CSVs
