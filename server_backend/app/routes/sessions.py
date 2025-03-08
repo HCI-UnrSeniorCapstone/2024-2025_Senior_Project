@@ -23,9 +23,10 @@ from app.utility.db_connection import get_db_connection
 bp = Blueprint("sessions", __name__)
 
 
-# Test endpoint for receiving the session zip results from the local script
-@bp.route("/test_local_to_server", methods=["POST"])
-def test_local_to_server():
+# Saving participant session from the local script
+# Excpects a JSON and a zip file with PRECISE naming standards
+@bp.route("/save_participant_session", methods=["POST"])
+def save_participant_session():
     temp_dir = None
     conn = None
 
