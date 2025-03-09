@@ -65,9 +65,31 @@
                 <v-icon
                   class="me-2"
                   size="small"
+                  @click.stop="downloadStudyData(item.studyID)"
+                >
+                  mdi-download
+                </v-icon>
+                <v-icon
+                  class="me-2"
+                  size="small"
                   @click.stop="openDrawer(item.studyID)"
                 >
                   mdi-arrow-expand
+                </v-icon>
+                <v-icon
+                  v-if="item.canEdit"
+                  class="me-2"
+                  size="small"
+                  @click.stop="editExistingStudy(item.studyID)"
+                >
+                  mdi-file-document-edit
+                </v-icon>
+                <v-icon
+                  class="me-2"
+                  size="small"
+                  @click.stop="copyStudy(item.studyID)"
+                >
+                  mdi-content-copy
                 </v-icon>
                 <v-icon
                   size="small"
@@ -168,20 +190,26 @@ export default {
     // populating the studies table
     async populateStudies(userID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_data/${userID}`
-        const response = await axios.get(path)
+    const backendUrl = this.$backendUrl
+    const path = `${backendUrl}/get_study_data/${userID}`
+    const response = await axios.get(path)
 
-        if (Array.isArray(response.data)) {
-          this.studies = response.data.map(study => ({
+    if (Array.isArray(response.data)) {
+      this.studies = await Promise.all(
+        response.data.map(async (study) => {
+          const canEdit = await this.checkIfOverwriteAllowed(userID, study[1])
+          return {
             dateCreated: study[0],
             studyID: study[1],
             studyName: study[2],
             studyDesc: study[3],
             sessionCount: study[4],
             role: study[5],
-          }))
-        }
+            canEdit: canEdit, // Add the flag to the study object
+          }
+        })
+      )
+    }
       } catch (error) {
         console.error('Error retrieving studies: ', error)
       }
@@ -210,7 +238,68 @@ export default {
       this.dialogDetails = { ...details }
       this.dialog = true
     },
+    async downloadStudyData(studyID) {
+    try {
+      const backendUrl = this.$backendUrl
+      const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
 
+      const response = await axios.get(path, {
+        responseType: 'blob'
+      })
+
+      // Get the content-disposition header to extract the filename
+      const disposition = response.headers['content-disposition']
+      const filename = disposition
+        ? disposition.split('filename=')[1].replace(/"/g, '')  // extracting the filename from header
+        : 'download.zip'
+
+      // Download
+      const blob = new Blob([response.data], { type: 'application/zip' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = filename
+      link.click()
+
+    } catch (error) {
+      console.error('Error downloading study data:', error)
+    }
+  },
+  async checkIfOverwriteAllowed(userID, studyID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
+        const response = await axios.get(path);
+        
+        if (response.data === true) {
+          return true
+        } else {
+          return false
+        }
+      } catch (error) {
+        console.error("Error checking overwrite permission:", error);
+        this.isButtonVisible = false;  // Hide the button if there's an error
+      }
+    },
+    async copyStudy(studyID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/copy_study/${studyID}/${1}`
+        const response = await axios.post(path);
+
+        // Refresh the page to show changes
+        location.reload()
+        
+      } catch (error) {
+        console.error("Error copying study", error);
+        this.isButtonVisible = false;  // Hide the button if there's an error
+      }
+    },
+  editExistingStudy(study_id) {
+      this.$router.push({
+        name: 'StudyForm',
+        params: { studyID: study_id, userID: 1 }, // 1 is hardcoded for now until we have users
+      })
+    },
     // impacts whether we actually delete the study or not based on the user input
     async closeDialog(choice) {
       if (choice == 'yes') {

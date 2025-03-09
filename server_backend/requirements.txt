@@ -1,4 +1,6 @@
 blinker==1.9.0
+certifi==2025.1.31
+charset-normalizer==3.4.1
 click==8.1.7
 coverage==7.6.12
 exceptiongroup==1.2.2
@@ -6,6 +8,7 @@ Flask==3.0.3
 Flask-Cors==5.0.0
 Flask-MySQLdb==2.0.0
 gunicorn==23.0.0
+idna==3.10
 iniconfig==2.0.0
 itsdangerous==2.2.0
 Jinja2==3.1.4
@@ -29,8 +32,10 @@ pytest-mysql==3.1.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.2
+requests==2.32.3
 six==1.17.0
 tomli==2.2.1
 typing_extensions==4.12.2
 tzdata==2024.2
+urllib3==2.3.0
 Werkzeug==3.1.3
