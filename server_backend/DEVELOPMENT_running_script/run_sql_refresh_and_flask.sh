@@ -187,15 +187,19 @@ csv_counter=1
 trial_counter=1
 study_id=1
 created_at="2025-03-05 00:00:00"
-for participant_id in {1..3}; do
-        path=$(create_data_path_participant "$study_id" "$participant_id")
-        participant_session_id=$(update_database_participant_session "$participant_id")
-    for trial_id in {1..4}; do
-        trial_path=$(create_data_path_trial "$trial_counter" "$participant_id" "$path")
-        csv_counter=$(update_database_trial "$trial_path" "$participant_id" "$study_id" "$csv_counter" "$participant_session_id" "$created_at")
-        trial_counter=$((trial_counter + 1))
-        created_at=$(date -d "$created_at + 2 minute" +"%Y-%m-%d %H:%M:%S")
-    done
+for participant_id in {1..4}; do
+    path=$(create_data_path_participant "$study_id" "$participant_id")
+    participant_session_id=$(update_database_participant_session "$participant_id")
+
+    # Leave 4 blank for testing purposes
+    if [ "$participant_id" -ne 4 ]; then
+        for trial_id in {1..4}; do
+            trial_path=$(create_data_path_trial "$trial_counter" "$participant_id" "$path")
+            csv_counter=$(update_database_trial "$trial_path" "$participant_id" "$study_id" "$csv_counter" "$participant_session_id" "$created_at")
+            trial_counter=$((trial_counter + 1))
+            created_at=$(date -d "$created_at + 2 minute" +"%Y-%m-%d %H:%M:%S")
+        done
+    fi
 done
 
 end_time=$(date +%s)

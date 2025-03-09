@@ -7,6 +7,61 @@ import os
 from app.utility.db_connection import get_db_connection
 
 
+def process_trial_file(cur, conn, trial_id, participant_dir, trial_folder, file_name):
+    # Full path
+    data_instance_path = os.path.join(trial_folder, file_name)
+
+    # Separate name (like Mouse Movement) and extension (like .csv)
+    file_name_without_extension, file_extension = os.path.splitext(file_name)
+
+    # Fetch measurement option ID
+    get_measurement_id = """
+    SELECT m.measurement_option_id
+    FROM measurement_option AS m
+    WHERE m.measurement_option_name = %s
+    """
+    cur.execute(get_measurement_id, (file_name_without_extension,))
+    result = cur.fetchone()
+    if not result:
+        raise ValueError(
+            f"No measurement option found for '{file_name_without_extension}'"
+        )
+
+    measurement_option_id = result[0]
+
+    # Insert session data instance
+    insert_session_data_instance = """
+    INSERT INTO session_data_instance (trial_id, measurement_option_id)
+    VALUES(%s, %s)
+    """
+    cur.execute(insert_session_data_instance, (trial_id, measurement_option_id))
+    conn.commit()
+
+    # Get the inserted session data instance ID
+    cur.execute("SELECT LAST_INSERT_ID()")
+    session_data_instance_id = cur.fetchone()[0]
+
+    # Create the new absolute path for the file in the participant's trial folder
+    absolute_data_instance_path = os.path.join(
+        participant_dir,
+        f"{session_data_instance_id}{file_extension}",
+    )
+
+    # Update the results path in the database
+    update_results_path = """
+    UPDATE session_data_instance
+    SET results_path = %s
+    WHERE session_data_instance_id = %s
+    """
+    cur.execute(
+        update_results_path, (absolute_data_instance_path, session_data_instance_id)
+    )
+    conn.commit()
+
+    # Save to actual filesystem
+    os.rename(data_instance_path, absolute_data_instance_path)
+
+
 def get_zip(results_with_size, study_id, conn, mode):
 
     # Fetch the required data for folder naming

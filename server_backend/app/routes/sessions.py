@@ -1,6 +1,8 @@
+import glob
 import io
 import os
 import json
+import tempfile
 import zipfile
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 from app.utility.sessions import (
@@ -14,51 +16,152 @@ from app.utility.sessions import (
     get_participant_session_name_for_folder,
     get_trial_order_for_folder,
     get_zip,
+    process_trial_file,
 )
 from app.utility.db_connection import get_db_connection
 
 bp = Blueprint("sessions", __name__)
 
 
-# Test endpoint for receiving the session zip results from the local script
-@bp.route("/test_local_to_server", methods=["POST"])
-def test_local_to_server():
+# Saving participant session from the local script
+# Excpects a JSON and a zip file with PRECISE naming standards
+@bp.route("/save_participant_session", methods=["POST"])
+def save_participant_session():
+    temp_dir = None
+    conn = None
+
     try:
-        # Check file is included in payload from local script
+        # Check file input
         if "file" not in request.files:
-            print("Missing zip file")
             return jsonify({"error": "No zip file received"}), 400
 
         file = request.files["file"]
-
-        # Check json with study parameters is also in payload from local script
         json_data = request.form.get("json")
+
+        # Check JSON input
         if not json_data:
-            print("Missing session data json")
             return jsonify({"error": "No session data received"}), 400
 
         # Parse the JSON
         try:
             session_data = json.loads(json_data)
-        except Exception as e:
-            print(f"Invalid JSON received: {e}")
+        except json.JSONDecodeError as e:
             return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
-        # Here will go the logic for actually saving to the file system
-        #
-        #
-        #
+        # Get info from JSON
+        participant_session_id = session_data.get("participantSessId")
+        trials = session_data.get("trials", [])
+        study_id = session_data.get("study_id")
 
-        # Show received details for debugging
-        print(f"Received Zip: {file.filename}")
-        print(f"Received Session Data: {session_data}")
+        # Bad JSON info
+        if not participant_session_id or not trials:
+            return jsonify({"error": "Invalid session data or no trials found"}), 400
 
-        # Success
-        return "", 200
+        # Get the original filename (e.g., "1_participant_session.zip")
+        filename = file.filename
+
+        # Extract the base name
+        base_name = "_".join(filename.split("_"))
+
+        # Create a temporary directory
+        temp_dir = tempfile.mkdtemp()
+
+        # Generate the path for the zip file using the extracted base name
+        zip_path = os.path.join(temp_dir, f"{base_name}.zip")
+
+        # Save the file to the zip path
+        file.save(zip_path)
+        print("zip_path", zip_path)
+
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall(temp_dir)
+
+        trial_counter = 1
+
+        # Iterate over each trial folder (by iterating over each trial in JSON), processing files for that SPECIFIC trial
+        for trial in trials:
+            task_id = trial.get("taskID")
+            factor_id = trial.get("factorID")
+            created_at = trial.get("createdAt")
+
+            if not (task_id and factor_id and created_at):
+                return jsonify({"error": "Improper trial info from inputted JSON"}), 400
+
+            try:
+                # Connect to the database
+                conn = get_db_connection()
+                with conn.cursor() as cur:
+                    # Insert trial data into the database
+                    insert_trial = """
+                    INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
+                    VALUES(%s, %s, %s, %s)
+                    """
+                    cur.execute(
+                        insert_trial,
+                        (participant_session_id, task_id, factor_id, created_at),
+                    )
+                    conn.commit()
+
+                    # Get the inserted trial ID
+                    cur.execute("SELECT LAST_INSERT_ID()")
+                    trial_id = cur.fetchone()[0]
+
+                    # Create the path for the trial-specific directory in the participant's results
+                    base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+                    participant_dir = f"{base_dir}/{study_id}_study_id/{participant_session_id}_participant_session_id/{trial_id}_trial_id"
+                    os.makedirs(participant_dir, exist_ok=True)
+
+                    # Find and process the files in the current trial folder
+                    trial_folder = os.path.join(temp_dir, f"*trial_{trial_counter}")
+                    trial_folders = glob.glob(trial_folder)
+
+                    # Make sure there is an exact match for trial folder naming
+                    if not trial_folders:
+                        return (
+                            jsonify(
+                                {
+                                    "error": f"No trial folder found for trial {trial_counter}"
+                                }
+                            ),
+                            400,
+                        )
+
+                    trial_folder = trial_folders[0]
+
+                    if os.path.exists(trial_folder):
+                        # Process each file within 1 specific trial folder
+                        for file_name in os.listdir(trial_folder):
+                            # Accepted file types. Change this if we ever support more
+                            if file_name.endswith((".csv", ".mp4", ".png")):
+                                process_trial_file(
+                                    cur,
+                                    conn,
+                                    trial_id,
+                                    participant_dir,
+                                    trial_folder,
+                                    file_name,
+                                )
+
+            except Exception as e:
+                if conn:
+                    conn.rollback()
+                return (
+                    jsonify(
+                        {
+                            "Note": "Rollback initiated. Database insertion failed",
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                        }
+                    ),
+                    500,
+                )
+
+            trial_counter += 1
+        os.system(f"rm -rf {temp_dir}")
+        return jsonify({"message": "Participant session saved successfully"}), 200
 
     except Exception as e:
-        print("Error: ", e)
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 # Saves tracked data to server file system, db will have a file path to the CSVs
