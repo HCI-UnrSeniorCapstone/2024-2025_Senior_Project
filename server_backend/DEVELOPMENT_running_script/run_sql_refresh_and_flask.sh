@@ -99,7 +99,7 @@ update_database_trial() {
     local task_id=1
     local factor_id=1
     insert_trial="USE $DB_NAME;
-    INSERT INTO trial (participant_session_id, task_id, factor_id, created_at, ended_at)
+    INSERT INTO trial (participant_session_id, task_id, factor_id, started_at, ended_at)
     VALUES ($participant_session_id, $task_id, $factor_id, '$created_at', '$ended_at');"
 
     trial_id=$(mysql -e "$insert_trial; SELECT LAST_INSERT_ID();" -s -N)

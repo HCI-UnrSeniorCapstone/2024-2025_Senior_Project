@@ -157,10 +157,10 @@ INNER JOIN measurement_option AS mo
 
 def get_trial_order_for_folder(participant_session_id, cur):
     query = """
-    SELECT t.trial_id, t.created_at
+    SELECT t.trial_id, t.started_at
     FROM trial AS t
     WHERE participant_session_id = %s
-    ORDER BY t.created_at DESC
+    ORDER BY t.started_at DESC
     """
     cur.execute(query, (participant_session_id,))
     results = cur.fetchall()
