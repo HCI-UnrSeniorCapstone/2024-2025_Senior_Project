@@ -154,7 +154,7 @@ CREATE TABLE trial (
     participant_session_id INT,
     task_id INT,
     factor_id INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, -- THIS SHOULD BE INPUT EACH TIME A PROGRESSION IS MADE
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, -- THIS SHOULD BE INPUT EACH TIME A PROGRESSION IS MADE
     ended_at TIMESTAMP NULL,
     FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id),
     FOREIGN KEY (task_id) REFERENCES task(task_id) ON DELETE CASCADE,

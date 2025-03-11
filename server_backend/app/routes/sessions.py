@@ -82,9 +82,9 @@ def save_participant_session():
         for trial in trials:
             task_id = trial.get("taskID")
             factor_id = trial.get("factorID")
-            created_at = trial.get("createdAt")
+            started_at = trial.get("startedAt")
 
-            if not (task_id and factor_id and created_at):
+            if not (task_id and factor_id and started_at):
                 return jsonify({"error": "Improper trial info from inputted JSON"}), 400
 
             try:
@@ -93,12 +93,12 @@ def save_participant_session():
                 with conn.cursor() as cur:
                     # Insert trial data into the database
                     insert_trial = """
-                    INSERT INTO trial (participant_session_id, task_id, factor_id, created_at)
+                    INSERT INTO trial (participant_session_id, task_id, factor_id, started_at)
                     VALUES(%s, %s, %s, %s)
                     """
                     cur.execute(
                         insert_trial,
-                        (participant_session_id, task_id, factor_id, created_at),
+                        (participant_session_id, task_id, factor_id, started_at),
                     )
                     conn.commit()
 
