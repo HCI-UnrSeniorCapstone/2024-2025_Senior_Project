@@ -171,6 +171,7 @@ export default {
       this.trials.pop()
     },
 
+    // Getting JSON into proper format now that we have trial perms to include before passing to local scripts
     formatStudy() {
       this.formattedStudy = {
         participantSessId: null,
@@ -184,6 +185,7 @@ export default {
         trials: this.trials.map(trial => ({
           taskID: trial.taskID,
           factorID: trial.factorID,
+          startedAt: null,
         })),
 
         // Reformat tasks array to dict
