@@ -149,7 +149,7 @@ update_database_trial() {
 generate_data_keyboard() {
     local file_path=$1
     local start_time=$2
-    local num_records=20
+    local num_records=2
     # Escape the "-" character by placing it at the beginning or end of the set
     local chars='abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+={}|<>?'
     local start_seconds=$(date -d "$start_time" +%s)
@@ -171,7 +171,7 @@ generate_data_keyboard() {
 generate_data_coords() {
     local file_path=$1
     local start_time=$2
-    local num_records=20
+    local num_records=2
     local running_time=1
     for i in $(seq 1 $num_records); do
         local time=$(date -u -d "@$(( $(date -d "$start_time" +%s) + i ))" +"%H:%M:%S")

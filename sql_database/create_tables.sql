@@ -3,8 +3,42 @@ CREATE TABLE user (
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     email VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    user_password VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    fs_uniquifier VARCHAR(255),
+    fs_webauthn_user_handle VARCHAR(255),
+    mf_recovery_codes TEXT,
+    us_phone_number VARCHAR(20),
+    username VARCHAR(255),
+    us_totp_secrets TEXT,
+    confirmed_at TIMESTAMP,
+    last_login_at TIMESTAMP,
+    current_login_at TIMESTAMP,
+    last_login_ip VARCHAR(45),
+    current_login_ip VARCHAR(45),
+    login_count INT DEFAULT 0,
+    tf_primary_method VARCHAR(50),
+    tf_totp_secret TEXT,
+    tf_phone_number VARCHAR(20),
+    create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE role_type (
+    role_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    role_type_name VARCHAR(255), 
+    role_type_description VARCHAR(255)
+);
+
+CREATE TABLE users_roles (
+    user_id INT,
+    role_type_id INT,
+    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (role_type_id) REFERENCES role_type(role_type_id),
+    PRIMARY KEY (user_id, role_type_id)
+);
+
 CREATE TABLE admin_user (
     admin_user_id INT NOT NULL AUTO_INCREMENT,
     user_id INT,
