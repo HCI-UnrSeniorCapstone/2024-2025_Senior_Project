@@ -10,11 +10,13 @@ from flask_security import (
     hash_password,
 )
 from flask_security.models import fsqla_v3 as fsqla
+from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 import os
 
 mysql = MySQL()
 db = SQLAlchemy()  # Only for user tracking via Flask-Security
+csrf = CSRFProtect()
 
 
 def create_app(testing=False):
@@ -45,6 +47,34 @@ def create_app(testing=False):
     app.config["SECURITY_PASSWORD_SALT"] = os.getenv("SECRET_PASSWORD_SALT")
     app.config["REMEMBER_COOKIE_SAMESITE"] = "strict"
     app.config["SESSION_COOKIE_SAMESITE"] = "strict"
+
+    # Customized settings so that VUE can be used instead of default server-side html rendering via Flask Security
+    SECURITY_FLASH_MESSAGES = False
+    SECURITY_URL_PREFIX = "/api/accounts"
+
+    SECURITY_RECOVERABLE = True
+    SECURITY_TRACKABLE = True
+    SECURITY_CHANGEABLE = True
+    SECURITY_CONFIRMABLE = True
+    SECURITY_REGISTERABLE = True
+    SECURITY_UNIFIED_SIGNIN = True
+
+    SECURITY_POST_CONFIRM_VIEW = "/confirmed"
+    SECURITY_CONFIRM_ERROR_VIEW = "/confirm-error"
+    SECURITY_RESET_VIEW = "/reset-password"
+    SECURITY_RESET_ERROR_VIEW = "/reset-password-error"
+    SECURITY_LOGIN_ERROR_VIEW = "/login-error"
+    SECURITY_POST_OAUTH_LOGIN_VIEW = "/post-oauth-login"
+    SECURITY_REDIRECT_BEHAVIOR = "spa"
+
+    SECURITY_CSRF_PROTECT_MECHANISMS = ["session", "basic"]
+    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS = True
+
+    SECURITY_CSRF_COOKIE_NAME = "XSRF-TOKEN"
+    WTF_CSRF_CHECK_DEFAULT = False
+    WTF_CSRF_TIME_LIMIT = None
+    csrf.init_app(app)
+    # CSRFProtect(app)
 
     # SQLAlchemy ONLY for Flask-Security
     # This is done since Flask-Security is easy to use when using an ORM
