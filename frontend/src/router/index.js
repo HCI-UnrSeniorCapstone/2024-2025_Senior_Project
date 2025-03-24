@@ -11,6 +11,7 @@ import SessionForm from '../views/SessionForm.vue'
 import TestSendCSV from '../views/TestCSVToServer.vue'
 import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
 import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
+import UserLogin from '../views/UserLogin.vue'
 import axios from 'axios'
 import SessionSetup from '@/views/SessionSetup.vue'
 
@@ -27,6 +28,11 @@ const router = createRouter({
           path: '/Dashboard',
           name: 'Dashboard',
           component: Dashboard,
+        },
+        {
+          path: '/UserLogin',
+          name: 'UserLogin',
+          component: UserLogin,
         },
         {
           path: '/UserStudies',
