@@ -22,7 +22,7 @@
   
       <!-- Message and Data Display After Successful Login -->
       <div v-else>
-        <p>Welcome, {{ user.username }}!</p>
+        <p>Welcome, {{ username }}!</p>
         <v-btn color="secondary" @click="logout">Logout</v-btn>
         <div v-if="results.length > 0">
           <h3>User Data:</h3>
