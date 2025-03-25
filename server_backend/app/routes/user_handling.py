@@ -9,22 +9,33 @@ bp = Blueprint("user_handling", __name__)
 from app import csrf
 
 
-@bp.route("/register", methods=["POST"])
+@bp.route("/api/accounts/register", methods=["POST"])
 @csrf.exempt
 def register():
-    json_data = request.form.get("json")
-    # Parse the JSON
+    # Retrieve raw JSON data from the request body
+    json_data = request.data.decode("utf-8")
+
+    # Parse the JSON data
     try:
         session_data = json.loads(json_data)
     except json.JSONDecodeError as e:
         return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
-    email = session_data.get("email")
-    password = session_data.get("password")
 
+    email = session_data.get("email")
+    input_password = session_data.get("password")
+
+    if not email or not input_password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    # Check if the user already exists
     if User.query.filter_by(email=email).first():
         return jsonify({"message": "User already exists"}), 400
 
-    new_user = User(email=email, password=hash_password(password))
+    # Create the new user
+    hashed_password = hash_password(input_password)
+    print("input password: " + input_password)
+    print("hashed password: " + hashed_password)
+    new_user = User(email=email, password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
 
@@ -61,6 +72,8 @@ def login():
     if not user:
         print("User not found")
         return jsonify({"error": "User not found"}), 401
+    # if not check_password_hash(user.password, password):
+    #     print("no good")
 
     if not verify_password(password, user.password):
         print("Password mismatch")

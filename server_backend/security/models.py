@@ -15,16 +15,35 @@ fsqla.FsModels.set_db_info(db)
 roles_users = db.Table(
     "users_roles",  # Match the table name in DB
     db.Column("user_id", db.Integer, db.ForeignKey("user.user_id")),
-    db.Column("role_type_id", db.Integer, db.ForeignKey("role_type.id")),
+    db.Column("role_type_id", db.Integer, db.ForeignKey("role_type.role_type_id")),
 )
 
 
 class Role(db.Model, fsqla.FsRoleMixin):
     __tablename__ = "role_type"  # Match the table name in DB
 
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), unique=True)
-    description = db.Column(db.String(255))
+    role_type_id = db.Column(db.Integer, primary_key=True)
+    role_type_name = db.Column(db.String(255), unique=True)
+    role_type_description = db.Column(db.String(255))
+    permissions: Mapped[Optional[str]] = db.Column(db.TEXT, nullable=True)
+    update_datetime: Mapped[TIMESTAMP] = db.Column(
+        db.TIMESTAMP,
+        default=func.current_timestamp(),
+        onupdate=func.current_timestamp(),
+    )
+
+    # Used to make the naming match the expected naming in Flask-Security
+    @property
+    def id(self):
+        return self.role_type_id
+
+    @property
+    def name(self):
+        return self.role_type_name
+
+    @property
+    def description(self):
+        return self.role_type_description
 
 
 class User(db.Model, fsqla.FsUserMixin):
@@ -34,7 +53,8 @@ class User(db.Model, fsqla.FsUserMixin):
     first_name: Mapped[str] = db.Column(db.String(255))
     last_name: Mapped[str] = db.Column(db.String(255))
     email: Mapped[str] = db.Column(db.String(255))
-    user_password: Mapped[Optional[str]] = db.Column(db.String(255), nullable=True)
+    # user_password: Mapped[Optional[str]] = db.Column(db.String(255), nullable=True)
+    user_password: Mapped[Optional[str]] = db.Column(db.TEXT, nullable=True)
     created_at: Mapped[TIMESTAMP] = db.Column(
         db.TIMESTAMP, default=func.current_timestamp()
     )
@@ -82,5 +102,4 @@ class User(db.Model, fsqla.FsUserMixin):
 
     @password.setter
     def password(self, value):
-        # Let Flask-Security handle salting and hashing
-        self.user_password = hash_password(value)
+        self.user_password = value

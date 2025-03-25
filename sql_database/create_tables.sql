@@ -3,7 +3,7 @@ CREATE TABLE user (
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     email VARCHAR(255),
-    user_password VARCHAR(255),
+    user_password TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     active TINYINT(1) NOT NULL DEFAULT 1,
     fs_uniquifier VARCHAR(255),
@@ -28,7 +28,9 @@ CREATE TABLE user (
 CREATE TABLE role_type (
     role_type_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     role_type_name VARCHAR(255), 
-    role_type_description VARCHAR(255)
+    role_type_description VARCHAR(255),
+    permissions TEXT NULL,
+    update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE users_roles (

@@ -44,6 +44,7 @@ def create_app(testing=False):
 
     # Flask-Security configs
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    # app.config["SECURITY_PASSWORD_HASH"] = "argon2"
     app.config["SECURITY_PASSWORD_SALT"] = os.getenv("SECRET_PASSWORD_SALT")
     app.config["REMEMBER_COOKIE_SAMESITE"] = "strict"
     app.config["SESSION_COOKIE_SAMESITE"] = "strict"
