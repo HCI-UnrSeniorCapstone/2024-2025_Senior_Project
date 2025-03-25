@@ -53,7 +53,7 @@ class GlobalToolbar(QWidget):
 
         self.session_json = {}
         self.setup_ui()
-        self.facilitator_setup() # so facilitator can specify output path beforehand rather than during the session (cleaner)
+        self.facilitator_setup()  # so facilitator can specify output path beforehand rather than during the session (cleaner)
         self.trial_index = 0
         self.oldPos = None  # track toolbar pos on screen
         self.session_paused = False
@@ -352,7 +352,7 @@ class GlobalToolbar(QWidget):
             if self.trial_index == 0:
                 # Timestamp useful for saving to filesytem
                 sess_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                self.session_json["sessionStartTime"] = (sess_start_time)
+                self.session_json["sessionStartTime"] = sess_start_time
                 print(f"Session start time: {sess_start_time}")
             if self.trial_index > 0:
                 # Make sure prior trial's details are saved before moving fwd
@@ -372,15 +372,14 @@ class GlobalToolbar(QWidget):
 
             # Display info for new trial
             self.display_new_trial_info(task_dur, task_dirs)
-            
-            # Get trial start timestamp here for JSON 
+
+            # Get trial start timestamp here for JSON
             trial_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             self.trials[self.trial_index]["startedAt"] = trial_start_time
             print(f"Trial {self.trial_index + 1} start time: {trial_start_time}")
-            
+
             # Update session_json trials
             self.session_json["trials"] = self.trials
-            
 
             self.start_btn.setEnabled(False)  # disable for the rest of the session
             self.session_paused = False
@@ -597,7 +596,7 @@ class GlobalToolbar(QWidget):
                     try:
                         send_to_server(zip_path, self.session_json)
                         # print(self.session_json)
-                        
+
                     except Exception as e:
                         print(f"Error sending json: {e}")
 

@@ -80,9 +80,9 @@ def package_session_results(session_id, storage_path):
                             file_path = os.path.join(root, file)
                             arcname = os.path.relpath(file_path, dir_session)
                             zipf.write(file_path, arcname)
-        
+
         shutil.rmtree(dir_session)
         print(f"Session {session_id} results saved to {zip_path}!")
-        
+
     except Exception as e:
         print(f"Error occured while trying to package session {session_id}: {e}")
