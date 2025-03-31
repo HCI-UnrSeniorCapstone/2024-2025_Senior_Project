@@ -6,7 +6,7 @@ bp = Blueprint("trials", __name__)
 
 
 from app.utility.permutations import (
-    get_within_perm, 
+    get_within_perm,
     get_between_perm,
     calc_perm_hash,
 )
@@ -16,15 +16,18 @@ from app.utility.permutations import (
 @bp.route("/get_new_trials_perm/<int:study_id>", methods=["GET"])
 def get_new_trials_perm(study_id):
     try:
-        perm_length = request.args.get("trial_count", type = int)
-                
+        perm_length = request.args.get("trial_count", type=int)
+
         if not perm_length:
-            return jsonify({"error": "Missing a requested trial count in the request"}), 400
-        
+            return (
+                jsonify({"error": "Missing a requested trial count in the request"}),
+                400,
+            )
+
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         # Finding trial seq used in previous sessions
         prior_sequences_query = """
         SELECT
@@ -41,16 +44,16 @@ def get_new_trials_perm(study_id):
         """
         cur.execute(prior_sequences_query, (study_id,))
         results = cur.fetchall()
-        
+
         session_perms = defaultdict(list)
         for participant_session_id, task_id, factor_id in results:
             session_perms[participant_session_id].append((task_id, factor_id))
-        
+
         # Converting each perm into a hash value to compare against later
         used_perms = set()
         for perm in session_perms.values():
             used_perms.add(calc_perm_hash(perm))
-            
+
         # Get the study type
         get_study_type_query = """
         SELECT study_design_type_description
@@ -61,7 +64,7 @@ def get_new_trials_perm(study_id):
         """
         cur.execute(get_study_type_query, (study_id,))
         study_type = cur.fetchone()[0]
-        
+
         # Get all task ids for study
         get_task_ids = """
         SELECT DISTINCT task_id
@@ -70,7 +73,7 @@ def get_new_trials_perm(study_id):
         """
         cur.execute(get_task_ids, (study_id,))
         task_list = [row[0] for row in cur.fetchall()]
-        
+
         # Get all factor ids for study
         get_factor_ids = """
         SELECT DISTINCT factor_id
@@ -79,25 +82,23 @@ def get_new_trials_perm(study_id):
         """
         cur.execute(get_factor_ids, (study_id,))
         factor_list = [row[0] for row in cur.fetchall()]
-        
-        if study_type == 'Within':
-            perm, status = get_within_perm(task_list, factor_list, perm_length, used_perms)
-        elif study_type == 'Between':
-            perm, status = get_between_perm(task_list, factor_list, perm_length, used_perms)
+
+        if study_type == "Within":
+            perm, status = get_within_perm(
+                task_list, factor_list, perm_length, used_perms
+            )
+        elif study_type == "Between":
+            perm, status = get_between_perm(
+                task_list, factor_list, perm_length, used_perms
+            )
         else:
             return jsonify({"error": "Invalid study type encountered"}), 400
-        
-        return jsonify({
-            "new_perm": perm,
-            "status_msg": status
-        }), 200
+
+        return jsonify({"new_perm": perm, "status_msg": status}), 200
 
     except Exception as e:
-        return jsonify({
-            "error_type": type(e).__name__,
-            "error_message": str(e)
-        }), 500
-        
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
 
 # Finding the number of trials in a study's most recent session to enforce consistency as new sessions are made
 @bp.route("/previous_session_length/<int:study_id>", methods=["GET"])
@@ -106,7 +107,7 @@ def previous_session_length(study_id):
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         # Finding trials used in previous sessions
         previous_session_length_query = """
         SELECT COUNT(*) AS trial_count
@@ -121,19 +122,16 @@ def previous_session_length(study_id):
         """
         cur.execute(previous_session_length_query, (study_id,))
         result = cur.fetchone()[0]
-        
+
         # No sessions yet for this study
         if result == 0:
             return jsonify({"prev_length": None}), 200
-        
+
         else:
             return jsonify({"prev_length": result}), 200
 
     except Exception as e:
-        return jsonify({
-            "error_type": type(e).__name__,
-            "error_message": str(e)
-        }), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 # Finds the number of times each trial (task-factor pair) has been tested under a given study
@@ -143,7 +141,7 @@ def get_trial_occurrences(study_id):
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
-        
+
         # Finding trial sequences used in previous sessions
         prior_sequences_query = """
         SELECT
@@ -162,19 +160,16 @@ def get_trial_occurrences(study_id):
         """
         cur.execute(prior_sequences_query, (study_id,))
         results = cur.fetchall()
-        
+
         # Counting trial appearances throughout the retrieved sequences
         matrix = defaultdict(lambda: defaultdict(int))
         for task_name, factor_name in results:
             matrix[task_name][factor_name] += 1
-            
+
         res_matrix = {
             "matrix": {task: dict(factors) for task, factors in matrix.items()}
         }
         return jsonify(res_matrix)
-    
+
     except Exception as e:
-        return jsonify({
-            "error_type": type(e).__name__,
-            "error_message": str(e)
-        }), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
