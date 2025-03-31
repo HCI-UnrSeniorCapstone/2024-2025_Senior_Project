@@ -170,6 +170,17 @@
         </v-col>
       </v-row>
     </v-container>
+    <v-container class="d-flex flex-column align-center">
+      <!-- <h4>Trial Coverage</h4> -->
+      <v-card flat style="width: 80%; margin-left: 6%">
+        <coverage-heatmap
+          :tasks="heatmapTasks"
+          :factors="heatmapFactors"
+          :trials="heatmapMatrix"
+          :chart-height="200"
+        />
+      </v-card>
+    </v-container>
 
     <v-row justify="center">
       <v-col cols="auto">
@@ -181,6 +192,7 @@
 
 <script>
 import axios from 'axios'
+import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 
 export default {
   props: {
@@ -193,7 +205,9 @@ export default {
       required: true,
     },
   },
-
+  components: {
+    CoverageHeatmap,
+  },
   data() {
     return {
       studyName: '',
@@ -204,6 +218,7 @@ export default {
       factors: [],
       tab: null,
       focus_study: '',
+      // For the sessions table
       headers: [
         {
           align: 'start',
@@ -216,25 +231,29 @@ export default {
         { key: 'comment', title: 'Comments', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      // holds all the studies returned from the db query
+      // Holds all the sessions returned from the db query
       sessions: [],
+      // Heatmap details
+      heatmapMatrix: {},
+      heatmapTasks: [],
+      heatmapFactors: [],
     }
   },
 
   computed: {
     drawerProxy: {
       get() {
-        // for reading the parent's value (in UserStudies.vue)
+        // For reading the parent's value (in UserStudies.vue)
         return this.drawer
       },
       set(value) {
-        // emits an update/notification to the parent
+        // Emits an update/notification to the parent
         this.$emit('update:drawer', value)
       },
     },
   },
 
-  // watching for dynamic changes to the studyID and calls fetch route when it changes
+  // Watching for dynamic changes to the studyID and calls fetch route when it changes
   watch: {
     studyID: {
       immediate: true,
@@ -249,8 +268,13 @@ export default {
     },
   },
 
+  async mounted() {
+    // For populating trial coverage heatmap immediately
+    this.getTrialOccurrences()
+  },
+
   methods: {
-    // retrieving all information on the study
+    // Retrieving all information on the study
     async fetchStudyDetails(studyID) {
       if (!studyID) {
         console.warn('No studyID to use as needed by the route')
@@ -275,33 +299,35 @@ export default {
         console.error('Error fetching study details:', error)
       }
     },
+
+    // Download a zip with the data of all sessions under the given study
     async downloadParticipantSessionData(sessionID) {
-    try {
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
 
-      const response = await axios.get(path, {
-        responseType: 'blob'
-      })
+        const response = await axios.get(path, {
+          responseType: 'blob',
+        })
 
-      // Get the content-disposition header to extract the filename
-      const disposition = response.headers['content-disposition']
-      const filename = disposition
-        ? disposition.split('filename=')[1].replace(/"/g, '')  // extracting the filename from header
-        : 'download.zip'
+        // Get the content-disposition header to extract the filename
+        const disposition = response.headers['content-disposition']
+        const filename = disposition
+          ? disposition.split('filename=')[1].replace(/"/g, '') // Extracting the filename from header
+          : 'download.zip'
 
-      // Download
-      const blob = new Blob([response.data], { type: 'application/zip' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = filename
-      link.click()
+        // Download
+        const blob = new Blob([response.data], { type: 'application/zip' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = filename
+        link.click()
+      } catch (error) {
+        console.error('Error downloading session data:', error)
+      }
+    },
 
-    } catch (error) {
-      console.error('Error downloading session data:', error)
-    }
-  },
-    // populating the sessions table
+    // Populating the sessions table
     async populateSessions(sessionID) {
       try {
         const backendUrl = this.$backendUrl
@@ -323,10 +349,26 @@ export default {
       }
     },
 
+    // Getting trial appearances from prior sessions to populate the heatmap
+    async getTrialOccurrences() {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_trial_occurrences/${this.studyID}`
+        const response = await axios.get(path)
+
+        this.heatmapTasks = this.tasks.map(t => t.taskName)
+        this.heatmapFactors = this.factors.map(f => f.factorName)
+        this.heatmapMatrix = response.data.matrix
+      } catch (error) {
+        console.error('Error fetching trial occurrences:', error)
+      }
+    },
+
     closeDrawer() {
       this.$emit('update:drawer', false)
     },
 
+    // Routes to session reporting pg if user selects a specific session to look at
     openSession(item) {
       this.$router.push({
         name: 'SessionReporting',
@@ -334,6 +376,7 @@ export default {
       })
     },
 
+    // Determines the status color
     getColor(status) {
       if (status == 'Invalid') {
         return 'red'
@@ -342,11 +385,12 @@ export default {
       }
     },
 
-    // route to an empty study form page
+    // Route to an empty study form page
     startNewSession() {
       this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
     },
-    // route to create study form
+
+    // Route to a pre-populated study form pg
     editExistingStudy() {
       this.$router.push({
         name: 'StudyForm',
@@ -361,47 +405,38 @@ export default {
 .study-name {
   font-weight: bold;
 }
-
 .v-toolbar-title {
   font-size: 18px;
 }
-
 .v-divider {
   margin: 10px 0;
 }
-
 .elevation-2 {
   background-color: #ffffff;
 }
-
 .v-chip {
   font-size: 14px;
   margin: 3px;
   padding: 2px 4px;
 }
-
 .custom-tabs {
   background: transparent !important;
   border-bottom: 1px solid #ccc;
 }
-
 .v-tab {
   color: #000;
 }
-
 .v-tab--active {
   font-weight: bold;
   border-bottom: 2px solid #3f51b5 !important;
   color: #3f51b5 !important;
 }
-
 .study-description {
   color: #595959;
   font-size: 14px;
   font-weight: 400;
   margin-bottom: 10px;
 }
-
 .task-detail {
   margin-left: 20px;
   font-size: 14px;

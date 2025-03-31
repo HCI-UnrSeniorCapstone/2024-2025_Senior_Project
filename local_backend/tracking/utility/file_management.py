@@ -66,25 +66,23 @@ def write_to_csv(measurement_type, feature, arr_data, is_used, task, dir_trial):
         df.to_csv(file_path, index=False)
 
 
-# Creates a zip
-def zip_folder(folder_path, zip_name):
-    with zipfile.ZipFile(zip_name, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                arcname = os.path.relpath(file_path, os.path.dirname(folder_path))
-                zipf.write(file_path, arcname)
-
-
 # Packages a folder containing all session data into a zip file
 def package_session_results(session_id, storage_path):
     dir_session = get_save_dir(storage_path, session_id)
-
     zip_path = os.path.join(storage_path, f"session_results_{session_id}.zip")
-
     try:
-        zip_folder(dir_session, zip_path)
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for trial_folder in os.listdir(dir_session):
+                trial_path = os.path.join(dir_session, trial_folder)
+                if os.path.isdir(trial_path):
+                    for root, _, files in os.walk(trial_path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path, dir_session)
+                            zipf.write(file_path, arcname)
+
         shutil.rmtree(dir_session)
         print(f"Session {session_id} results saved to {zip_path}!")
+
     except Exception as e:
         print(f"Error occured while trying to package session {session_id}: {e}")
