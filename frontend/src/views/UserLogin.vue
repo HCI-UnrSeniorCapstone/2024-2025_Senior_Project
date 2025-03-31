@@ -43,7 +43,26 @@
   
   <script>
   import axios from 'axios'
-  
+  const apiClient = axios.create({
+  baseURL: this.$backendUrl,
+  withCredentials: true, // Ensures session cookie is sent
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Intercept requests to attach CSRF token
+apiClient.interceptors.request.use((config) => {
+  const csrfToken = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("XSRF-TOKEN="))
+    ?.split("=")[1];
+
+  if (csrfToken) {
+    config.headers["X-CSRF-TOKEN"] = csrfToken;
+  }
+  return config;
+});
   export default {
     name: 'TestDatabase',
     data() {
@@ -66,29 +85,16 @@
   // Handle login request
   login() {
   // Get the CSRF token from the meta tag or cookie
-  const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-  if (!csrfToken) {
-    console.error('CSRF token not found');
-    this.msg = 'CSRF token is missing';
-    return;
-  }
-
   const backendUrl = this.$backendUrl; // Ensure this is set correctly
   const path = `${backendUrl}/api/accounts/login`;
 
   // Send the login request with CSRF token in the headers
-  axios.post(path, {
-    email: this.username,
-    password: this.password,
-  }, {
-    headers: {
-      'X-CSRF-TOKEN': csrfToken,  // Attach CSRF token in the header
-    }
-  })
+  apiClient.post("/api/accounts/logout"){
+    
+  }
   .then(res => {
     this.loggedIn = true;
-    this.user = res.data.user;  // Store logged-in user's data
+    //this.user = res.data.user;  // Store logged-in user's data
     this.msg = 'Login successful';
     this.fetchData();  // Fetch data after successful login
   })
