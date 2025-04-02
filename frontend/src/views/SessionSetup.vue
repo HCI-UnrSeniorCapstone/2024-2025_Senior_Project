@@ -25,33 +25,25 @@
               >
               </v-text-field>
               <!-- Randomization btn -->
-              <v-tooltip text="Generate Random Permutation">
-                <template v-slot:activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon
-                    @click="getPermutation"
-                    color="transparent"
-                    class="ml-2"
-                  >
-                    <v-icon>mdi-dice-6-outline</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
+              <v-btn
+                v-tooltip="'Generate Random Permutation'"
+                icon
+                @click="getPermutation"
+                color="transparent"
+                class="ml-2"
+              >
+                <v-icon>mdi-dice-6-outline</v-icon>
+              </v-btn>
               <!-- Reset btn -->
-              <v-tooltip text="Reset to Recommended">
-                <template v-slot:activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon
-                    @click="resetCount"
-                    color="transparent"
-                    class="ml-2"
-                  >
-                    <v-icon>mdi-restart</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
+              <v-btn
+                v-tooltip="'Reset'"
+                icon
+                @click="resetCount"
+                color="transparent"
+                class="ml-2"
+              >
+                <v-icon>mdi-restart</v-icon>
+              </v-btn>
             </div>
 
             <!-- Warning msg for recommended length -->

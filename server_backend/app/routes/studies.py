@@ -508,16 +508,16 @@ def load_study(study_id):
         # Creating the study obj before adding measurement option info
         study_data = {
             "studyName": study_res[0],
-            "studyDescription": study_res[1] or "No study description provided",
+            "studyDescription": study_res[1],
             "studyDesignType": study_res[4],
             "participantCount": str(study_res[2]),
             "tasks": [
                 {
                     "taskID": task[0],
                     "taskName": task[1],
-                    "taskDescription": task[2] or "No task description provided",
-                    "taskDirections": task[3] or "No task directions provided",
-                    "taskDuration": str(task[4]),
+                    "taskDescription": task[2],
+                    "taskDirections": task[3],
+                    "taskDuration": task[4],
                     "measurementOptions": [],
                 }
                 for task in task_res
@@ -526,7 +526,7 @@ def load_study(study_id):
                 {
                     "factorID": factor[0],
                     "factorName": factor[1],
-                    "factorDescription": factor[2] or "No factor description provided",
+                    "factorDescription": factor[2],
                 }
                 for factor in factor_res
             ],

@@ -8,10 +8,7 @@
     <v-toolbar flat dense color="white">
       <v-toolbar-title> {{ studyName }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn icon @click="editExistingStudy">
-        <v-icon color="secondary">mdi-pencil</v-icon>
-      </v-btn>
-      <v-btn icon @click="closeDrawer">
+      <v-btn v-tooltip="'Close'" icon @click="closeDrawer">
         <v-icon color="secondary">mdi-close</v-icon>
       </v-btn>
     </v-toolbar>
@@ -71,14 +68,14 @@
               <v-list-item v-for="(task, index) in tasks" :key="index">
                 <v-list-item-title>{{ task.taskName }}</v-list-item-title>
                 <v-list-item-subtitle>{{
-                  task.taskDescription
+                  task.taskDescription || 'No task description provided'
                 }}</v-list-item-subtitle>
                 <p class="task-detail">
                   Duration:
                   {{
-                    task.taskDuration !== 'None'
+                    task.taskDuration && !isNaN(task.taskDuration)
                       ? parseFloat(task.taskDuration).toFixed(2) + ' minutes'
-                      : 'N/A'
+                      : 'No duration set'
                   }}
                 </p>
                 <p class="task-detail">
@@ -108,7 +105,7 @@
               <v-list-item v-for="(factor, index) in factors" :key="index">
                 <v-list-item-title>{{ factor.factorName }}</v-list-item-title>
                 <v-list-item-subtitle>{{
-                  factor.factorDescription
+                  factor.factorDescription || 'No factor description provided'
                 }}</v-list-item-subtitle>
                 <v-divider class="mb-2"></v-divider>
               </v-list-item>
@@ -150,6 +147,7 @@
               </template>
               <template v-slot:item.actions="{ item }">
                 <v-icon
+                  v-tooltip="'Download Results'"
                   class="me-2"
                   size="small"
                   @click.stop="downloadParticipantSessionData(item.sessionID)"
@@ -157,13 +155,14 @@
                   mdi-download
                 </v-icon>
                 <v-icon
+                  v-tooltip="'Open'"
                   class="me-2"
                   size="small"
                   @click.stop="openSession(item)"
                 >
                   mdi-arrow-expand
                 </v-icon>
-                <v-icon size="small"> mdi-delete </v-icon>
+                <v-icon v-tooltip="'Delete'" size="small"> mdi-delete </v-icon>
               </template>
             </v-data-table>
           </v-card>
@@ -290,7 +289,8 @@ export default {
         console.log(this.focus_study)
 
         this.studyName = this.focus_study.studyName
-        this.studyDescription = this.focus_study.studyDescription || 'N/A'
+        this.studyDescription =
+          this.focus_study.studyDescription || 'No study description'
         this.studyDesignType = this.focus_study.studyDesignType
         this.participantCount = this.focus_study.participantCount
         this.tasks = this.focus_study.tasks

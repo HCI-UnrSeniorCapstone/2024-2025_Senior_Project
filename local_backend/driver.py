@@ -426,10 +426,16 @@ class GlobalToolbar(QWidget):
     def display_new_trial_info(self, dur, dir):
         trial_start_msg = QMessageBox()
         trial_start_msg.setWindowTitle(f"Task {self.trial_index + 1}")
+        
+        contents = ""
+        if dir:
+            contents += f"Directions: {dir}\n"
         if dur:
-            trial_start_msg.setText(f"Directions: {dir}\nDuration: {dur} minutes")
+            contents += f"Duration: {dur} minutes"
         else:
-            trial_start_msg.setText(f"Directions: {dir}\nDuration: No time limit")
+            contents += f"Duration: No time limit"
+        
+        trial_start_msg.setText(contents)
 
         trial_start_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         # Customize to prevent close button from actually working
@@ -521,6 +527,8 @@ class GlobalToolbar(QWidget):
             task_id = str(curr_trial["taskID"])
             task = self.tasks[task_id]
             task_dirs = task["taskDirections"]
+            if not task_dirs:
+                task_dirs = 'Ask facilitator for directions if needed'
             help_msg.setText(
                 f"<b>Directions:</b>\n"
                 f"<ul><li>{task_dirs}</li></ul>"
@@ -628,35 +636,46 @@ class GlobalToolbar(QWidget):
         save_msg.show()
         QApplication.processEvents()
 
-        # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
-        if not data_storage_complete_event.is_set():
-            while not data_storage_complete_event.is_set():
-                time.sleep(0.1)
-                QApplication.processEvents()
-
         curr_trial = self.trials[self.trial_index - 1]
         curr_task_id = str(curr_trial["taskID"])
         curr_task = self.tasks[curr_task_id]
         curr_measurements = curr_task["measurementOptions"]
+        
+        # Accounting for future expansion where the user may bave specified "Other" collection mechanisms which we do not handle tracking for
+        supported_measurements = {
+            "Mouse Movement",
+            "Mouse Clicks",
+            "Mouse Scrolls",
+            "Keyboard Inputs",
+            "Screen Recording",
+            "Heat Map",
+        }
+        
+        if set(curr_measurements) & supported_measurements:
+            # Have to use while loops here or else while waiting the overlaying pop-up will freeze. Using this we can invoke an update to UI
+            if not data_storage_complete_event.is_set():
+                while not data_storage_complete_event.is_set():
+                    time.sleep(0.1)
+                    QApplication.processEvents()
+                    
+            if "Heat Map" in curr_measurements and not heatmap_generation_complete.is_set():
+                while not heatmap_generation_complete.is_set():
+                    time.sleep(0.1)
+                    QApplication.processEvents()
 
-        if "Heat Map" in curr_measurements and not heatmap_generation_complete.is_set():
-            while not heatmap_generation_complete.is_set():
-                time.sleep(0.1)
-                QApplication.processEvents()
+            if recording_active.is_set():
+                recording_stop.set()
+                while recording_active.is_set():
+                    time.sleep(0.1)
+                    QApplication.processEvents()
 
-        if recording_active.is_set():
-            recording_stop.set()
-            while recording_active.is_set():
-                time.sleep(0.1)
-                QApplication.processEvents()
-
-        if (
-            "Screen Recording" in curr_measurements
-            and not adjustments_finished.is_set()
-        ):
-            while not adjustments_finished.is_set():
-                time.sleep(0.1)
-                QApplication.processEvents()
+            if (
+                "Screen Recording" in curr_measurements
+                and not adjustments_finished.is_set()
+            ):
+                while not adjustments_finished.is_set():
+                    time.sleep(0.1)
+                    QApplication.processEvents()
 
         save_msg.close()
 
