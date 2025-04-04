@@ -264,12 +264,17 @@ export default {
   },
 
   // view will load with 1 task and factor populated automatically
-  mounted() {
+  async mounted() {
     this.addTaskFactor('task')
     this.addTaskFactor('factor')
-    // Passed in from redirect
-    this.studyID = this.$route.params.studyID
-    this.userID = this.$route.params.userID
+    // Passed params when an existing study is being opened for editing
+    this.studyID = this.$route.params.studyID || null
+    this.userID = this.$route.params.userID || null
+    this.editMode = !!this.studyID
+
+    if (this.editMode) {
+      await this.fetchStudyDetails(this.studyID)
+    }
   },
 
   computed: {
@@ -412,6 +417,26 @@ export default {
       }, 1500)
     },
 
+    // Retrieving all information on the study
+    async fetchStudyDetails(studyID) {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/load_study/${studyID}`
+        const response = await axios.get(path)
+
+        const study_edit = response.data
+
+        this.studyName = study_edit.studyName
+        this.studyDescription = study_edit.studyDescription
+        this.studyDesignType = study_edit.studyDesignType
+        this.participantCount = study_edit.participantCount
+        this.tasks = study_edit.tasks
+        this.factors = study_edit.factors
+      } catch (error) {
+        console.error('Error fetching details of existing study:', error)
+      }
+    },
+
     async submit() {
       const submissionData = {
         studyName: this.studyName,
@@ -437,7 +462,7 @@ export default {
         let path
         let response
         // Making new study vs editing
-        if (this.studyID != '' && this.userID != '') {
+        if (this.studyID && this.userID) {
           path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
           response = await axios.put(path, submissionData)
         } else {

@@ -75,11 +75,17 @@ def package_session_results(session_id, storage_path):
             for trial_folder in os.listdir(dir_session):
                 trial_path = os.path.join(dir_session, trial_folder)
                 if os.path.isdir(trial_path):
-                    for root, _, files in os.walk(trial_path):
-                        for file in files:
-                            file_path = os.path.join(root, file)
-                            arcname = os.path.relpath(file_path, dir_session)
-                            zipf.write(file_path, arcname)
+                    # Empty trial folders (user used alt methods for collecting data) must still be included in zip
+                    if not os.listdir(trial_path):
+                        arcname = os.path.relpath(trial_path, dir_session) + "/"
+                        zip_info = zipfile.ZipInfo(arcname)
+                        zipf.writestr(zip_info, "")
+                    else:
+                        for root, _, files in os.walk(trial_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                arcname = os.path.relpath(file_path, dir_session)
+                                zipf.write(file_path, arcname)
 
         shutil.rmtree(dir_session)
         print(f"Session {session_id} results saved to {zip_path}!")
