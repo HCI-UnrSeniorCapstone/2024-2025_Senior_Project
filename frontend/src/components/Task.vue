@@ -86,10 +86,16 @@ export default {
           'Task directions must be less than 250 characters.',
       ],
       taskDurationRules: [
-        v =>
-          v === '' ||
-          Number(v) > 0 ||
-          'A set duration must be greater than 0 min.',
+        v => {
+          if (v == '') {
+            return true
+          }
+          const num = Number(v)
+          return (
+            (Number.isFinite(num) && num > 0) ||
+            'A set duration must be greater than 0 min.'
+          )
+        },
       ],
     }
   },

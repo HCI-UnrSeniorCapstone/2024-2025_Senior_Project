@@ -8,6 +8,8 @@ import pandas as pd
 from app.utility.studies import (
     create_study_details,
     create_study_task_factor_details,
+    save_study_consent_form,
+    remove_study_consent_form,
 )
 from app.utility.db_connection import get_db_connection
 from app import create_app
@@ -21,40 +23,22 @@ bp = Blueprint("studies", __name__)
 @bp.route("/create_study/<int:user_id>", methods=["POST"])
 def create_study(user_id):
     # Get request and convert to json
-    submissionData = request.get_json()
-    if not submissionData:
+    submission_data = request.form.get("data")
+    if not submission_data:
         return {"error": "No study data provided"}, 400
 
-    # Formatting display
-    # json_object = json.dumps(submissionData, indent=4)
+    try:
+        submission_data = json.loads(submission_data)
+    except Exception:
+        return jsonify({"error": "Failed to parse JSON"}), 400
+    
     try:
         # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()
 
-        study_id = create_study_details(submissionData, cur)
-        create_study_task_factor_details(study_id, submissionData, cur)
-
-        # # CREATES NEW USER. THIS MUST BE CHANGED WHEN WE HAVE USER SESSION IDS
-        # select_user_query = """
-        # SELECT user_id FROM user WHERE first_name = 'TEST' AND last_name = 'TEST' AND email = 'broYrUreadingThis@example.com'
-        # """
-
-        # cur.execute(select_user_query)
-
-        # # If None then user doesn't exist
-        # existing_user = cur.fetchone()
-
-        # if existing_user:
-        #     user_id = existing_user[0]
-        # # Make user
-        # else:
-        #     insert_user_query = """
-        #     INSERT INTO user (first_name, last_name, email)
-        #     VALUES ('TEST', 'TEST', 'broYrUreadingThis@example.com')
-        #     """
-
-        #     cur.execute(insert_user_query)
+        study_id = create_study_details(submission_data, cur)
+        create_study_task_factor_details(study_id, submission_data, cur)
 
         # Get owner id
         select_study_user_role_type = """
@@ -72,15 +56,24 @@ def create_study(user_id):
         cur.execute(
             insert_study_user_role_query, (user_id, study_id, study_user_role_type_id)
         )
+        
+        # Attempt to save consent form if provided
+        if "consent_file" in request.files:
+            file = request.files["consent_file"]
+            base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+            save_study_consent_form(study_id, file, cur, base_dir)
 
         # Commit changes to the database
         conn.commit()
 
         # Close cursor
         cur.close()
-        return jsonify({"message": "Study created successfully"}), 200
+        return jsonify({"message": "Study created successfully", "study_id": study_id}), 200
 
     except Exception as e:
+        # Ensure atomicity so if study json or file saves fail we rollback
+        if 'conn' in locals():
+            conn.rollback()
         # Error message
         error_type = type(e).__name__
         error_message = str(e)
@@ -163,13 +156,18 @@ def is_overwrite_study_allowed(user_id, study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["PUT"])
+@bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["POST"])
 def overwrite_study(user_id, study_id):
-    # Get request and convert to json
-    submissionData = request.get_json()
+    submission_data = request.form.get("data")
+    if not submission_data:
+        return jsonify({"error": "No study data provided"}), 400
+    
+    try:
+        # Get request and convert to json
+        submission_data = json.loads(submission_data)
+    except Exception:
+        return jsonify({"error": "Failed to parse JSON"}), 400
 
-    # Formatting display
-    json_object = json.dumps(submissionData, indent=4)
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -249,7 +247,7 @@ def overwrite_study(user_id, study_id):
             # Get study_design_type
             cur.execute(
                 "SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s",
-                (submissionData["studyDesignType"],),
+                (submission_data["studyDesignType"],),
             )
             result = cur.fetchone()
             study_design_type_id = result[0]
@@ -264,9 +262,9 @@ def overwrite_study(user_id, study_id):
             WHERE study_id = %s;
             """
 
-            study_name = submissionData["studyName"]
-            study_description = submissionData["studyDescription"]
-            expected_participants = submissionData["participantCount"]
+            study_name = submission_data["studyName"]
+            study_description = submission_data["studyDescription"]
+            expected_participants = submission_data["participantCount"]
 
             # Execute study update
             cur.execute(
@@ -281,16 +279,28 @@ def overwrite_study(user_id, study_id):
             )
 
             # Build up rest of info
-            create_study_task_factor_details(study_id, submissionData, cur)
+            create_study_task_factor_details(study_id, submission_data, cur)
+            
+            # Attempt to save consent form if provided
+            base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+            if "consent_file" in request.files:
+                file = request.files["consent_file"]
+                save_study_consent_form(study_id, file, cur, base_dir)
+            else:
+                # If no provided consent file we attempt to delete because we could be in the edit study form view and user is trying to remove
+                remove_study_consent_form(study_id, cur)
 
             # Commit the transaction
             conn.commit()
             # Close cursor
             cur.close()
 
-        return jsonify({"message": "Study overwritten successfully"}), 200
+            return jsonify({"message": "Study overwritten successfully"}), 200
 
     except Exception as e:
+        # Ensure atomicity so if study json or file saves fail we rollback
+        if 'conn' in locals():
+            conn.rollback()
         # Error message
         error_type = type(e).__name__
         error_message = str(e)
@@ -627,3 +637,38 @@ def delete_study(study_id, user_id):
 
         # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+@bp.route("/get_study_consent_form/<int:study_id>", methods=["GET"])
+def get_study_consent_form(study_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        consent_form_details_query = """
+        SELECT
+            file_path,
+            original_filename
+        FROM consent_form
+        WHERE study_id = %s
+        """
+        cur.execute(consent_form_details_query, (study_id,))
+        results = cur.fetchone()
+        cur.close()
+
+        # Study never had an assoc consent form which is okay
+        if not results:
+            return '', 204
+
+        file_path, origin_filename = results
+        
+        # Db suggest a consent file should exist but could not retrieve one
+        if not os.path.isfile(file_path):
+            return jsonify({"error": "Consent form retrieval failed."}), 404
+
+        response = send_file(file_path, mimetype='application/pdf', as_attachment=False)
+        response.headers['X-Original-Filename'] = origin_filename # Need to rename file from filesystem convention to original
+        response.headers['Access-Control-Expose-Headers'] = 'X-Original-Filename'
+        return response
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500

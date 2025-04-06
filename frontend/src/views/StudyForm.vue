@@ -141,7 +141,44 @@
               </v-btn>
             </div>
 
-            <v-row class="btn-row" justify="center">
+            <h3>Forms/Uploads</h3>
+            <div class="text-medium-emphasis">
+              (All file uploads below are optional)
+            </div>
+            <!-- Consent Form Upload -->
+            <FileUploadAndPreview
+              v-model="consentForm"
+              label="Consent Form (PDF)"
+              accept=".pdf,.txt,.md"
+              @preview="previewConsentForm"
+            ></FileUploadAndPreview>
+
+            <!-- May remove these if I decide to not use yaml files but a form API instead -->
+
+            <!-- Pre-survey Questions Upload (Optional)-->
+            <FileUploadAndPreview
+              v-model="preSurveyFile"
+              label="Pre-survey Questionnaire (YAML)"
+              accept=".yaml,.yml"
+              @preview="previewConsentForm"
+            ></FileUploadAndPreview>
+
+            <!-- Post-survey Questions Upload (Optional)-->
+            <FileUploadAndPreview
+              v-model="postSurveyFile"
+              label="Post-survey Questionnaire (YAML)"
+              accept=".yaml,.yml"
+              @preview="previewConsentForm"
+            ></FileUploadAndPreview>
+
+            <!-- -->
+
+            <ConsentAckScreen
+              v-model:display="showConsentPreview"
+              :form="consentForm"
+            />
+
+            <v-row class="btn-row mt-8" justify="center">
               <v-btn
                 class="me-4 save-exit-btn"
                 @click="
@@ -206,14 +243,21 @@ import Factor from '../components/Factor.vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
+import FileUploadAndPreview from '@/components/FileUploadAndPreview.vue'
+import ConsentAckScreen from '@/components/ConsentAckScreen.vue'
 
 export default {
-  components: { Task, Factor },
+  components: {
+    Task,
+    Factor,
+    FileUploadAndPreview,
+    ConsentAckScreen,
+  },
 
   setup() {
     const router = useRouter()
     const exit = () => {
-      router.go(-1)
+      router.push({ name: 'UserStudies' })
     }
     const factorRefs = ref([])
     const taskRefs = ref([])
@@ -233,6 +277,11 @@ export default {
       // used to track the state of task & factor expansion panels
       expandedTPanels: [0],
       expandedFPanels: [0],
+      // Forms
+      consentForm: null,
+      showConsentPreview: false,
+      preSurveyFile: null,
+      postSurveyFile: null,
       // input validation for form fields (not tasks or factors)
       studyNameRules: [
         v => !!v || 'Study name is required.',
@@ -408,6 +457,12 @@ export default {
       this.dialog = false
     },
 
+    previewConsentForm() {
+      if (this.consentForm) {
+        this.showConsentPreview = true
+      }
+    },
+
     studySaveStatus(type, msg) {
       this.alertType = type
       this.alertMessage = msg
@@ -421,7 +476,7 @@ export default {
     async fetchStudyDetails(studyID) {
       try {
         const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${studyID}`
+        let path = `${backendUrl}/load_study/${studyID}`
         const response = await axios.get(path)
 
         const study_edit = response.data
@@ -430,8 +485,32 @@ export default {
         this.studyDescription = study_edit.studyDescription
         this.studyDesignType = study_edit.studyDesignType
         this.participantCount = study_edit.participantCount
-        this.tasks = study_edit.tasks
+        this.tasks = study_edit.tasks.map(task => ({
+          ...task,
+          taskDuration: task.taskDuration !== null ? task.taskDuration : '',
+        }))
         this.factors = study_edit.factors
+
+        // Consent form
+        try {
+          path = `${backendUrl}/get_study_consent_form/${studyID}`
+          const consentResponse = await axios.get(path, {
+            responseType: 'blob',
+          })
+          if (consentResponse.status == 200) {
+            const fName =
+              consentResponse.headers['x-original-filename'] ||
+              'consent_form.pdf'
+            const blob = new File([consentResponse.data], fName, {
+              type: 'application/pdf',
+            })
+            this.consentForm = blob
+          }
+        } catch (err) {
+          if (err.response.status !== 204) {
+            console.warn('Consent form retrieval failed:', err)
+          }
+        }
       } catch (error) {
         console.error('Error fetching details of existing study:', error)
       }
@@ -456,19 +535,28 @@ export default {
         })),
       }
 
-      console.log(JSON.stringify(submissionData, null, 2))
       try {
         const backendUrl = this.$backendUrl
         let path
+        const formData = new FormData()
+
+        formData.append('data', JSON.stringify(submissionData))
+        if (this.consentForm) {
+          formData.append('consent_file', this.consentForm)
+        }
+
         let response
-        // Making new study vs editing
+        // Editing existing study > overwrite
         if (this.studyID && this.userID) {
           path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
-          response = await axios.put(path, submissionData)
+          response = await axios.post(path, formData)
         } else {
+          // Creating a new study
           path = `${backendUrl}/create_study/1`
-          response = await axios.post(path, submissionData)
+          response = await axios.post(path, formData)
         }
+
+        // Everything successfully saved
         this.studySaveStatus('success', 'Study saved successfully!')
         setTimeout(() => {
           this.exit()

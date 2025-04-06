@@ -385,17 +385,9 @@ export default {
       }
     },
 
-    // Route to an empty study form page
+    // Route to view for session setup
     startNewSession() {
       this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
-    },
-
-    // Route to a pre-populated study form pg
-    editExistingStudy() {
-      this.$router.push({
-        name: 'StudyForm',
-        params: { studyID: this.studyID, userID: 1 }, // 1 is hardcoded for now until we have users
-      })
     },
   },
 }
