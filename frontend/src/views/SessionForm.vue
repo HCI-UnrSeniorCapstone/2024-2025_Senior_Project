@@ -1,7 +1,12 @@
 <template>
   <v-main>
     <v-container class="mt-5">
-      <v-row v-if="showForm">
+      <ConsentAckScreen
+        v-model:display="showConsentForm"
+        :form="consentForm"
+        @acknowledged="onAcknowledgement"
+      />
+      <v-row v-if="showDemographicForm">
         <v-col cols="12" md="10">
           <form @submit.prevent="submit">
             <h2>Participant Information</h2>
@@ -69,58 +74,40 @@
 
             <v-row class="btn-row" justify="center">
               <v-btn
-                class="me-4 cancel-begin-btn"
+                class="me-4 quit-next-btn"
                 color="error"
                 @click="
                   displayDialog({
-                    title: 'Cancel Confirmation',
-                    text: 'Are you sure you want to cancel?',
-                    source: 'cancel',
+                    title: 'Quit Confirmation',
+                    text: 'Are you sure you want to quit the session?',
+                    source: 'quit',
                   })
                 "
-                >Cancel</v-btn
+                >Quit</v-btn
               >
               <v-btn
-                class="me-4 cancel-begin-btn"
+                class="me-4 quit-next-btn"
                 type="submit"
-                :disabled="!isFormValid"
+                :disabled="
+                  !isFormValid ||
+                  !showDemographicForm ||
+                  (hasConsentForm && !consentAcknowledged)
+                "
                 @click="
                   displayDialog({
-                    title: 'Begin Session Confirmation',
-                    text: 'Are you sure you want to begin the session?',
-                    source: 'begin',
+                    title: 'Continue',
+                    text: 'Are you sure you want to move forward?',
+                    source: 'next',
                   })
                 "
                 color="success"
-                >Begin Session</v-btn
+                >Next</v-btn
               >
             </v-row>
           </form>
         </v-col>
       </v-row>
 
-      <div v-else class="timer-counter">
-        <v-progress-circular
-          :model-value="progressTimer"
-          :size="150"
-          :width="15"
-          color="primary"
-        >
-        </v-progress-circular>
-        <div class="timer-msgs">
-          <p class="timer-msg">Session starting in {{ timer }} seconds...</p>
-          <p class="timer-mini-msg">
-            Minimize the window now and open the experiment
-          </p>
-          <v-btn
-            v-if="resultsAvailable"
-            class="me-4 res-btn"
-            color="secondary"
-            @click="goToResults()"
-            >View Results</v-btn
-          >
-        </div>
-      </div>
       <div class="text-center pa-4">
         <v-dialog v-model="dialog" max-width="400" persistent>
           <v-card
@@ -145,14 +132,19 @@
 <script>
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import ConsentAckScreen from '@/components/ConsentAckScreen.vue'
 
 export default {
   props: ['formattedStudy'],
 
+  components: {
+    ConsentAckScreen,
+  },
+
   setup() {
     const router = useRouter()
     const exit = () => {
-      router.go(-1)
+      router.push({ name: 'UserStudies' })
     }
 
     return { exit }
@@ -160,10 +152,7 @@ export default {
 
   data() {
     return {
-      showForm: true,
-      timer: 5,
-      timerInterval: null,
-      resultsAvailable: false,
+      showDemographicForm: false,
       studyData: null,
       participantSessId: null,
 
@@ -198,12 +187,29 @@ export default {
         text: '',
         source: '',
       },
+
+      // Participant Consent Fields
+      showConsentForm: false,
+      consentForm: null,
+      consentAcknowledged: false,
+      hasConsentForm: false,
     }
   },
 
   mounted() {
     this.studyData = this.formattedStudy
-    console.log('Received Formatted Study Json:', this.studyData)
+  },
+
+  watch: {
+    formattedStudy: {
+      handler(newVal) {
+        if (newVal && newVal.study_id) {
+          this.studyData = newVal
+          this.fetchConsentForm()
+        }
+      },
+      immediate: true,
+    },
   },
 
   computed: {
@@ -233,14 +239,10 @@ export default {
         techCompCheck
       )
     },
-
-    progressTimer() {
-      return (this.timer / 5) * 100
-    },
   },
 
   methods: {
-    // dynamic confirmation for canceling or beginning the session
+    // dynamic confirmation for quitting or advancing the session
     displayDialog(details) {
       this.dialogDetails = details
       this.dialog = true
@@ -248,33 +250,32 @@ export default {
 
     // if they agree to exit we route elsewhere, if they agree to start we notify they can close window and start session
     closeDialog(source) {
-      if (source == 'begin') {
-        this.sessionStarted()
-      } else if (source == 'cancel') {
+      if (source == 'next') {
+        this.moveNext()
+      } else if (source == 'quit') {
         this.exit()
       }
       this.dialog = false
     },
 
-    // when a session is initiated and confirmed the form should go away and instead tell the user they can minimize the website to open their experiment
-    sessionStarted() {
-      this.showForm = false
-      this.timerInterval = setInterval(() => {
-        if (this.timer > 0) {
-          this.timer -= 1
-        } else {
-          clearInterval(this.timerInterval)
-          this.getSessionID()
-          this.resultsAvailable = true
-        }
-      }, 1000)
-    },
+    async moveNext() {
+      try {
+        await this.getSessionID()
+        if (this.participantSessId) {
+          if (this.hasConsentForm && this.consentAcknowledged) {
+            await this.saveParticipantAck()
+          }
 
-    goToResults() {
-      this.$router.push({
-        name: 'SessionReporting',
-        params: { id: this.participantSessId },
-      })
+          // Add to study data to make complete pkg needed for session to run
+          this.studyData.participantSessId = this.participantSessId
+
+          // await this.startSession()
+        } else {
+          console.warn('Participant session id not generated')
+        }
+      } catch (error) {
+        console.error('Error moving to next step:', error)
+      }
     },
 
     async getSessionID() {
@@ -289,18 +290,54 @@ export default {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_participant_session/${this.studyData.study_id}`
         const response = await axios.post(path, submissionData)
-
         this.participantSessId = response.data.participant_session_id
-        console.log('Session ID: ', this.participantSessId)
+      } catch (error) {
+        console.error('Error:', error.response?.data || error.message)
+      }
+    },
 
-        if (this.participantSessId) {
-          // only allow the session to start and info the be passed to local flask if participant id is available
-          this.studyData.participantSessId = this.participantSessId
-          console.log('Final Formatted Study Json:', this.studyData)
-
-          this.startSession()
-          this.viewResultsBtt = true
+    async fetchConsentForm() {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_study_consent_form/${this.studyData.study_id}`
+        const consentResponse = await axios.get(path, {
+          responseType: 'blob',
+        })
+        if (consentResponse.status == 200) {
+          const fName =
+            consentResponse.headers['x-original-filename'] || 'consent_form.pdf'
+          const blob = new File([consentResponse.data], fName, {
+            type: 'application/pdf',
+          })
+          this.consentForm = blob
+          this.hasConsentForm = true
+          this.showConsentForm = true
         }
+        // No study form for this particular study so do not prompt for ack
+        if (consentResponse.status == 204) {
+          this.hasConsentForm = false
+          this.showDemographicForm = true
+        }
+      } catch (err) {
+        // Expected a consent form but failed to get it so still show ack dialog even if they cannot see the form
+        console.warn('Error fetching consent form:', err)
+        this.consentForm = null
+        this.hasConsentForm = true // Supposed to but did not populate, but we can still get ack
+        this.showConsentForm = true
+      }
+    },
+
+    onAcknowledgement() {
+      this.consentAcknowledged = true
+      this.showConsentForm = false
+      this.showDemographicForm = true
+    },
+
+    async saveParticipantAck() {
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/save_participant_consent/${this.studyData.study_id}/${this.participantSessId}`
+        await axios.post(path)
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }
@@ -323,37 +360,8 @@ export default {
   display: flex;
   margin-top: 50px;
 }
-.cancel-begin-btn {
+.quit-next-btn {
   min-height: 40px;
   min-width: 200px;
-}
-.v-progress-circular {
-  margin: 1rem;
-}
-.timer-counter {
-  width: 100%;
-  height: 100vh;
-  margin: 0 auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.timer-msgs {
-  text-align: center;
-  margin-top: 1rem;
-}
-.timer-msg {
-  font-size: 1.5rem;
-  color: #555;
-}
-.timer-mini-msg {
-  font-size: 1rem;
-  color: #777;
-  margin-top: 0.5rem;
-}
-.res-btn {
-  min-height: 40px;
-  min-width: 200px;
-  margin-top: 10px;
 }
 </style>

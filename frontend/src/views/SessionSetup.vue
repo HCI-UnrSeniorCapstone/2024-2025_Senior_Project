@@ -156,10 +156,10 @@
         ><strong>+ Add Another Trial</strong></v-btn
       >
 
-      <!-- Next and Cancel btns-->
+      <!-- Begin and Cancel btns-->
       <v-row justify="center" class="btn-row">
         <v-btn
-          class="me-4 cancel-next-btn"
+          class="me-4 cancel-begin-btn"
           color="error"
           @click="
             displayDialog({
@@ -171,10 +171,10 @@
           >Cancel</v-btn
         >
         <v-btn
-          class="me-4 cancel-next-btn"
+          class="me-4 cancel-begin-btn"
           @click="attemptToAdvance"
           :color="isFormIncomplete ? '#b7ccb2' : 'success'"
-          >Next</v-btn
+          >Begin</v-btn
         >
       </v-row>
 
@@ -202,20 +202,10 @@
 
 <script>
 import axios from 'axios'
-import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 
 export default {
-  setup() {
-    const router = useRouter()
-    const exit = () => {
-      router.go(-1)
-    }
-
-    return { exit }
-  },
-
   components: {
     draggable,
     CoverageHeatmap,
@@ -231,7 +221,7 @@ export default {
       factorOptions: [],
       // Stores the currently defined trials
       trials: [],
-      // Used for populating dialog pop-ups under diff conditions (ex. cancel vs next)
+      // Used for populating dialog pop-ups under diff conditions (ex. cancel vs begin)
       dialog: false,
       dialogDetails: {
         title: '',
@@ -296,19 +286,22 @@ export default {
   },
 
   methods: {
-    // Dynamic confirmation for canceling or moving to next part of session setup
+    // Dynamic confirmation for canceling or beginning session
     displayDialog(details) {
       this.dialogDetails = details
       this.dialog = true
     },
 
-    // If they agree to canceling we route elsewhere & if they click continue we route to next part
+    // If they agree to canceling we route elsewhere & if they click continue we route to demographics form
     closeDialog(source) {
-      if (source == 'next') {
+      if (source == 'begin') {
         this.formatStudy()
         this.goToParticipantForm()
       } else if (source == 'cancel') {
-        this.exit()
+        this.$router.push({
+          name: 'UserStudies',
+          query: { studyID: this.studyId },
+        })
       }
       this.dialog = false
     },
@@ -505,7 +498,7 @@ export default {
       }
     },
 
-    // Logic for whether the user clicking "Next" should work or not
+    // Logic for whether the user clicking "Begin" should work or not
     attemptToAdvance() {
       this.formValidated = true
 
@@ -513,9 +506,9 @@ export default {
         return
       } else {
         this.displayDialog({
-          title: 'Continue',
-          text: 'Are you sure you want to move on to the Participant Demographics Form?',
-          source: 'next',
+          title: 'Begin Session',
+          text: 'Are you sure you want to start the session?',
+          source: 'begin',
         })
       }
     },
@@ -555,7 +548,7 @@ export default {
   display: flex;
   margin-top: 50px;
 }
-.cancel-next-btn {
+.cancel-begin-btn {
   min-height: 40px;
   min-width: 200px;
 }

@@ -722,3 +722,53 @@ def get_participant_session_data(study_id, participant_session_id):
         error_message = str(e)
 
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Stores the participant's consent agreement for individual sessions
+@bp.route(
+    "/save_participant_consent/<int:study_id>/<int:participant_session_id>",
+    methods=["POST"],
+)
+def save_participant_consent(study_id, participant_session_id):
+    try:
+        # Establish DB connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Get consent form id
+        consent_form_id_query = """
+        SELECT consent_form_id
+        FROM consent_form
+        WHERE study_id = %s
+        """
+        cur.execute(consent_form_id_query, (study_id,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify({"error": "Failed to find consent form id"}), 400
+
+        consent_form_id = result[0]
+
+        # Update consent ack tbl & prevent duplicates
+        insert_consent_agreement_query = """
+        INSERT IGNORE INTO consent_ack (consent_form_id, participant_session_id)
+        VALUES (%s, %s)
+        """
+        cur.execute(
+            insert_consent_agreement_query, (consent_form_id, participant_session_id)
+        )
+
+        # Commit changes to the database
+        conn.commit()
+
+        # Close cursor
+        cur.close()
+        return jsonify({"message": "Participant consent saved successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500

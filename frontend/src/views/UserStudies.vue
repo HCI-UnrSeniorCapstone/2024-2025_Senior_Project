@@ -118,7 +118,6 @@
         v-if="drawer && selectedStudy.studyID"
         :drawer="drawer"
         :studyID="selectedStudy.studyID"
-        :can-edit="selectedStudy.canEdit"
         @update:drawer="drawer = $event"
         @close="drawer = false"
       />
@@ -145,7 +144,7 @@
 </template>
 
 <script>
-import StudyPanel from './StudyPanel.vue'
+import StudyPanel from '@/components/StudyPanel.vue'
 import axios from 'axios'
 
 export default {
@@ -188,8 +187,24 @@ export default {
   },
 
   //populate table on page load w/ a temporary hardcoded userID of 1
-  mounted() {
-    this.populateStudies(1)
+  async mounted() {
+    await this.populateStudies(1)
+    // If we canceled during sessions setup this will seed the view so the study panel opens to the appropriate study automatically
+    const studyID = this.$route.query.studyID
+    if (studyID) {
+      this.openDrawer(Number(studyID))
+    }
+  },
+
+  watch: {
+    // Prevents study panel from reopening upon refresh if previously closed
+    drawer(newVal) {
+      if (!newVal && this.$route.query.studyID) {
+        this.$router.replace({
+          query: { ...this.$route.query, studyID: undefined },
+        })
+      }
+    },
   },
 
   methods: {
@@ -238,8 +253,11 @@ export default {
 
     // toggle drawer open and bind study-specific info to populate the right panel
     openDrawer(studyID) {
-      this.selectedStudy = { studyID }
-      this.drawer = true
+      const match = this.studies.find(study => study.studyID == studyID)
+      if (match) {
+        this.selectedStudy = match
+        this.drawer = true
+      }
     },
 
     // dynamic confirmation for study deletion
