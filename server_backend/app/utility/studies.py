@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 
+
 def set_available_features(task_measurments):
     # makes sures the default taks are false
     default_tasks = {
@@ -122,16 +123,17 @@ def create_study_task_factor_details(study_id, submissionData, cur):
                 factor_description,
             ),
         )
-        
+
+
 # Stores consent form in the study-level dir in the filesystem
 def save_study_consent_form(study_id, file, cur, base_dir):
     # Check if the file is a PDF
-    if not file.filename.lower().endswith('.pdf'):
+    if not file.filename.lower().endswith(".pdf"):
         raise ValueError("Invalid file type. Only PDF files are allowed.")
 
     # User passed filename
     original_filename = file.filename
-    
+
     # Constructing path
     full_path = os.path.join(base_dir, f"{study_id}_study_id")
     os.makedirs(full_path, exist_ok=True)
@@ -152,6 +154,7 @@ def save_study_consent_form(study_id, file, cur, base_dir):
     """
     cur.execute(insert_consent_form, (study_id, file_path, original_filename))
 
+
 # Removing consent form
 def remove_study_consent_form(study_id, cur):
     # Get file path if one exists
@@ -162,18 +165,18 @@ def remove_study_consent_form(study_id, cur):
     """
     cur.execute(look_path, (study_id,))
     result = cur.fetchone()
-    
+
     if not result:
         return
-    
+
     file_path = result[0]
-        
+
     if file_path and os.path.isfile(file_path):
         try:
             os.remove(file_path)
         except Exception as err:
             print(f"Failed removing file at {file_path}: {err}")
-    
+
     # Updating consent form tbl to reflect deletion
     delete_consent_tbl_entry = """
     DELETE

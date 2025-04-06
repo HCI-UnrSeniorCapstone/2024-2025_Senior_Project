@@ -31,7 +31,7 @@ def create_study(user_id):
         submission_data = json.loads(submission_data)
     except Exception:
         return jsonify({"error": "Failed to parse JSON"}), 400
-    
+
     try:
         # Establish DB connection
         conn = get_db_connection()
@@ -56,7 +56,7 @@ def create_study(user_id):
         cur.execute(
             insert_study_user_role_query, (user_id, study_id, study_user_role_type_id)
         )
-        
+
         # Attempt to save consent form if provided
         if "consent_file" in request.files:
             file = request.files["consent_file"]
@@ -68,11 +68,14 @@ def create_study(user_id):
 
         # Close cursor
         cur.close()
-        return jsonify({"message": "Study created successfully", "study_id": study_id}), 200
+        return (
+            jsonify({"message": "Study created successfully", "study_id": study_id}),
+            200,
+        )
 
     except Exception as e:
         # Ensure atomicity so if study json or file saves fail we rollback
-        if 'conn' in locals():
+        if "conn" in locals():
             conn.rollback()
         # Error message
         error_type = type(e).__name__
@@ -161,7 +164,7 @@ def overwrite_study(user_id, study_id):
     submission_data = request.form.get("data")
     if not submission_data:
         return jsonify({"error": "No study data provided"}), 400
-    
+
     try:
         # Get request and convert to json
         submission_data = json.loads(submission_data)
@@ -280,7 +283,7 @@ def overwrite_study(user_id, study_id):
 
             # Build up rest of info
             create_study_task_factor_details(study_id, submission_data, cur)
-            
+
             # Attempt to save consent form if provided
             base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
             if "consent_file" in request.files:
@@ -299,7 +302,7 @@ def overwrite_study(user_id, study_id):
 
     except Exception as e:
         # Ensure atomicity so if study json or file saves fail we rollback
-        if 'conn' in locals():
+        if "conn" in locals():
             conn.rollback()
         # Error message
         error_type = type(e).__name__
@@ -638,6 +641,7 @@ def delete_study(study_id, user_id):
         # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
+
 @bp.route("/get_study_consent_form/<int:study_id>", methods=["GET"])
 def get_study_consent_form(study_id):
     try:
@@ -657,17 +661,19 @@ def get_study_consent_form(study_id):
 
         # Study never had an assoc consent form which is okay
         if not results:
-            return '', 204
+            return "", 204
 
         file_path, origin_filename = results
-        
+
         # Db suggest a consent file should exist but could not retrieve one
         if not os.path.isfile(file_path):
             return jsonify({"error": "Consent form retrieval failed."}), 404
 
-        response = send_file(file_path, mimetype='application/pdf', as_attachment=False)
-        response.headers['X-Original-Filename'] = origin_filename # Need to rename file from filesystem convention to original
-        response.headers['Access-Control-Expose-Headers'] = 'X-Original-Filename'
+        response = send_file(file_path, mimetype="application/pdf", as_attachment=False)
+        response.headers["X-Original-Filename"] = (
+            origin_filename  # Need to rename file from filesystem convention to original
+        )
+        response.headers["Access-Control-Expose-Headers"] = "X-Original-Filename"
         return response
 
     except Exception as e:

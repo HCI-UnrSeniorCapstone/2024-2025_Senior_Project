@@ -723,8 +723,12 @@ def get_participant_session_data(study_id, participant_session_id):
 
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
+
 # Stores the participant's consent agreement for individual sessions
-@bp.route("/save_participant_consent/<int:study_id>/<int:participant_session_id>", methods=["POST"])
+@bp.route(
+    "/save_participant_consent/<int:study_id>/<int:participant_session_id>",
+    methods=["POST"],
+)
 def save_participant_consent(study_id, participant_session_id):
     try:
         # Establish DB connection
@@ -739,13 +743,13 @@ def save_participant_consent(study_id, participant_session_id):
         """
         cur.execute(consent_form_id_query, (study_id,))
         result = cur.fetchone()
-        
+
         if result is None:
             return jsonify({"error": "Failed to find consent form id"}), 400
-        
+
         consent_form_id = result[0]
 
-        # Update consent ack tbl & prevent duplicates 
+        # Update consent ack tbl & prevent duplicates
         insert_consent_agreement_query = """
         INSERT IGNORE INTO consent_ack (consent_form_id, participant_session_id)
         VALUES (%s, %s)
