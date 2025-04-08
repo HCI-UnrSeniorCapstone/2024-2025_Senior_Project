@@ -21,7 +21,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Dashboard',
+      redirect: '/UserLogin',
       component: MainLayout,
       children: [
         {
