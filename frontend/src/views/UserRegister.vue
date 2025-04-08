@@ -16,6 +16,15 @@
         ></v-text-field>
   
         <v-text-field
+            v-model="passwordConfirm"
+            label="Confirm Password"
+            type="password"
+            :error="showPasswordMismatch"
+            :error-messages="showPasswordMismatch ? ['Passwords do not match'] : []"
+            required
+        ></v-text-field>
+  
+        <v-text-field
           v-model="firstName"
           label="First Name"
         ></v-text-field>
@@ -30,16 +39,17 @@
           type="submit"
           color="primary"
           block
+          :disabled="!passwordsMatch"
         >
           Register
         </v-btn>
   
         <v-alert v-if="error" type="error" class="mt-4 text-center">
-        {{ error }}
+          {{ error }}
         </v-alert>
   
         <v-alert v-if="success" type="success" class="mt-4 text-center">
-        {{ success }}
+          {{ success }}
         </v-alert>
       </v-form>
     </v-container>
@@ -54,6 +64,7 @@
       return {
         email: '',
         password: '',
+        passwordConfirm: '',
         firstName: '',
         lastName: '',
         loading: false,
@@ -61,6 +72,18 @@
         success: '',
       }
     },
+    computed: {
+        passwordsMatch() {
+            return this.password === this.passwordConfirm && this.password !== ''
+        },
+        showPasswordMismatch() {
+            return (
+            this.passwordConfirm !== '' &&
+            this.password !== '' &&
+            this.password !== this.passwordConfirm
+            )
+        },
+        },
     methods: {
       async register() {
         this.loading = true
@@ -73,8 +96,6 @@
             {
               email: this.email,
               password: this.password,
-              first_name: this.firstName,
-              last_name: this.lastName,
             },
             {
               headers: {
@@ -86,22 +107,33 @@
   
           if (response.data.response?.user) {
             this.success = 'Registration successful! Please check your email to confirm.'
+            await axios.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
+              {
+                first_name: this.firstName,
+                last_name: this.lastName,
+              },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  Accept: 'application/json',
+                },
+              }
+            )
           } else {
             this.success = 'Registration submitted.'
           }
         } catch (err) {
-            console.error(err)
-            const errorData = err.response?.data;
-            const response = errorData?.response;
-
-            if (response?.errors && Array.isArray(response.errors)) {
-                // Join all general errors into a single string
-                this.error = response.errors.join(', ');
-            } else if (typeof errorData === 'string') {
-                this.error = errorData;
-            } else {
-                this.error = 'Registration failed. Please try again.';
-            }
+          console.error(err)
+          const errorData = err.response?.data;
+          const response = errorData?.response;
+  
+          if (response?.errors && Array.isArray(response.errors)) {
+            this.error = response.errors.join(', ');
+          } else if (typeof errorData === 'string') {
+            this.error = errorData;
+          } else {
+            this.error = 'Registration failed. Please try again.';
+          }
         } finally {
           this.loading = false
         }
