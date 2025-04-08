@@ -107,23 +107,25 @@
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
               },
+              withCredentials: true, 
             }
           )
   
           if (response.data.response?.user) {
             this.success = 'Registration successful! Please check your email to confirm.'
-            await axios.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
-              {
-                first_name: this.firstName,
-                last_name: this.lastName,
-              },
-              {
-                headers: {
-                  'Content-Type': 'application/json',
-                  Accept: 'application/json',
-                },
-              }
-            )
+            // await axios.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
+            //   {
+            //     first_name: this.firstName,
+            //     last_name: this.lastName,
+            //   },
+            //   {
+            //     headers: {
+            //       'Content-Type': 'application/json',
+            //       Accept: 'application/json',
+            //     },
+            //     withCredentials: true, 
+            //   }
+            // )
           } else {
             this.success = 'Registration submitted.'
           }

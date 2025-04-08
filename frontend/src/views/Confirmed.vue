@@ -9,7 +9,7 @@
             {{ confirmationMessage }}
           </p>
           <p v-if="isSuccess" class="mt-4">
-            Redirecting to <router-link to="/dashboard">dashboard</router-link> in {{ countdown }} seconds...
+            Redirecting to <router-link to="/UserLogin">login</router-link> in {{ countdown }} seconds...
           </p>
         </v-col>
       </v-row>
@@ -24,7 +24,7 @@ export default {
     return {
       confirmationMessage: '',
       isSuccess: false,
-      countdown: 10,
+      countdown: 4,
       countdownTimer: null,
     }
   },
@@ -49,7 +49,7 @@ export default {
           this.countdown--
         } else {
           clearInterval(this.countdownTimer)
-          this.$router.push('/dashboard')
+          this.$router.push('/UserLogin')
         }
       }, 1000)
     },
