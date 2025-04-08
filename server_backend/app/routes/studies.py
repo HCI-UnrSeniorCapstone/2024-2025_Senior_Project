@@ -19,7 +19,7 @@ bp = Blueprint("studies", __name__)
 # Gets and saves data from study form page and stores it into a json file. Then uploads data into db
 # The query will need to be UPDATED since the user is hardcoded rn
 @bp.route("/create_study/<int:user_id>", methods=["POST"])
-@auth_required("token")
+@auth_required()
 def create_study(user_id):
     # Get request and convert to json
     submissionData = request.get_json()
@@ -91,7 +91,7 @@ def create_study(user_id):
 
 
 @bp.route("/is_overwrite_study_allowed/<int:user_id>/<int:study_id>", methods=["GET"])
-@auth_required("token")
+@auth_required()
 def is_overwrite_study_allowed(user_id, study_id):
     try:
         conn = get_db_connection()
@@ -166,7 +166,7 @@ def is_overwrite_study_allowed(user_id, study_id):
 
 
 @bp.route("/overwrite_study/<int:user_id>/<int:study_id>", methods=["PUT"])
-@auth_required("token")
+@auth_required()
 def overwrite_study(user_id, study_id):
     # Get request and convert to json
     submissionData = request.get_json()
@@ -303,7 +303,7 @@ def overwrite_study(user_id, study_id):
 
 
 @bp.route("/get_study_data/<int:user_id>", methods=["GET"])
-@auth_required("token")
+@auth_required()
 def get_study_data(user_id):
 
     # https://www.geeksforgeeks.org/read-json-file-using-python/
@@ -379,7 +379,7 @@ def get_study_data(user_id):
 
 
 @bp.route("/copy_study/<int:study_id>/<int:user_id>", methods=["POST"])
-@auth_required("token")
+@auth_required()
 def copy_study(study_id, user_id):
     try:
         conn = get_db_connection()
@@ -458,7 +458,7 @@ def copy_study(study_id, user_id):
 
 # This route is for loading ALL the detail on a single study, essentially rebuilding in reverse of how create_study deconstructs and saves into db
 @bp.route("/load_study/<int:study_id>", methods=["GET"])
-@auth_required("token")
+@auth_required()
 def load_study(study_id):
     try:
         conn = get_db_connection()
@@ -576,7 +576,7 @@ def load_study(study_id):
 
 # Note, the study still exists in the database but not available to users
 @bp.route("/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
-@auth_required("token")
+@auth_required()
 def delete_study(study_id, user_id):
     try:
         # Connect to the database
