@@ -227,3 +227,22 @@ CREATE TABLE deleted_study_role (
     FOREIGN KEY (user_id) REFERENCES user(user_id),
     FOREIGN KEY (study_user_role_type_id) REFERENCES study_user_role_type(study_user_role_type_id)
 );
+-- Template consent form saved at the study level
+CREATE TABLE consent_form (
+    consent_form_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    study_id INT NOT NULL UNIQUE,
+    file_path VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (study_id) REFERENCES study(study_id)
+);
+-- Acknowledge stored for each session 
+CREATE TABLE consent_ack (
+    consent_ack_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    consent_form_id INT NOT NULL,
+    participant_session_id INT NOT NULL,
+    ack_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE (consent_form_id, participant_session_id),
+    FOREIGN KEY (consent_form_id) REFERENCES consent_form(consent_form_id),
+    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id)
+);

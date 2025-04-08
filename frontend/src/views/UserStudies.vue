@@ -63,6 +63,7 @@
               </template>
               <template v-slot:item.actions="{ item }">
                 <v-icon
+                  v-tooltip="'Download Results'"
                   class="me-2"
                   size="small"
                   @click.stop="downloadStudyData(item.studyID)"
@@ -70,6 +71,7 @@
                   mdi-download
                 </v-icon>
                 <v-icon
+                  v-tooltip="'Open'"
                   class="me-2"
                   size="small"
                   @click.stop="openDrawer(item.studyID)"
@@ -78,20 +80,23 @@
                 </v-icon>
                 <v-icon
                   v-if="item.canEdit"
+                  v-tooltip="'Edit'"
                   class="me-2"
                   size="small"
                   @click.stop="editExistingStudy(item.studyID)"
                 >
-                  mdi-file-document-edit
+                  mdi-pencil
                 </v-icon>
                 <v-icon
+                  v-tooltip="'Duplicate'"
                   class="me-2"
                   size="small"
-                  @click.stop="copyStudy(item.studyID)"
+                  @click.stop="duplicateStudy(item.studyID)"
                 >
                   mdi-content-copy
                 </v-icon>
                 <v-icon
+                  v-tooltip="'Delete'"
                   size="small"
                   @click="
                     displayDialog({
@@ -139,7 +144,7 @@
 </template>
 
 <script>
-import StudyPanel from './StudyPanel.vue'
+import StudyPanel from '@/components/StudyPanel.vue'
 
 import api from '@/axiosInstance'
 
@@ -183,34 +188,53 @@ export default {
   },
 
   //populate table on page load w/ a temporary hardcoded userID of 1
-  mounted() {
-    this.populateStudies(1)
+  async mounted() {
+    await this.populateStudies(1)
+    // If we canceled during sessions setup this will seed the view so the study panel opens to the appropriate study automatically
+    const studyID = this.$route.query.studyID
+    if (studyID) {
+      this.openDrawer(Number(studyID))
+    }
+  },
+
+  watch: {
+    // Prevents study panel from reopening upon refresh if previously closed
+    drawer(newVal) {
+      if (!newVal && this.$route.query.studyID) {
+        this.$router.replace({
+          query: { ...this.$route.query, studyID: undefined },
+        })
+      }
+    },
   },
 
   methods: {
     // populating the studies table
     async populateStudies(userID) {
       try {
-    const backendUrl = this.$backendUrl
-    const path = `${backendUrl}/get_study_data/${userID}`
-    const response = await api.get(path)
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_study_data/${userID}`
+        const response = await api.get(path)
 
-    if (Array.isArray(response.data)) {
-      this.studies = await Promise.all(
-        response.data.map(async (study) => {
-          const canEdit = await this.checkIfOverwriteAllowed(userID, study[1])
-          return {
-            dateCreated: study[0],
-            studyID: study[1],
-            studyName: study[2],
-            studyDesc: study[3],
-            sessionCount: study[4],
-            role: study[5],
-            canEdit: canEdit, // Add the flag to the study object
-          }
-        })
-      )
-    }
+        if (Array.isArray(response.data)) {
+          this.studies = await Promise.all(
+            response.data.map(async study => {
+              const canEdit = await this.checkIfOverwriteAllowed(
+                userID,
+                study[1],
+              )
+              return {
+                dateCreated: study[0],
+                studyID: study[1],
+                studyName: study[2],
+                studyDesc: study[3],
+                sessionCount: study[4],
+                role: study[5],
+                canEdit: canEdit, // Add the flag to the study object
+              }
+            }),
+          )
+        }
       } catch (error) {
         console.error('Error retrieving studies: ', error)
       }
@@ -230,8 +254,11 @@ export default {
 
     // toggle drawer open and bind study-specific info to populate the right panel
     openDrawer(studyID) {
-      this.selectedStudy = { studyID }
-      this.drawer = true
+      const match = this.studies.find(study => study.studyID == studyID)
+      if (match) {
+        this.selectedStudy = match
+        this.drawer = true
+      }
     },
 
     // dynamic confirmation for study deletion
@@ -240,62 +267,60 @@ export default {
       this.dialog = true
     },
     async downloadStudyData(studyID) {
-    try {
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
+      try {
+        const backendUrl = this.$backendUrl
+        const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
 
-      const response = await api.get(path, {
-        responseType: 'blob'
-      })
+        const response = await api.get(path, {
+          responseType: 'blob',
+        })
 
-      // Get the content-disposition header to extract the filename
-      const disposition = response.headers['content-disposition']
-      const filename = disposition
-        ? disposition.split('filename=')[1].replace(/"/g, '')  // extracting the filename from header
-        : 'download.zip'
+        // Get the content-disposition header to extract the filename
+        const disposition = response.headers['content-disposition']
+        const filename = disposition
+          ? disposition.split('filename=')[1].replace(/"/g, '') // extracting the filename from header
+          : 'download.zip'
 
-      // Download
-      const blob = new Blob([response.data], { type: 'application/zip' })
-      const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = filename
-      link.click()
-
-    } catch (error) {
-      console.error('Error downloading study data:', error)
-    }
-  },
-  async checkIfOverwriteAllowed(userID, studyID) {
+        // Download
+        const blob = new Blob([response.data], { type: 'application/zip' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = filename
+        link.click()
+      } catch (error) {
+        console.error('Error downloading study data:', error)
+      }
+    },
+    async checkIfOverwriteAllowed(userID, studyID) {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
-        const response = await api.get(path);
-        
+        const response = await api.get(path)
+
         if (response.data === true) {
           return true
         } else {
           return false
         }
       } catch (error) {
-        console.error("Error checking overwrite permission:", error);
-        this.isButtonVisible = false;  // Hide the button if there's an error
+        console.error('Error checking overwrite permission:', error)
+        this.isButtonVisible = false // Hide the button if there's an error
       }
     },
-    async copyStudy(studyID) {
+    async duplicateStudy(studyID) {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/copy_study/${studyID}/${1}`
-        const response = await api.post(path);
+        const response = await api.post(path)
 
         // Refresh the page to show changes
         location.reload()
-        
       } catch (error) {
-        console.error("Error copying study", error);
-        this.isButtonVisible = false;  // Hide the button if there's an error
+        console.error('Error copying study', error)
+        this.isButtonVisible = false // Hide the button if there's an error
       }
     },
-  editExistingStudy(study_id) {
+    editExistingStudy(study_id) {
       this.$router.push({
         name: 'StudyForm',
         params: { studyID: study_id, userID: 1 }, // 1 is hardcoded for now until we have users

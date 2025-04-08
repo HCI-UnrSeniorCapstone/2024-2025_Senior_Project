@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/no-mutating-props -->
 <template>
   <div>
     <v-text-field
@@ -31,7 +32,7 @@
     <div>
       <v-select
         v-model="task.measurementOptions"
-        :items="updateVisibleMeasurementOptions"
+        :items="updateMeasurementOptions"
         label="Measurement Options"
         chips
         multiple
@@ -58,6 +59,16 @@ export default {
 
   data() {
     return {
+      //Measurement options supported
+      allMeasurementOptions: [
+        'Mouse Movement',
+        'Mouse Scrolls',
+        'Mouse Clicks',
+        'Keyboard Inputs',
+        'Screen Recording',
+        'Heat Map',
+      ],
+
       // validation rules for task-related inputs
       taskNameRules: [
         v => !!v || 'Task name is required.',
@@ -75,10 +86,16 @@ export default {
           'Task directions must be less than 250 characters.',
       ],
       taskDurationRules: [
-        v =>
-          v === '' ||
-          Number(v) > 0 ||
-          'A set duration must be greater than 0 min.',
+        v => {
+          if (v == '') {
+            return true
+          }
+          const num = Number(v)
+          return (
+            (Number.isFinite(num) && num > 0) ||
+            'A set duration must be greater than 0 min.'
+          )
+        },
       ],
     }
   },
@@ -103,40 +120,36 @@ export default {
 
   // Used to remove Heat Map selection if Mouse Movement is deselected since it is dependent on it
   watch: {
-    'task.measurementOptions'(newSelection) {
-      if (!newSelection.includes('Mouse Movement')) {
-        this.$emit('update:task', {
-          ...this.task,
-          measurementOptions: newSelection.filter(
+    'task.measurementOptions': {
+      handler(newSelection) {
+        if (
+          !newSelection.includes('Mouse Movement') &&
+          newSelection.includes('Heat Map')
+        ) {
+          const updatedSelection = newSelection.filter(
             option => option !== 'Heat Map',
-          ),
-        })
-      }
+          )
+          this.$emit('update:task', {
+            ...this.task,
+            measurementOptions: updatedSelection,
+          })
+        }
+      },
+      deep: true,
     },
   },
 
   // Changes selection options to include Heat Map when Mouse Movement is actively selected and vice versa
   computed: {
-    updateVisibleMeasurementOptions() {
-      if (this.task.measurementOptions.includes('Mouse Movement')) {
-        return [
-          // Heat Map should be visible since MM is selected
-          'Mouse Movement',
-          'Mouse Scrolls',
-          'Mouse Clicks',
-          'Keyboard Inputs',
-          'Screen Recording',
-          'Heat Map',
-        ]
+    updateMeasurementOptions() {
+      const mouseMovementSelected =
+        this.task.measurementOptions.includes('Mouse Movement')
+      if (mouseMovementSelected) {
+        return this.allMeasurementOptions
       } else {
-        return [
-          // Heat Map unavailable when Mouse Movement not selected
-          'Mouse Movement',
-          'Mouse Scrolls',
-          'Mouse Clicks',
-          'Keyboard Inputs',
-          'Screen Recording',
-        ]
+        return this.allMeasurementOptions.filter(
+          option => option !== 'Heat Map',
+        )
       }
     },
   },

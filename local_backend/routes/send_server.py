@@ -3,8 +3,8 @@ import json
 
 
 def send_to_server(zip_local_path, session_json):
-    # Make more robust eventually. Also, you will have to change it from 5003 to your port
-    server_url = "http://100.82.85.28:5003/test_local_to_server"
+    # Make dynamic using .env eventually. Also, you will have to change it from 5003 to your port
+    server_url = "http://100.82.85.28:5003/save_participant_session"
 
     try:
         with open(zip_local_path, "rb") as file:
