@@ -9,20 +9,23 @@
         ></v-text-field>
   
         <v-text-field
-          v-model="password"
-          label="Password"
-          type="password"
-          required
+        v-model="password"
+        :type="showPassword ? 'text' : 'password'"
+        label="Password"
+        :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+        @click:append-inner="showPassword = !showPassword"
+        required
         ></v-text-field>
-  
+
         <v-text-field
-            v-model="passwordConfirm"
-            label="Confirm Password"
-            type="password"
-            :error="showPasswordMismatch"
-            :error-messages="showPasswordMismatch ? ['Passwords do not match'] : []"
-            required
+        v-model="passwordConfirm"
+        :type="showPasswordConfirm ? 'text' : 'password'"
+        label="Confirm Password"
+        :error="showPasswordMismatch"
+        :error-messages="showPasswordMismatch ? ['Passwords do not match'] : []"
+        required
         ></v-text-field>
+
   
         <v-text-field
           v-model="firstName"
@@ -70,20 +73,22 @@
         loading: false,
         error: '',
         success: '',
+        showPassword: false,
+        showPasswordConfirm: false,
       }
     },
     computed: {
-        passwordsMatch() {
-            return this.password === this.passwordConfirm && this.password !== ''
-        },
-        showPasswordMismatch() {
-            return (
-            this.passwordConfirm !== '' &&
-            this.password !== '' &&
-            this.password !== this.passwordConfirm
-            )
-        },
-        },
+      passwordsMatch() {
+        return this.password === this.passwordConfirm && this.password !== ''
+      },
+      showPasswordMismatch() {
+        return (
+          this.passwordConfirm !== '' &&
+          this.password !== '' &&
+          this.password !== this.passwordConfirm
+        )
+      },
+    },
     methods: {
       async register() {
         this.loading = true
