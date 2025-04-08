@@ -10,6 +10,9 @@ bp = Blueprint("general", __name__)
 @bp.route("/api/ping", methods=["GET"])
 @auth_required()
 def ping():
+    from flask_login import current_user
+
+    print("Current user:", current_user)
     return jsonify({"message": "Pong!"}), 200
 
 

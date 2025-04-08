@@ -104,9 +104,8 @@ def create_app(testing=False):
         False  # Requires HTTPS, change to False for local dev
     )
     app.config["SESSION_COOKIE_SAMESITE"] = (
-        "None"  # Adjust if cross-origin issues occur
+        "Lax"  # Adjust if cross-origin issues occur. This is lax cuz of the vue proxy
     )
-    csrf.init_app(app)
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER")
     app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
     app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "false").lower() == "true"
@@ -125,6 +124,7 @@ def create_app(testing=False):
     app.config["SECURITY_TOKEN_MAX_AGE"] = 3600  # Optional, token TTL in seconds
     app.config["SECURITY_USER_SERIALIZER"] = "utility.user_serializer.user_serializer"
 
+    csrf.init_app(app)
     security = Security(app, user_datastore)
 
     # SQLAlchemy ONLY for Flask-Security
