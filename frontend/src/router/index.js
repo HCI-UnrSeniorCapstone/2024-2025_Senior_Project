@@ -12,6 +12,8 @@ import TestSendCSV from '../views/TestCSVToServer.vue'
 import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
 import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
 import UserLogin from '../views/UserLogin.vue'
+import Confirmed from '../views/Confirmed.vue'
+import UserRegister from '../views/UserRegister.vue'
 import axios from 'axios'
 import SessionSetup from '@/views/SessionSetup.vue'
 
@@ -28,6 +30,16 @@ const router = createRouter({
           path: '/Dashboard',
           name: 'Dashboard',
           component: Dashboard,
+        },
+        {
+          path: '/confirmed',
+          name: 'Confirmed',
+          component: Confirmed
+        },
+        {
+          path: '/register',
+          name: 'UserRegister',
+          component: UserRegister
         },
         {
           path: '/UserLogin',
