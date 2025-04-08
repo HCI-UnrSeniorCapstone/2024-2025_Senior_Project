@@ -5,11 +5,10 @@ from sqlalchemy import String, Integer, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional, List
 from app import db
+from flask_security import UserMixin, RoleMixin
 
 # db = SQLAlchemy()
 from flask_security.models import fsqla_v3 as fsqla
-
-fsqla.FsModels.set_db_info(db)
 
 # Association table for user roles
 roles_users = db.Table(

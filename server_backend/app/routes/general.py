@@ -1,5 +1,7 @@
-from flask import Blueprint, jsonify
+import json
+from flask import Blueprint, jsonify, request
 from app.utility.db_connection import get_db_connection
+from flask_security import login_required, auth_required
 
 bp = Blueprint("general", __name__)
 
@@ -12,7 +14,19 @@ def ping():
 
 # Test Database Connection and Fetch Data from 'user' table
 @bp.route("/test_db")
+@auth_required("token", "session")
 def test_db():
+    # Convert all cookies into a dictionary (cookies are stored in request.cookies as a dictionary)
+    cookies_dict = request.cookies
+
+    # Convert the cookies dictionary to JSON string (for printing)
+    cookies_json = json.dumps(
+        cookies_dict, indent=4
+    )  # Use indent=4 for pretty formatting
+
+    # Print the JSON formatted cookies
+    print("Cookies as JSON:")
+    print(cookies_json)
     try:
         conn = get_db_connection()
         cur = conn.cursor()
