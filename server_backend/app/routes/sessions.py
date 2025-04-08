@@ -26,7 +26,7 @@ bp = Blueprint("sessions", __name__)
 
 # Saving participant session from the local script
 # Excpects a JSON and a zip file with PRECISE naming standards
-@bp.route("/save_participant_session", methods=["POST"])
+@bp.route("/api/save_participant_session", methods=["POST"])
 @auth_required()
 def save_participant_session():
     temp_dir = None
@@ -471,7 +471,7 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
 
 
 # All session data for a study
-@bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
+@bp.route("/api/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
 @auth_required()
 def get_all_session_data_instance_zip(study_id):
     try:
@@ -510,7 +510,7 @@ def get_all_session_data_instance_zip(study_id):
 
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
-@bp.route("/create_participant_session/<int:study_id>", methods=["POST"])
+@bp.route("/api/create_participant_session/<int:study_id>", methods=["POST"])
 @auth_required()
 def create_participant_session(study_id):
     # Get request and convert to json
@@ -609,7 +609,7 @@ def create_participant_session(study_id):
 
 
 # Get session general info for study panel
-@bp.route("/get_all_session_info/<int:study_id>", methods=["GET"])
+@bp.route("/api/get_all_session_info/<int:study_id>", methods=["GET"])
 @auth_required()
 def get_all_session_info(study_id):
     try:

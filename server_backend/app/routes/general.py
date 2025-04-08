@@ -7,14 +7,14 @@ bp = Blueprint("general", __name__)
 
 
 # Basic ping
-@bp.route("/ping", methods=["GET"])
+@bp.route("/api/ping", methods=["GET"])
 @auth_required()
 def ping():
     return jsonify({"message": "Pong!"}), 200
 
 
 # Test Database Connection and Fetch Data from 'user' table
-@bp.route("/test_db")
+@bp.route("/api/test_db")
 @auth_required()
 def test_db():
     # Convert all cookies into a dictionary (cookies are stored in request.cookies as a dictionary)

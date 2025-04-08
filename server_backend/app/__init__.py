@@ -22,6 +22,10 @@ csrf = CSRFProtect()
 # Confirmation email when registering
 mail = Mail()
 
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 def create_app(testing=False):
     # Creating app
@@ -84,6 +88,7 @@ def create_app(testing=False):
     app.config["SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS"] = True
 
     app.config["SECURITY_CSRF_COOKIE_NAME"] = "XSRF-TOKEN"
+    app.config["SECURITY_CSRF_COOKIE_HTTPONLY"] = False
     app.config["WTF_CSRF_CHECK_DEFAULT"] = False
     app.config["WTF_CSRF_TIME_LIMIT"] = None
 
