@@ -1,145 +1,101 @@
 <template>
-    <div>
-      <!-- Login Form -->
-      <div v-if="!loggedIn">
-        <v-form @submit.prevent="login">
-          <v-text-field
-            v-model="username"
-            label="Username"
-            :rules="[usernameRules]"
-            required
-          ></v-text-field>
-          <v-text-field
-            v-model="password"
-            label="Password"
-            type="password"
-            :rules="[passwordRules]"
-            required
-          ></v-text-field>
-          <v-btn color="primary" @click="login">Login</v-btn>
-        </v-form>
-      </div>
-  
-      <!-- Message and Data Display After Successful Login -->
-      <div v-else>
-        <p>Welcome, {{ username }}!</p>
-        <v-btn color="secondary" @click="logout">Logout</v-btn>
-        <div v-if="results.length > 0">
-          <h3>User Data:</h3>
-          <ul>
-            <li v-for="(user, index) in results" :key="index">
-              Date Created: {{ user[0] }} | User Study Name: {{ user[1] }} |
-              Description: {{ user[2] }} | Sessions: {{ user[3] }} | Role:
-              {{ user[4] }}
-            </li>
-          </ul>
-        </div>
-        <div v-else>
-          <p>No data found.</p>
-        </div>
-      </div>
-    </div>
-  </template>
-  
-  <script>
-  import axios from 'axios'
-  const apiClient = axios.create({
-  baseURL: this.$backendUrl,
-  withCredentials: true, // Ensures session cookie is sent
-  headers: {
-    "Content-Type": "application/json",
+  <v-container class="login-view" max-width="400px">
+    <v-form @submit.prevent="login">
+      <v-text-field
+        v-model="email"
+        label="Email"
+        type="email"
+        required
+      ></v-text-field>
+
+      <v-text-field
+        v-model="password"
+        label="Password"
+        type="password"
+        required
+      ></v-text-field>
+
+      <v-btn
+        :loading="loading"
+        color="primary"
+        type="submit"
+        block
+      >
+        Log In
+      </v-btn>
+      <v-row justify="center" class="mt-4">
+  <v-col cols="12" class="text-center">
+    <p>
+      Don't have an account?
+      <RouterLink to="/register" style="color: #1976D2;">Register here</RouterLink>
+    </p>
+  </v-col>
+</v-row>
+      <v-alert v-if="error" type="error" class="mt-4">
+        {{ error }}
+      </v-alert>
+    </v-form>
+  </v-container>
+</template>
+
+<script>
+import axios from 'axios'
+
+export default {
+  name: 'UserLogin',
+  data() {
+    return {
+      email: '',
+      password: '',
+      loading: false,
+      error: '',
+    }
   },
-});
+  methods: {
+    async login() {
+  this.loading = true
+  this.error = ''
 
-// Intercept requests to attach CSRF token
-apiClient.interceptors.request.use((config) => {
-  const csrfToken = document.cookie
-    .split("; ")
-    .find((row) => row.startsWith("XSRF-TOKEN="))
-    ?.split("=")[1];
-
-  if (csrfToken) {
-    config.headers["X-CSRF-TOKEN"] = csrfToken;
-  }
-  return config;
-});
-  export default {
-    name: 'TestDatabase',
-    data() {
-      return {
-        msg: 'Please log in.',
-        results: [], // Store the results from the database query
-        username: '',
-        password: '',
-        loggedIn: false, // Boolean to track if the user is logged in
-        user: {}, // Store the logged-in user's data
-        usernameRules: [
-          v => !!v || 'Username is required',
-        ],
-        passwordRules: [
-          v => !!v || 'Password is required',
-        ],
+  try {
+    const response = await axios.post(
+      `${this.$backendUrl}/api/accounts/login`,
+      {
+        email: this.email,
+        password: this.password,
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true,
       }
-    },
-    methods: {
-  // Handle login request
-  login() {
-  // Get the CSRF token from the meta tag or cookie
-  const backendUrl = this.$backendUrl; // Ensure this is set correctly
-  const path = `${backendUrl}/api/accounts/login`;
+    )
 
-  // Send the login request with CSRF token in the headers
-  apiClient.post("/api/accounts/logout"){
-    
+    console.log('Login response:', response.data)
+
+    // If login works just redirect
+    if (response.data.meta?.code === 200) {
+      this.$router.push({ name: 'Dashboard' })
+    } else {
+      this.error = 'Login failed. Unexpected response.'
+    }
+  } catch (err) {
+    console.error(err)
+    this.error =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      'Login failed. Please check your credentials.'
+  } finally {
+    this.loading = false
   }
-  .then(res => {
-    this.loggedIn = true;
-    //this.user = res.data.user;  // Store logged-in user's data
-    this.msg = 'Login successful';
-    this.fetchData();  // Fetch data after successful login
-  })
-  .catch(error => {
-    console.error('Error logging in:', error);
-    this.msg = 'Login failed. Please check your credentials.';
-  });
 },
-
-
-  // Fetch data from the backend after login
-  fetchData() {
-    const backendUrl = this.$backendUrl;
-    const path = `${backendUrl}/test_db`;
-
-    axios.get(path)
-      .then(res => {
-        if (Array.isArray(res.data)) {
-          this.results = res.data;  // If data is an array, display the results
-          console.log(this.results);
-        } else {
-          this.msg = 'Error: No data found or invalid response';
-        }
-      })
-      .catch(error => {
-        console.error('Error fetching test_db:', error);
-        this.msg = 'Error connecting to the server';
-      });
   },
+}
+</script>
 
-  // Handle logout functionality
-  logout() {
-    this.loggedIn = false;
-    this.user = {};
-    this.results = [];
-    this.username = '';
-    this.password = '';
-    this.msg = 'Logged out successfully';
-  },
-},
-
-  }
-  </script>
-  
-  <style scoped>
-  /* Optionally add custom styles for the login form and data display */
-  </style>
-  
+<style scoped>
+.login-view {
+  margin-top: 100px;
+}
+</style>
