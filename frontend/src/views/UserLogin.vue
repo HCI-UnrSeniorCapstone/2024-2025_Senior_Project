@@ -53,49 +53,43 @@ export default {
   },
   methods: {
     async login() {
-      this.loading = true
-      this.error = ''
+  this.loading = true
+  this.error = ''
 
-      try {
-        const response = await axios.post(
-          `${this.$backendUrl}/api/accounts/login`,
-          {
-            email: this.email,
-            password: this.password,
-          },
-          {
-            headers: {
-              Accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-            withCredentials: true, 
-          }
-        )
-
-        // Extract token from Flask-Security response
-        const token =
-          response.data.response?.user?.authentication_token ||
-          response.data.authentication_token
-          console.log('Login response:', response.data)
-
-        if (token) {
-          // Store token (you can use localStorage, cookies, Pinia, etc.)
-          localStorage.setItem('auth_token', token)
-
-          this.$router.push({ name: 'Dashboard' })
-        } else {
-          this.error = 'Login succeeded but no token returned.'
-        }
-      } catch (err) {
-        console.error(err)
-        this.error =
-          err.response?.data?.error ||
-          err.response?.data?.message ||
-          'Login failed. Please check your credentials.'
-      } finally {
-        this.loading = false
+  try {
+    const response = await axios.post(
+      `${this.$backendUrl}/api/accounts/login`,
+      {
+        email: this.email,
+        password: this.password,
+      },
+      {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        withCredentials: true,
       }
-    },
+    )
+
+    console.log('Login response:', response.data)
+
+    // If login works just redirect
+    if (response.data.meta?.code === 200) {
+      this.$router.push({ name: 'Dashboard' })
+    } else {
+      this.error = 'Login failed. Unexpected response.'
+    }
+  } catch (err) {
+    console.error(err)
+    this.error =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      'Login failed. Please check your credentials.'
+  } finally {
+    this.loading = false
+  }
+},
   },
 }
 </script>

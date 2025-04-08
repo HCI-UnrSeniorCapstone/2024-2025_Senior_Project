@@ -27,7 +27,7 @@
         ></v-text-field>
 
   
-        <v-text-field
+        <!-- <v-text-field
           v-model="firstName"
           label="First Name"
         ></v-text-field>
@@ -35,7 +35,7 @@
         <v-text-field
           v-model="lastName"
           label="Last Name"
-        ></v-text-field>
+        ></v-text-field> -->
   
         <v-btn
           :loading="loading"
@@ -68,8 +68,8 @@
         email: '',
         password: '',
         passwordConfirm: '',
-        firstName: '',
-        lastName: '',
+        // firstName: '',
+        // lastName: '',
         loading: false,
         error: '',
         success: '',
