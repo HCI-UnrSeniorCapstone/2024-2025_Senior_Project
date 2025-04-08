@@ -90,11 +90,18 @@
             this.success = 'Registration submitted.'
           }
         } catch (err) {
-          console.error(err)
-          this.error =
-            err.response?.data?.error ||
-            err.response?.data?.message ||
-            'Registration failed. Please try again.'
+            console.error(err)
+            const errorData = err.response?.data;
+            const response = errorData?.response;
+
+            if (response?.errors && Array.isArray(response.errors)) {
+                // Join all general errors into a single string
+                this.error = response.errors.join(', ');
+            } else if (typeof errorData === 'string') {
+                this.error = errorData;
+            } else {
+                this.error = 'Registration failed. Please try again.';
+            }
         } finally {
           this.loading = false
         }

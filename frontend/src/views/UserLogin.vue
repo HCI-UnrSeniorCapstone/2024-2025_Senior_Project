@@ -81,8 +81,7 @@ export default {
           // Store token (you can use localStorage, cookies, Pinia, etc.)
           localStorage.setItem('auth_token', token)
 
-          // Optional: redirect
-          this.$router.push({ name: 'Dashboard' }) // replace with your route
+          this.$router.push({ name: 'Dashboard' })
         } else {
           this.error = 'Login succeeded but no token returned.'
         }
