@@ -26,8 +26,8 @@ bp = Blueprint("sessions", __name__)
 
 # Saving participant session from the local script
 # Excpects a JSON and a zip file with PRECISE naming standards
-@bp.route("/save_participant_session", methods=["POST"])
-@auth_required("token")
+@bp.route("/api/save_participant_session", methods=["POST"])
+@auth_required()
 def save_participant_session():
     temp_dir = None
     conn = None
@@ -171,7 +171,7 @@ def save_participant_session():
     "/save_session_data_instance/<int:participant_session_id>/<int:study_id>/<int:task_id>/<int:measurement_option_id>/<int:factor_id>",
     methods=["POST"],
 )
-@auth_required("token")
+@auth_required()
 def save_session_data_instance(
     participant_session_id, study_id, task_id, measurement_option_id, factor_id
 ):
@@ -274,7 +274,7 @@ def save_session_data_instance(
     "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
 )
-@auth_required("token")
+@auth_required()
 def get_all_session_data_instance_from_participant_zip(participant_id):
     try:
         conn = get_db_connection()
@@ -319,7 +319,7 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
     "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
 )
-@auth_required("token")
+@auth_required()
 def get_all_session_data_instance_from_participant_session_zip(participant_session_id):
     try:
         conn = get_db_connection()
@@ -371,7 +371,7 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
 @bp.route(
     "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
 )
-@auth_required("token")
+@auth_required()
 def get_one_session_data_instance_zip(session_data_instance_id):
     try:
         conn = get_db_connection()
@@ -419,7 +419,7 @@ def get_one_session_data_instance_zip(session_data_instance_id):
 @bp.route(
     "/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
 )
-@auth_required("token")
+@auth_required()
 def get_all_session_data_instance_for_a_trial_zip(trial_id):
     try:
         conn = get_db_connection()
@@ -471,8 +471,8 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
 
 
 # All session data for a study
-@bp.route("/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
-@auth_required("token")
+@bp.route("/api/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
+@auth_required()
 def get_all_session_data_instance_zip(study_id):
     try:
         conn = get_db_connection()
@@ -510,8 +510,8 @@ def get_all_session_data_instance_zip(study_id):
 
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
-@bp.route("/create_participant_session/<int:study_id>", methods=["POST"])
-@auth_required("token")
+@bp.route("/api/create_participant_session/<int:study_id>", methods=["POST"])
+@auth_required()
 def create_participant_session(study_id):
     # Get request and convert to json
     submissionData = request.get_json()
@@ -609,8 +609,8 @@ def create_participant_session(study_id):
 
 
 # Get session general info for study panel
-@bp.route("/get_all_session_info/<int:study_id>", methods=["GET"])
-@auth_required("token")
+@bp.route("/api/get_all_session_info/<int:study_id>", methods=["GET"])
+@auth_required()
 def get_all_session_info(study_id):
     try:
         # Connect to the database
@@ -651,7 +651,7 @@ def get_all_session_info(study_id):
     "/get_participant_session_data/<int:study_id>/<int:participant_session_id>",
     methods=["GET"],
 )
-@auth_required("token")
+@auth_required()
 def get_participant_session_data(study_id, participant_session_id):
     try:
         # Connect to the database

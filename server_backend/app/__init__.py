@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from flask_mailman import Mail
 from flask_security import MailUtil
 import os
+from app.utility.user_serializer import user_serializer
 
 mysql = MySQL()
 db = SQLAlchemy()  # Only for user tracking via Flask-Security
@@ -20,6 +21,10 @@ csrf = CSRFProtect()
 
 # Confirmation email when registering
 mail = Mail()
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def create_app(testing=False):
@@ -82,16 +87,14 @@ def create_app(testing=False):
     app.config["SECURITY_CSRF_PROTECT_MECHANISMS"] = ["session", "basic"]
     app.config["SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS"] = True
 
-    app.config["SECURITY_JSON"] = True  # Forces JSON responses instead of HTML
-    app.config["SECURITY_TOKEN_AUTHENTICATION_HEADER"] = "Authentication-Token"
-
     app.config["SECURITY_CSRF_COOKIE_NAME"] = "XSRF-TOKEN"
+    app.config["SECURITY_CSRF_COOKIE_HTTPONLY"] = False
     app.config["WTF_CSRF_CHECK_DEFAULT"] = False
     app.config["WTF_CSRF_TIME_LIMIT"] = None
 
     app.config["SESSION_TYPE"] = "filesystem"  # Store sessions in the filesystem
     app.config["SESSION_PERMANENT"] = (
-        False  # Make session cookies expire when browser closes
+        True  # Make session cookies expire when browser closes
     )
     app.config["SESSION_COOKIE_NAME"] = "session"
     app.config["SESSION_COOKIE_HTTPONLY"] = (
@@ -112,11 +115,15 @@ def create_app(testing=False):
     app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
     mail.init_app(app)
 
-    app.config["SECURITY_TOKEN_AUTHENTICATION_KEY"] = "auth_token"
-    app.config["SECURITY_TOKEN_MAX_AGE"] = 3600  # Optional, token TTL in seconds
+    app.config["SECURITY_JSON"] = True  # Forces JSON responses instead of HTML
+    app.config["SECURITY_TOKEN_AUTHENTICATION_ENABLED"] = True
     app.config["SECURITY_API_ENABLE_TOKEN_AUTH"] = (
         True  # Needed to return token in login response
     )
+    app.config["SECURITY_TOKEN_AUTHENTICATION_HEADER"] = "Authentication-Token"
+    app.config["SECURITY_TOKEN_AUTHENTICATION_KEY"] = "auth_token"
+    app.config["SECURITY_TOKEN_MAX_AGE"] = 3600  # Optional, token TTL in seconds
+    app.config["SECURITY_USER_SERIALIZER"] = "utility.user_serializer.user_serializer"
 
     security = Security(app, user_datastore)
 

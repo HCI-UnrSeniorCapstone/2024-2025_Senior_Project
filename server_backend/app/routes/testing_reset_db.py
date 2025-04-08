@@ -25,7 +25,7 @@ def run_sql_file(cursor, file_path):
         print(f"Error executing SQL file: {file_path}\n{e}")
 
 
-@bp.route("/testing_reset_db", methods=["POST"])
+@bp.route("/api/testing_reset_db", methods=["POST"])
 def testing_reset_db():
     try:
         conn = get_db_connection()
@@ -65,7 +65,7 @@ def testing_reset_db():
         )
 
 
-@bp.route("/testing_insert_participant_sessions", methods=["POST"])
+@bp.route("/api/testing_insert_participant_sessions", methods=["POST"])
 def testing_insert_participant_sessions():
     try:
         conn = get_db_connection()
@@ -116,7 +116,7 @@ def testing_insert_participant_sessions():
         )
 
 
-@bp.route("/testing_update_database", methods=["POST"])
+@bp.route("/api/testing_update_database", methods=["POST"])
 def testing_update_database(file_path, participant_id, measurement_option_id):
     try:
         conn = get_db_connection()

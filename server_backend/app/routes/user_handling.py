@@ -6,7 +6,7 @@ bp = Blueprint("user_handling", __name__)
 
 
 @bp.route("/api/accounts/update_profile_register", methods=["POST"])
-@auth_required("token")
+@auth_required()
 def update_profile():
     data = request.get_json()
     first_name = data.get("first_name")
