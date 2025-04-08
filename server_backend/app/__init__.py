@@ -148,10 +148,11 @@ def create_app(testing=False):
     from app.routes.studies import bp as studies_bp
     from app.routes.sessions import bp as sessions_bp
     from app.routes.testing_reset_db import bp as testing_reset_db_bp
+    from app.routes.user_handling import bp as user_handling
 
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
     app.register_blueprint(sessions_bp)
     app.register_blueprint(testing_reset_db_bp)
-
+    app.register_blueprint(user_handling)
     return app
