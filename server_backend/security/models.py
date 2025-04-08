@@ -10,8 +10,6 @@ from flask_security import UserMixin, RoleMixin
 # db = SQLAlchemy()
 from flask_security.models import fsqla_v3 as fsqla
 
-fsqla.FsModels.set_db_info(db)
-
 # Association table for user roles
 roles_users = db.Table(
     "users_roles",  # Match the table name in DB
@@ -20,7 +18,7 @@ roles_users = db.Table(
 )
 
 
-class Role(db.Model, RoleMixin):
+class Role(db.Model, fsqla.FsRoleMixin):
     __tablename__ = "role_type"  # Match the table name in DB
 
     role_type_id = db.Column(db.Integer, primary_key=True)
@@ -47,7 +45,7 @@ class Role(db.Model, RoleMixin):
         return self.role_type_description
 
 
-class User(db.Model, UserMixin):
+class User(db.Model, fsqla.FsUserMixin):
     __tablename__ = "user"
 
     user_id: Mapped[int] = db.Column(db.Integer, primary_key=True, autoincrement=True)
