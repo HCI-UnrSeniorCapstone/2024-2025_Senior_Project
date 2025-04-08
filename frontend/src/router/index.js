@@ -14,7 +14,6 @@ import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSession
 import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
-import axios from 'axios'
 import SessionSetup from '@/views/SessionSetup.vue'
 
 const router = createRouter({

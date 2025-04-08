@@ -140,7 +140,8 @@
 
 <script>
 import StudyPanel from './StudyPanel.vue'
-import axios from 'axios'
+
+import api from '@/axiosInstance'
 
 export default {
   components: { StudyPanel },
@@ -192,7 +193,7 @@ export default {
       try {
     const backendUrl = this.$backendUrl
     const path = `${backendUrl}/get_study_data/${userID}`
-    const response = await axios.get(path)
+    const response = await api.get(path)
 
     if (Array.isArray(response.data)) {
       this.studies = await Promise.all(
@@ -243,7 +244,7 @@ export default {
       const backendUrl = this.$backendUrl
       const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
 
-      const response = await axios.get(path, {
+      const response = await api.get(path, {
         responseType: 'blob'
       })
 
@@ -268,7 +269,7 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
-        const response = await axios.get(path);
+        const response = await api.get(path);
         
         if (response.data === true) {
           return true
@@ -284,7 +285,7 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/copy_study/${studyID}/${1}`
-        const response = await axios.post(path);
+        const response = await api.post(path);
 
         // Refresh the page to show changes
         location.reload()
@@ -309,7 +310,7 @@ export default {
         try {
           const backendUrl = this.$backendUrl
           const path = `${backendUrl}/delete_study/${studyID}/${userID}` // passing study and user id to tell what to "delete"
-          const response = await axios.post(path)
+          const response = await api.post(path)
           this.studies = this.studies.filter(study => study.studyID !== studyID) //removing from local studies list
         } catch (error) {
           console.error('Error:', error.response?.data || error.message)

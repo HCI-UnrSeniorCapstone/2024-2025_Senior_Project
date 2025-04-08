@@ -13,7 +13,8 @@
 </template>
 
 <script>
-import axios from 'axios'
+
+import api from '@/axiosInstance'
 
 export default {
   name: 'TestSendCSV',

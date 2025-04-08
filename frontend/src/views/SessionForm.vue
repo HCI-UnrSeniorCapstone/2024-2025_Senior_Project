@@ -143,7 +143,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -288,7 +288,7 @@ export default {
         }
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/create_participant_session/${this.studyData.study_id}`
-        const response = await axios.post(path, submissionData)
+        const response = await api.post(path, submissionData)
 
         this.participantSessId = response.data.participant_session_id
         console.log('Session ID: ', this.participantSessId)
@@ -309,7 +309,7 @@ export default {
     async startSession() {
       try {
         const path = 'http://127.0.0.1:5001/run_study'
-        const response = await axios.post(path, this.studyData)
+        const response = await api.post(path, this.studyData)
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }

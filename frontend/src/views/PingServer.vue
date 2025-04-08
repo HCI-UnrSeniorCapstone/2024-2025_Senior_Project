@@ -7,7 +7,7 @@
 /*
 NOTE: This is TEMP to show the connection to the server
 */
-import axios from 'axios'
+import api from '@/axiosInstance'
 export default {
   name: 'PingServer',
   data() {
@@ -19,10 +19,12 @@ export default {
     getMessage() {
       const backendUrl = this.$backendUrl
       const path = `${backendUrl}/ping`
-      axios
-        .get(path, {
-          withCredentials: true
-        })
+      api.get('/ping', {
+  withCredentials: true,
+  headers: {
+    'Authentication-Token': localStorage.getItem('auth_token'),
+  },
+})
         .then(res => {
           this.msg = res.data.message // Display the response message from server
         })

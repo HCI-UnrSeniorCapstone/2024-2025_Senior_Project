@@ -109,7 +109,8 @@
 </template>
 
 <script>
-import axios from 'axios'
+
+import api from '@/axiosInstance'
 import { useRouter } from 'vue-router'
 
 export default {
@@ -220,7 +221,7 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/load_study/${this.studyId}`
-        const response = await axios.get(path)
+        const response = await api.get(path)
 
         this.study = response.data
 
