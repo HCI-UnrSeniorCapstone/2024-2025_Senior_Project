@@ -59,7 +59,7 @@
   </template>
   
   <script>
-  import axios from 'axios'
+import api from '@/axiosInstance'
   
   export default {
     name: 'UserRegister',
@@ -96,8 +96,9 @@
         this.success = ''
   
         try {
-          const response = await axios.post(
-            `${this.$backendUrl}/api/accounts/register`,
+          const response = await api.post(
+            // `/api/accounts/register`,
+            `/accounts/register`,
             {
               email: this.email,
               password: this.password,
@@ -107,13 +108,12 @@
                 'Content-Type': 'application/json',
                 Accept: 'application/json',
               },
-              withCredentials: true, 
             }
           )
   
           if (response.data.response?.user) {
             this.success = 'Registration successful! Please check your email to confirm.'
-            // await axios.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
+            // await api.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
             //   {
             //     first_name: this.firstName,
             //     last_name: this.lastName,

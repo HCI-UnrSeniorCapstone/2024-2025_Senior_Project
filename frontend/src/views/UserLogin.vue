@@ -39,7 +39,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import Cookies from 'js-cookie'
 
 export default {
@@ -58,8 +58,10 @@ export default {
   this.error = ''
 
   try {
-    const response = await axios.post(
-      `${this.$backendUrl}/api/accounts/login`,
+    const response = await api.post(
+      // `${this.$backendUrl}/api/accounts/login`,
+      // `/api/accounts/login`,
+      `/accounts/login`,
       {
         email: this.email,
         password: this.password,
@@ -68,9 +70,8 @@ export default {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          'X-CSRFToken': Cookies.get('XSRF-TOKEN'),
+          // 'X-CSRFToken': Cookies.get('XSRF-TOKEN'),
         },
-        withCredentials: true,
       }
     )
 
@@ -78,7 +79,10 @@ export default {
 
     // If login works just redirect
     if (response.data.meta?.code === 200) {
-      this.$router.push({ name: 'Dashboard' })
+      // this.$router.push({ name: 'Ping' })
+      setTimeout(() => {
+        this.$router.push({ name: 'Ping' }) // or wherever you want to go next
+      }, 500)
     } else {
       this.error = 'Login failed. Unexpected response.'
     }

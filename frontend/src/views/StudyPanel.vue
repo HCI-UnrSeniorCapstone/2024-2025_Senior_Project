@@ -180,7 +180,8 @@
 </template>
 
 <script>
-import axios from 'axios'
+
+import api from '@/axiosInstance'
 
 export default {
   props: {
@@ -259,7 +260,7 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/load_study/${studyID}`
-        const response = await axios.get(path)
+        const response = await api.get(path)
 
         this.focus_study = response.data
 
@@ -280,7 +281,7 @@ export default {
       const backendUrl = this.$backendUrl
       const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
 
-      const response = await axios.get(path, {
+      const response = await api.get(path, {
         responseType: 'blob'
       })
 
@@ -306,7 +307,7 @@ export default {
       try {
         const backendUrl = this.$backendUrl
         const path = `${backendUrl}/get_all_session_info/${sessionID}`
-        const response = await axios.get(path)
+        const response = await api.get(path)
 
         console.log(response)
         if (Array.isArray(response.data)) {

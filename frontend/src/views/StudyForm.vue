@@ -203,7 +203,8 @@
 <script>
 import Task from '../components/Task.vue'
 import Factor from '../components/Factor.vue'
-import axios from 'axios'
+
+import api from '@/axiosInstance'
 import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 
@@ -439,10 +440,10 @@ export default {
         // Making new study vs editing
         if (this.studyID != '' && this.userID != '') {
           path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
-          response = await axios.put(path, submissionData)
+          response = await api.put(path, submissionData)
         } else {
           path = `${backendUrl}/create_study/1`
-          response = await axios.post(path, submissionData)
+          response = await api.post(path, submissionData)
         }
         this.studySaveStatus('success', 'Study saved successfully!')
         setTimeout(() => {

@@ -13,7 +13,8 @@
 </template>
 
 <script>
-// import axios from 'axios'
+// 
+import api from '@/axiosInstance'
 import Papa from 'papaparse'
 import {
   Chart,
@@ -236,7 +237,7 @@ export default {
   //     const zipName = `${this.sessionID}.zip`
   //     console.log(zipName)
   //     try {
-  //       const response = await axios.get(
+  //       const response = await api.get(
   //         `http://127.0.0.1:5001/retrieve_zip/${zipName}`,
   //         {
   //           responseType: 'blob',
