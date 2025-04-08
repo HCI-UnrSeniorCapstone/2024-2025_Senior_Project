@@ -6,17 +6,20 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_security import (
     Security,
     SQLAlchemyUserDatastore,
-    auth_required,
-    hash_password,
 )
 from flask_security.models import fsqla_v3 as fsqla
 from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
+from flask_mailman import Mail
+from flask_security import MailUtil
 import os
 
 mysql = MySQL()
 db = SQLAlchemy()  # Only for user tracking via Flask-Security
 csrf = CSRFProtect()
+
+# Confirmation email when registering
+mail = Mail()
 
 
 def create_app(testing=False):
@@ -46,36 +49,70 @@ def create_app(testing=False):
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
     # app.config["SECURITY_PASSWORD_HASH"] = "argon2"
     app.config["SECURITY_PASSWORD_SALT"] = os.getenv("SECRET_PASSWORD_SALT")
-    app.config["REMEMBER_COOKIE_SAMESITE"] = "strict"
-    app.config["SESSION_COOKIE_SAMESITE"] = "strict"
 
+    # Import models
+    from security.models import User, Role
+
+    user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     # Customized settings so that VUE can be used instead of default server-side html rendering via Flask Security
-    SECURITY_FLASH_MESSAGES = False
-    SECURITY_URL_PREFIX = "/api/accounts"
+    app.config["SECURITY_FLASH_MESSAGES"] = False
+    app.config["SECURITY_URL_PREFIX"] = "/api/accounts"
 
-    SECURITY_RECOVERABLE = True
-    SECURITY_TRACKABLE = True
-    SECURITY_CHANGEABLE = True
-    SECURITY_CONFIRMABLE = True
-    SECURITY_REGISTERABLE = True
-    SECURITY_UNIFIED_SIGNIN = True
+    app.config["SECURITY_RECOVERABLE"] = True
+    app.config["SECURITY_TRACKABLE"] = True
+    app.config["SECURITY_CHANGEABLE"] = True
+    app.config["SECURITY_CONFIRMABLE"] = True
+    app.config["SECURITY_REGISTERABLE"] = True
+    app.config["SECURITY_UNIFIED_SIGNIN"] = False
 
-    SECURITY_POST_CONFIRM_VIEW = "/confirmed"
-    SECURITY_CONFIRM_ERROR_VIEW = "/confirm-error"
-    SECURITY_RESET_VIEW = "/reset-password"
-    SECURITY_RESET_ERROR_VIEW = "/reset-password-error"
-    SECURITY_LOGIN_ERROR_VIEW = "/login-error"
-    SECURITY_POST_OAUTH_LOGIN_VIEW = "/post-oauth-login"
-    SECURITY_REDIRECT_BEHAVIOR = "spa"
+    app.config["SECURITY_POST_CONFIRM_VIEW"] = (
+        "http://localhost:5173/confirmed"  # Update this when frontend deployed
+    )
+    app.config["SECURITY_CONFIRM_ERROR_VIEW"] = (
+        "http://localhost:5173/confirmed"  # Update this when frontend deployed
+    )
+    app.config["SECURITY_RESET_VIEW"] = "/reset-password"
+    app.config["SECURITY_RESET_ERROR_VIEW"] = "/reset-password-error"
+    app.config["SECURITY_LOGIN_ERROR_VIEW"] = "/login-error"
+    app.config["SECURITY_POST_OAUTH_LOGIN_VIEW"] = "/post-oauth-login"
+    app.config["SECURITY_REDIRECT_BEHAVIOR"] = "spa"
 
-    SECURITY_CSRF_PROTECT_MECHANISMS = ["session", "basic"]
-    SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS = True
+    app.config["SECURITY_CSRF_PROTECT_MECHANISMS"] = ["session", "basic"]
+    app.config["SECURITY_CSRF_IGNORE_UNAUTH_ENDPOINTS"] = True
 
-    SECURITY_CSRF_COOKIE_NAME = "XSRF-TOKEN"
-    WTF_CSRF_CHECK_DEFAULT = False
-    WTF_CSRF_TIME_LIMIT = None
+    app.config["SECURITY_JSON"] = True  # Forces JSON responses instead of HTML
+    app.config["SECURITY_TOKEN_AUTHENTICATION_HEADER"] = "Authentication-Token"
+
+    app.config["SECURITY_CSRF_COOKIE_NAME"] = "XSRF-TOKEN"
+    app.config["WTF_CSRF_CHECK_DEFAULT"] = False
+    app.config["WTF_CSRF_TIME_LIMIT"] = None
+
+    app.config["SESSION_TYPE"] = "filesystem"  # Store sessions in the filesystem
+    app.config["SESSION_PERMANENT"] = (
+        False  # Make session cookies expire when browser closes
+    )
+    app.config["SESSION_COOKIE_NAME"] = "session"
+    app.config["SESSION_COOKIE_HTTPONLY"] = (
+        False  # Prevent JavaScript from accessing session cookie
+    )
+    app.config["SESSION_COOKIE_SECURE"] = (
+        False  # Requires HTTPS, change to False for local dev
+    )
+    app.config["SESSION_COOKIE_SAMESITE"] = (
+        "None"  # Adjust if cross-origin issues occur
+    )
     csrf.init_app(app)
+    app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER")
+    app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
+    app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "false").lower() == "true"
+    app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
+    app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
+    app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
+    mail.init_app(app)
+
+    security = Security(app, user_datastore)
     # CSRFProtect(app)
+    # csrf = CSRFProtect(app)
 
     # SQLAlchemy ONLY for Flask-Security
     # This is done since Flask-Security is easy to use when using an ORM
@@ -87,13 +124,18 @@ def create_app(testing=False):
     db.init_app(app)
 
     CORS(
-        app, resources={r"/*": {"origins": "*"}}, expose_headers=["Content-Disposition"]
+        app,
+        # resources={r"/*": {"origins": "http://localhost:5173"}},
+        expose_headers=[
+            "Content-Disposition",
+            "Content-Type",
+            "X-CSRFToken",
+            "Authorization",
+            "Authentication-Token",
+            "XSRF-TOKEN",
+        ],
+        supports_credentials=True,
     )
-    # Import models
-    from security.models import User, Role
-
-    user_datastore = SQLAlchemyUserDatastore(db, User, Role)
-    security = Security(app, user_datastore)
 
     # Register blueprints
     from app.routes.general import bp as general_bp

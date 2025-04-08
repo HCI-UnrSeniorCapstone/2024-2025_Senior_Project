@@ -5,6 +5,7 @@ from sqlalchemy import String, Integer, TIMESTAMP, func
 from sqlalchemy.orm import Mapped, mapped_column
 from typing import Optional, List
 from app import db
+from flask_security import UserMixin, RoleMixin
 
 # db = SQLAlchemy()
 from flask_security.models import fsqla_v3 as fsqla
@@ -19,7 +20,7 @@ roles_users = db.Table(
 )
 
 
-class Role(db.Model, fsqla.FsRoleMixin):
+class Role(db.Model, RoleMixin):
     __tablename__ = "role_type"  # Match the table name in DB
 
     role_type_id = db.Column(db.Integer, primary_key=True)
@@ -46,7 +47,7 @@ class Role(db.Model, fsqla.FsRoleMixin):
         return self.role_type_description
 
 
-class User(db.Model, fsqla.FsUserMixin):
+class User(db.Model, UserMixin):
     __tablename__ = "user"
 
     user_id: Mapped[int] = db.Column(db.Integer, primary_key=True, autoincrement=True)

@@ -4,6 +4,7 @@ from flask_security.utils import hash_password, verify_password
 from flask_security import login_user
 from security.models import User, db
 from werkzeug.security import check_password_hash
+from flask import session
 
 bp = Blueprint("user_handling", __name__)
 from app import csrf
@@ -12,78 +13,104 @@ from app import csrf
 @bp.route("/api/accounts/register", methods=["POST"])
 @csrf.exempt
 def register():
-    # Retrieve raw JSON data from the request body
-    json_data = request.data.decode("utf-8")
-
-    # Parse the JSON data
     try:
-        session_data = json.loads(json_data)
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+        # Retrieve raw JSON data from the request body
+        json_data = request.data.decode("utf-8")
 
-    email = session_data.get("email")
-    input_password = session_data.get("password")
+        # Parse the JSON data
+        try:
+            session_data = json.loads(json_data)
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
 
-    if not email or not input_password:
-        return jsonify({"error": "Email and password are required"}), 400
+        email = session_data.get("email")
+        input_password = session_data.get("password")
 
-    # Check if the user already exists
-    if User.query.filter_by(email=email).first():
-        return jsonify({"message": "User already exists"}), 400
+        if not email or not input_password:
+            return jsonify({"error": "Email and password are required"}), 400
 
-    # Create the new user
-    hashed_password = hash_password(input_password)
-    print("input password: " + input_password)
-    print("hashed password: " + hashed_password)
-    new_user = User(email=email, password=hashed_password)
-    db.session.add(new_user)
-    db.session.commit()
+        # Check if the user already exists
+        if User.query.filter_by(email=email).first():
+            return jsonify({"message": "User already exists"}), 400
 
-    return jsonify({"message": "User registered successfully"}), 201
+        # Create the new user
+        hashed_password = hash_password(input_password)
+        print("input password: " + input_password)
+        print("hashed password: " + hashed_password)
+        new_user = User(email=email, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+
+        return jsonify({"message": "User registered successfully"}), 201
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/accounts/login", methods=["POST"])
-@csrf.exempt
-def login():
-    # Ensure CSRF protection is checked
-    # csrf_token = request.headers.get("X-CSRF-TOKEN")
-    # if not csrf_token:
-    #     return jsonify({"error": "CSRF token is missing"}), 400
+# @bp.after_request
+# def after_request(response):
+#     print("SDFLKSDJFLSKDJF")
+#     # Generate CSRF token
+#     csrf_token = csrf.generate_csrf()
 
-    # Verify the CSRF token here (if necessary, depending on how you're handling it)
-    # If you're using Flask-Security, CSRF protection is automatically managed
+#     # Set CSRF token as a cookie (accessible to JavaScript)
+#     response.set_cookie("XSRF-TOKEN", csrf_token, httponly=False, samesite="Strict")
 
-    json_data = request.data.decode("utf-8")  # Use request.data instead of request.form
-    try:
-        session_data = json.loads(json_data)
-    except json.JSONDecodeError as e:
-        return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+#     return response
 
-    email = session_data.get("email")
-    password = session_data.get("password")
 
-    # Debugging log
-    print(f"Login attempt for email: {email}")
+from flask_wtf.csrf import generate_csrf
 
-    # Find the user by email
-    user = User.query.filter_by(email=email).first()
 
-    # Ensure user exists before verifying password
-    if not user:
-        print("User not found")
-        return jsonify({"error": "User not found"}), 401
-    # if not check_password_hash(user.password, password):
-    #     print("no good")
+# @bp.route("/api/accounts/login", methods=["POST"])
+# @csrf.exempt
+# def login():
+#     try:
+#         json_data = request.data.decode("utf-8")
+#         session_data = json.loads(json_data)
 
-    if not verify_password(password, user.password):
-        print("Password mismatch")
-        print(password)
-        print(user.password)
-        return jsonify({"error": "Invalid password"}), 401
+#         email = session_data.get("email")
+#         password = session_data.get("password")
 
-    # Log in the user
-    login_user(user)
-    print("Login successful")
+#         if not email or not password:
+#             return jsonify({"error": "Email and password are required"}), 400
 
-    # Optionally, return the CSRF token in the response (so the client can store it)
-    return jsonify({"message": "Login successful"}), 200
+#         user = User.query.filter_by(email=email).first()
+#         if not user:
+#             return jsonify({"error": "User not found"}), 401
+
+#         if not verify_password(password, user.password):
+#             return jsonify({"error": "Invalid password"}), 401
+
+#         login_user(user)
+#         db.session.commit()
+#         session.modified = True
+
+#         # CSRF cookie for frontend
+#         response = jsonify({"message": "Login successful"})
+#         response.set_cookie(
+#             "XSRF-TOKEN",
+#             generate_csrf(),
+#             httponly=False,
+#             secure=False,
+#             samesite="None",
+#         )
+
+#         return response, 200
+
+#     except json.JSONDecodeError as e:
+#         return jsonify({"error": f"Invalid JSON: {str(e)}"}), 400
+#     except Exception as e:
+#         return (
+#             jsonify(
+#                 {
+#                     "error_type": type(e).__name__,
+#                     "error_message": str(e),
+#                 }
+#             ),
+#             500,
+#         )
