@@ -20,7 +20,9 @@ export default {
       const backendUrl = this.$backendUrl
       const path = `${backendUrl}/ping`
       axios
-        .get(path)
+        .get(path, {
+          withCredentials: true
+        })
         .then(res => {
           this.msg = res.data.message // Display the response message from server
         })

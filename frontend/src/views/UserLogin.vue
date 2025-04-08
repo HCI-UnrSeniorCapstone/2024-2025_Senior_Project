@@ -40,6 +40,7 @@
 
 <script>
 import axios from 'axios'
+import Cookies from 'js-cookie'
 
 export default {
   name: 'UserLogin',
@@ -67,6 +68,7 @@ export default {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
+          'X-CSRFToken': Cookies.get('XSRF-TOKEN'),
         },
         withCredentials: true,
       }
