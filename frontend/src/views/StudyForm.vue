@@ -354,6 +354,7 @@ export default {
     participantCount: this.participantCount,
     tasks: this.tasks,
     factors: this.factors,
+    studyID: this.studyID,
   }
 
   // Handle base64 encoding of consent form
@@ -363,7 +364,7 @@ export default {
 
   try {
     const path = this.editMode
-      ? `/overwrite_study/${this.studyID}`  // Optional: switch this to `/api/update_study`
+      ? `/overwrite_study`  // Optional: switch this to `/api/update_study`
       : `/create_study`
 
     const res = await api.post(path, payload)
