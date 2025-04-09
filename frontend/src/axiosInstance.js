@@ -7,24 +7,23 @@ const api = axios.create({
   withCredentials: true,
 })
 
+ 
 api.interceptors.request.use(config => {
-    const xsrfCookie = Cookies.get('XSRF-TOKEN')
-    const rawToken = xsrfCookie?.split('.')[0]
-  
-    console.log('[axios interceptor] Cookie:', xsrfCookie)
-    console.log('[axios interceptor] Raw Token:', rawToken)
-  
-    if (rawToken) {
-      config.headers['X-CSRFToken'] = rawToken
-    }
+  const rawToken = Cookies.get('XSRF-TOKEN');
 
-    // Forces Flask-Security to return JSON instead of HTML on login errors
-    config.headers['Accept'] = 'application/json'
-    config.headers['Content-Type'] = 'application/json'
+  console.log('[axios interceptor] XSRF-TOKEN:', rawToken);
 
-    return config
-  })
+  if (rawToken) {
+    config.headers['X-CSRFToken'] = rawToken;
+  }
+
+  config.headers['Accept'] = 'application/json';
+  config.headers['Content-Type'] = 'application/json';
+
+  return config;
+});
   
+
 api.interceptors.response.use(
   response => response,
   error => {
