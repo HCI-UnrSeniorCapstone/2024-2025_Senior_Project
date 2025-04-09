@@ -227,6 +227,20 @@ export default {
   },
 
   methods: {
+    async convertFileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const base64String = reader.result.split(',')[1]  // Strip the data prefix
+        resolve({
+          filename: file.name,
+          content: base64String,
+        })
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  },
     addTaskFactor(type) {
       const isTask = type === 'task'
       const list = isTask ? this.tasks : this.factors
@@ -333,32 +347,34 @@ export default {
     },
 
     async submit() {
-      const payload = {
-        studyName: this.studyName,
-        studyDescription: this.studyDescription,
-        studyDesignType: this.studyDesignType,
-        participantCount: this.participantCount,
-        tasks: this.tasks,
-        factors: this.factors,
-      }
+  const payload = {
+    studyName: this.studyName,
+    studyDescription: this.studyDescription,
+    studyDesignType: this.studyDesignType,
+    participantCount: this.participantCount,
+    tasks: this.tasks,
+    factors: this.factors,
+  }
 
-      const formData = new FormData()
-      formData.append('data', JSON.stringify(payload))
-      if (this.consentForm) formData.append('consent_file', this.consentForm)
+  // Handle base64 encoding of consent form
+  if (this.consentForm) {
+    payload.consentFile = await this.convertFileToBase64(this.consentForm)
+  }
 
-      try {
-        const path = this.editMode
-          ? `/overwrite_study/${this.studyID}`
-          : `/create_study`
-        await api.post(path, formData)
+  try {
+    const path = this.editMode
+      ? `/overwrite_study/${this.studyID}`  // Optional: switch this to `/api/update_study`
+      : `/create_study`
 
-        this.studySaveStatus('success', 'Study saved successfully!')
-        setTimeout(() => this.exit(), 1500)
-      } catch (error) {
-        console.error('Submit error:', error.response?.data || error.message)
-        this.studySaveStatus('error', 'Study failed to save!')
-      }
-    },
+    const res = await api.post(path, payload)
+
+    this.studySaveStatus('success', 'Study saved successfully!')
+    setTimeout(() => this.exit(), 1500)
+  } catch (error) {
+    console.error('Submit error:', error.response?.data || error.message)
+    this.studySaveStatus('error', 'Study failed to save!')
+  }
+},
   },
 }
 </script>
