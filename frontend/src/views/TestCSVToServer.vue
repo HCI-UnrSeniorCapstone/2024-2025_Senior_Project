@@ -40,8 +40,7 @@ export default {
       const formData = new FormData()
       formData.append('input_csv', this.file) // Append the selected file
 
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/save_session_data_instance/1/1/1/1/1` //HARDCODED Parameters to show proof of concept
+      const path = `/save_session_data_instance/1/1/1/1/1` //HARDCODED Parameters to show proof of concept
       axios
         .post(path, formData, {
           headers: {

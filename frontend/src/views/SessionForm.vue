@@ -287,8 +287,7 @@ export default {
           participantRaceEthnicity: this.participantRaceEthnicity,
           participantTechCompetency: this.participantTechCompetency,
         }
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/create_participant_session/${this.studyData.study_id}`
+        const path = `/create_participant_session/${this.studyData.study_id}`
         const response = await api.post(path, submissionData)
         this.participantSessId = response.data.participant_session_id
       } catch (error) {
@@ -298,9 +297,8 @@ export default {
 
     async fetchConsentForm() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_consent_form/${this.studyData.study_id}`
-        const consentResponse = await axios.get(path, {
+        const path = `/get_study_consent_form/${this.studyData.study_id}`
+        const consentResponse = await api.get(path, {
           responseType: 'blob',
         })
         if (consentResponse.status == 200) {
@@ -335,9 +333,8 @@ export default {
 
     async saveParticipantAck() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/save_participant_consent/${this.studyData.study_id}/${this.participantSessId}`
-        await axios.post(path)
+        const path = `/save_participant_consent/${this.studyData.study_id}/${this.participantSessId}`
+        await api.post(path)
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }

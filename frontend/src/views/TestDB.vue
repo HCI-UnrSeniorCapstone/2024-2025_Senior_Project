@@ -31,9 +31,8 @@ export default {
   },
   methods: {
     getMessage() {
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/test_db`
-      axios
+      const path = `/test_db`
+      api
         .get(path)
         .then(res => {
           if (Array.isArray(res.data)) {

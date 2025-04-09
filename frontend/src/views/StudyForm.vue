@@ -476,9 +476,8 @@ export default {
     // Retrieving all information on the study
     async fetchStudyDetails(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        let path = `${backendUrl}/load_study/${studyID}`
-        const response = await axios.get(path)
+        let path = `/load_study/${studyID}`
+        const response = await api.get(path)
 
         const study_edit = response.data
 
@@ -494,8 +493,8 @@ export default {
 
         // Consent form
         try {
-          path = `${backendUrl}/get_study_consent_form/${studyID}`
-          const consentResponse = await axios.get(path, {
+          path = `/get_study_consent_form/${studyID}`
+          const consentResponse = await api.get(path, {
             responseType: 'blob',
           })
           if (consentResponse.status == 200) {
@@ -537,7 +536,6 @@ export default {
       }
 
       try {
-        const backendUrl = this.$backendUrl
         let path
         const formData = new FormData()
 
@@ -549,11 +547,11 @@ export default {
         let response
         // Editing existing study > overwrite
         if (this.studyID && this.userID) {
-          path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
+          path = `/overwrite_study/${this.studyID}`
           response = await api.post(path, formData)
         } else {
           // Creating a new study
-          path = `${backendUrl}/create_study/1`
+          path = `/create_study`
           response = await api.post(path, formData)
         }
 

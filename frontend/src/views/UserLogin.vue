@@ -31,7 +31,7 @@
     </p>
   </v-col>
 </v-row>
-      <v-alert v-if="error" type="error" class="mt-4">
+      <v-alert v-if="error" type="error" class="mt-4 center-text">
         {{ error }}
       </v-alert>
     </v-form>
@@ -59,8 +59,6 @@ export default {
 
   try {
     const response = await api.post(
-      // `${this.$backendUrl}/api/accounts/login`,
-      // `/api/accounts/login`,
       `/accounts/login`,
       {
         email: this.email,
@@ -70,7 +68,6 @@ export default {
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          // 'X-CSRFToken': Cookies.get('XSRF-TOKEN'),
         },
       }
     )
@@ -79,9 +76,8 @@ export default {
 
     // If login works just redirect
     if (response.data.meta?.code === 200) {
-      // this.$router.push({ name: 'Ping' })
       setTimeout(() => {
-        this.$router.push({ name: 'Ping' }) // or wherever you want to go next
+        this.$router.push({ name: 'Dashboard' })
       }, 500)
     } else {
       this.error = 'Login failed. Unexpected response.'
@@ -103,5 +99,8 @@ export default {
 <style scoped>
 .login-view {
   margin-top: 100px;
+}
+.center-text {
+  text-align: center;
 }
 </style>

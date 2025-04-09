@@ -189,7 +189,7 @@ export default {
 
   //populate table on page load w/ a temporary hardcoded userID of 1
   async mounted() {
-    await this.populateStudies(1)
+    await this.populateStudies()
     // If we canceled during sessions setup this will seed the view so the study panel opens to the appropriate study automatically
     const studyID = this.$route.query.studyID
     if (studyID) {
@@ -210,17 +210,14 @@ export default {
 
   methods: {
     // populating the studies table
-    async populateStudies(userID) {
+    async populateStudies() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_data/${userID}`
-        const response = await api.get(path)
+        const response = await api.get(`/get_study_data`)
 
         if (Array.isArray(response.data)) {
           this.studies = await Promise.all(
             response.data.map(async study => {
               const canEdit = await this.checkIfOverwriteAllowed(
-                userID,
                 study[1],
               )
               return {
@@ -268,8 +265,7 @@ export default {
     },
     async downloadStudyData(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
+        const path = `/get_all_session_data_instance_zip/${studyID}`
 
         const response = await api.get(path, {
           responseType: 'blob',
@@ -291,10 +287,9 @@ export default {
         console.error('Error downloading study data:', error)
       }
     },
-    async checkIfOverwriteAllowed(userID, studyID) {
+    async checkIfOverwriteAllowed(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
+        const path = `/is_overwrite_study_allowed/${studyID}`
         const response = await api.get(path)
 
         if (response.data === true) {
@@ -309,8 +304,7 @@ export default {
     },
     async duplicateStudy(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/copy_study/${studyID}/${1}`
+        const path = `/copy_study/${studyID}`
         const response = await api.post(path)
 
         // Refresh the page to show changes
@@ -323,18 +317,16 @@ export default {
     editExistingStudy(study_id) {
       this.$router.push({
         name: 'StudyForm',
-        params: { studyID: study_id, userID: 1 }, // 1 is hardcoded for now until we have users
+        params: { studyID: study_id},
       })
     },
     // impacts whether we actually delete the study or not based on the user input
     async closeDialog(choice) {
       if (choice == 'yes') {
         const studyID = this.dialogDetails.studyID
-        const userID = 1 //temp
 
         try {
-          const backendUrl = this.$backendUrl
-          const path = `${backendUrl}/delete_study/${studyID}/${userID}` // passing study and user id to tell what to "delete"
+          const path = `/delete_study/${studyID}`
           const response = await api.post(path)
           this.studies = this.studies.filter(study => study.studyID !== studyID) //removing from local studies list
         } catch (error) {

@@ -40,10 +40,9 @@ export default {
   },
   methods: {
     getSessionData() {
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/get_participant_session_data/${this.studyId}/${this.participantSessionId}`
+      const path = `/get_participant_session_data/${this.studyId}/${this.participantSessionId}`
 
-      axios
+      api
         .get(path)
         .then(res => {
           if (res.data && Object.keys(res.data).length > 0) {

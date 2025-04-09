@@ -97,7 +97,6 @@ import api from '@/axiosInstance'
   
         try {
           const response = await api.post(
-            // `/api/accounts/register`,
             `/accounts/register`,
             {
               email: this.email,
@@ -113,19 +112,6 @@ import api from '@/axiosInstance'
   
           if (response.data.response?.user) {
             this.success = 'Registration successful! Please check your email to confirm.'
-            // await api.post(`${this.$backendUrl}/api/accounts/update_profile_register`,
-            //   {
-            //     first_name: this.firstName,
-            //     last_name: this.lastName,
-            //   },
-            //   {
-            //     headers: {
-            //       'Content-Type': 'application/json',
-            //       Accept: 'application/json',
-            //     },
-            //     withCredentials: true, 
-            //   }
-            // )
           } else {
             this.success = 'Registration submitted.'
           }
