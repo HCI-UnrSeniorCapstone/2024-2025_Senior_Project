@@ -6,6 +6,41 @@ from app.utility.db_connection import get_db_connection
 bp = Blueprint("user_handling", __name__)
 
 
+@bp.route("/api/accounts/update_user_profile", methods=["POST"])
+@auth_required()
+def update_user_profile():
+    try:
+        data = request.get_json()
+
+        if data is None:
+            return jsonify({"error": "Invalid or missing JSON body"}), 400
+
+        query = """
+            UPDATE user
+            SET first_name = %s,
+                last_name = %s,
+                username = %s
+            WHERE user_id = %s
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            query,
+            (
+                data.get("first_name"),
+                data.get("last_name"),
+                data.get("username"),
+                current_user.id,
+            ),
+        )
+        conn.commit()
+        cur.close()
+        return jsonify({"message": "Profile updated"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @bp.route("/api/accounts/get_user_profile_info", methods=["GET"])
 @auth_required()
 def get_user_profile_info():
