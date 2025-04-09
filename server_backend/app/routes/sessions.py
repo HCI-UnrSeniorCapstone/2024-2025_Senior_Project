@@ -168,7 +168,7 @@ def save_participant_session():
 
 # Saves tracked data to server file system, db will have a file path to the CSVs
 @bp.route(
-    "/save_session_data_instance/<int:participant_session_id>/<int:study_id>/<int:task_id>/<int:measurement_option_id>/<int:factor_id>",
+    "/api/save_session_data_instance/<int:participant_session_id>/<int:study_id>/<int:task_id>/<int:measurement_option_id>/<int:factor_id>",
     methods=["POST"],
 )
 @auth_required()
@@ -271,7 +271,7 @@ def save_session_data_instance(
 
 # All session data from a participant
 @bp.route(
-    "/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
+    "/api/get_all_session_data_instance_from_participant_zip/<int:participant_id>",
     methods=["GET"],
 )
 @auth_required()
@@ -316,7 +316,7 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
 
 # All session data for a participant session
 @bp.route(
-    "/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
+    "/api/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
     methods=["GET"],
 )
 @auth_required()
@@ -369,7 +369,8 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
 
 # Only one specific file of data
 @bp.route(
-    "/get_one_session_data_instance_zip/<int:session_data_instance_id>", methods=["GET"]
+    "/api/get_one_session_data_instance_zip/<int:session_data_instance_id>",
+    methods=["GET"],
 )
 @auth_required()
 def get_one_session_data_instance_zip(session_data_instance_id):
@@ -417,7 +418,7 @@ def get_one_session_data_instance_zip(session_data_instance_id):
 
 # All session data for a trial
 @bp.route(
-    "/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
+    "/api/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
 )
 @auth_required()
 def get_all_session_data_instance_for_a_trial_zip(trial_id):
@@ -648,7 +649,7 @@ def get_all_session_info(study_id):
 # Gets CSV data for 1 participant_session with corresponding types
 # Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
 @bp.route(
-    "/get_participant_session_data/<int:study_id>/<int:participant_session_id>",
+    "/api/get_participant_session_data/<int:study_id>/<int:participant_session_id>",
     methods=["GET"],
 )
 @auth_required()
@@ -737,7 +738,7 @@ def get_participant_session_data(study_id, participant_session_id):
 
 # Stores the participant's consent agreement for individual sessions
 @bp.route(
-    "/save_participant_consent/<int:study_id>/<int:participant_session_id>",
+    "/api/save_participant_consent/<int:study_id>/<int:participant_session_id>",
     methods=["POST"],
 )
 def save_participant_consent(study_id, participant_session_id):

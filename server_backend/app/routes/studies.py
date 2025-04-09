@@ -14,15 +14,16 @@ from app.utility.studies import (
 from app.utility.db_connection import get_db_connection
 from app import create_app
 from flask_security import auth_required
+from flask_login import current_user
 
 bp = Blueprint("studies", __name__)
 
 
 # Gets and saves data from study form page and stores it into a json file. Then uploads data into db
 # The query will need to be UPDATED since the user is hardcoded rn
-@bp.route("/api/create_study/<int:user_id>", methods=["POST"])
+@bp.route("/api/create_study", methods=["POST"])
 @auth_required()
-def create_study(user_id):
+def create_study():
     # Get request and convert to json
     submission_data = request.form.get("data")
     if not submission_data:
@@ -55,7 +56,8 @@ def create_study(user_id):
         VALUES (%s, %s, %s)
         """
         cur.execute(
-            insert_study_user_role_query, (user_id, study_id, study_user_role_type_id)
+            insert_study_user_role_query,
+            (current_user.id, study_id, study_user_role_type_id),
         )
 
         # Attempt to save consent form if provided
@@ -86,11 +88,9 @@ def create_study(user_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route(
-    "/api/is_overwrite_study_allowed/<int:user_id>/<int:study_id>", methods=["GET"]
-)
+@bp.route("/api/is_overwrite_study_allowed/<int:study_id>", methods=["GET"])
 @auth_required()
-def is_overwrite_study_allowed(user_id, study_id):
+def is_overwrite_study_allowed(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -101,7 +101,7 @@ def is_overwrite_study_allowed(user_id, study_id):
         FROM user 
         WHERE user_id = %s
         """
-        cur.execute(check_user_query, (user_id,))
+        cur.execute(check_user_query, (current_user.id,))
         user_exists = cur.fetchone()[0]
 
         # Error Message
@@ -119,7 +119,7 @@ def is_overwrite_study_allowed(user_id, study_id):
         cur.execute(
             check_user_query,
             (
-                user_id,
+                current_user.id,
                 study_id,
             ),
         )
@@ -163,9 +163,9 @@ def is_overwrite_study_allowed(user_id, study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/overwrite_study/<int:user_id>/<int:study_id>", methods=["POST"])
+@bp.route("/api/overwrite_study/<int:study_id>", methods=["POST"])
 @auth_required()
-def overwrite_study(user_id, study_id):
+def overwrite_study(study_id):
     submission_data = request.form.get("data")
     if not submission_data:
         return jsonify({"error": "No study data provided"}), 400
@@ -203,7 +203,7 @@ def overwrite_study(user_id, study_id):
         cur.execute(
             check_user_query,
             (
-                user_id,
+                current_user.id,
                 study_id,
             ),
         )
@@ -317,10 +317,9 @@ def overwrite_study(user_id, study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/get_study_data/<int:user_id>", methods=["GET"])
+@bp.route("/api/get_study_data", methods=["GET"])
 @auth_required()
-def get_study_data(user_id):
-
+def get_study_data():
     # https://www.geeksforgeeks.org/read-json-file-using-python/
     # gets the json data from the db
     try:
@@ -333,9 +332,8 @@ def get_study_data(user_id):
         FROM user 
         WHERE user_id = %s
         """
-        cur.execute(check_user_query, (user_id,))
+        cur.execute(check_user_query, (current_user.id,))
         user_exists = cur.fetchone()[0]
-
         # Error Message
         if user_exists == 0:
             return jsonify({"error": "User not found"}), 404
@@ -343,16 +341,16 @@ def get_study_data(user_id):
         # Select query
         select_user_studies_info_query = """
         SELECT 
-            DATE_FORMAT(study.created_at, '%m/%d/%Y') AS 'Date Created',
-            study.study_id AS 'Study ID',
-            study.study_name AS 'User Study Name',
-            study.study_description AS 'Description',
+            DATE_FORMAT(study.created_at, '%%m/%%d/%%Y') AS `Date_Created`,
+            study.study_id AS `Study_ID`,
+            study.study_name AS `User_Study_Name`,
+            study.study_description AS `Description`,
             CONCAT(
                 COALESCE(completed_sessions.completed_count, 0), 
                 ' / ', 
                 study.expected_participants
-            ) AS 'Sessions',
-            study_user_role_type.study_user_role_description AS 'Role'
+            ) AS `Sessions`,
+            study_user_role_type.study_user_role_description AS `Role`
         FROM study
         INNER JOIN study_user_role
             ON study_user_role.study_id = study.study_id
@@ -366,21 +364,17 @@ def get_study_data(user_id):
             GROUP BY study_id
         ) AS completed_sessions
             ON study.study_id = completed_sessions.study_id
-        WHERE study_user_role.user_id = 1
+        WHERE study_user_role.user_id = %s
         """
-        # Execute get
-        # cur.execute(select_user_studies_info_query, (user_id,))
-        cur.execute(select_user_studies_info_query)
+
+        cur.execute(select_user_studies_info_query, (current_user.id,))
         # Get all rows
         results = cur.fetchall()
-
-        # column_names = [desc[0] for desc in cur.description]  # Extract column names
-
-        # Format results as a list of dictionaries
-        # json_results = [dict(zip(column_names, row)) for row in results]
-
         # Close cursor
         cur.close()
+
+        if not results:
+            return jsonify({"message": "No studies found"}), 200
 
         return jsonify(results), 200
 
@@ -393,9 +387,9 @@ def get_study_data(user_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/copy_study/<int:study_id>/<int:user_id>", methods=["POST"])
+@bp.route("/api/copy_study/<int:study_id>", methods=["POST"])
 @auth_required()
-def copy_study(study_id, user_id):
+def copy_study(study_id):
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -423,7 +417,7 @@ def copy_study(study_id, user_id):
         cur.execute(
             check_user_query,
             (
-                user_id,
+                current_user.id,
                 study_id,
             ),
         )
@@ -590,9 +584,9 @@ def load_study(study_id):
 
 
 # Note, the study still exists in the database but not available to users
-@bp.route("/api/delete_study/<int:study_id>/<int:user_id>", methods=["POST"])
+@bp.route("/api/delete_study/<int:study_id>", methods=["POST"])
 @auth_required()
-def delete_study(study_id, user_id):
+def delete_study(study_id):
     try:
         # Connect to the database
         conn = get_db_connection()
@@ -608,7 +602,7 @@ def delete_study(study_id, user_id):
             WHERE study_user_role_description = 'Owner'
         )
         """
-        cur.execute(check_owner_query, (study_id, user_id))
+        cur.execute(check_owner_query, (study_id, current_user.id))
         is_owner = cur.fetchone()[0]
 
         if is_owner == 0:
@@ -619,7 +613,7 @@ def delete_study(study_id, user_id):
         INSERT INTO deleted_study (study_id, deleted_by_user_id)
         VALUES (%s, %s)
         """
-        cur.execute(insert_deletion_query, (study_id, user_id))
+        cur.execute(insert_deletion_query, (study_id, current_user.id))
 
         # Copy study roles into deleted_study_role
         copy_roles_query = """
@@ -651,7 +645,7 @@ def delete_study(study_id, user_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/get_study_consent_form/<int:study_id>", methods=["GET"])
+@bp.route("/api/get_study_consent_form/<int:study_id>", methods=["GET"])
 def get_study_consent_form(study_id):
     try:
         conn = get_db_connection()

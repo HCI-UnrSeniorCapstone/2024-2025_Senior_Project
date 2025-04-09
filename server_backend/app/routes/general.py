@@ -2,6 +2,7 @@ import json
 from flask import Blueprint, jsonify, request
 from app.utility.db_connection import get_db_connection
 from flask_security import auth_required
+from flask_login import current_user
 
 bp = Blueprint("general", __name__)
 
@@ -10,9 +11,7 @@ bp = Blueprint("general", __name__)
 @bp.route("/api/ping", methods=["GET"])
 @auth_required()
 def ping():
-    from flask_login import current_user
-
-    print("Current user:", current_user)
+    print("Current user:", current_user.id)
     return jsonify({"message": "Pong!"}), 200
 
 
@@ -35,16 +34,21 @@ def test_db():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Test query
-        cur.execute("SELECT * FROM user")
+        test_query = """
+        SELECT email
+        FROM user
+        WHERE user_id = %s
+        """
 
-        # Get all rows
-        results = cur.fetchall()
+        # Test query
+        cur.execute(test_query, (current_user.id,))
+        result = cur.fetchone()
+        email = result[0]
 
         # Close the cursor
         cur.close()
 
-        return jsonify(results), 200
+        return jsonify(email), 200
 
     except Exception as e:
         # Error message
