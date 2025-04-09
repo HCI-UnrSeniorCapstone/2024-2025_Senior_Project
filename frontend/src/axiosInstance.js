@@ -1,26 +1,11 @@
 import axios from 'axios'
 import Cookies from 'js-cookie'
-// const backendHost = import.meta.env.VITE_APP_BACKEND_URL
-// const backendPort = import.meta.env.VITE_APP_BACKEND_PORT
-// const baseURL = `http://${backendHost}:${backendPort}`
-// const backendUrl = this.$backendUrl
-
-// console.log('API baseURL:', backendUrl)
+import router from './router'
 
 const api = axios.create({
-    // backendUrl,
-    // baseURL: 'http://100.82.85.28:5002',
-    baseURL: '/api',
+  baseURL: '/api',
   withCredentials: true,
 })
-
-// api.interceptors.request.use(config => {
-//   const csrf = Cookies.get('XSRF-TOKEN')
-//   if (csrf) {
-//     config.headers['X-CSRFToken'] = csrf
-//   }
-//   return config
-// })
 
 api.interceptors.request.use(config => {
     const xsrfCookie = Cookies.get('XSRF-TOKEN')
@@ -32,9 +17,40 @@ api.interceptors.request.use(config => {
     if (rawToken) {
       config.headers['X-CSRFToken'] = rawToken
     }
-  
+
+    // Forces Flask-Security to return JSON instead of HTML on login errors
+    config.headers['Accept'] = 'application/json'
+    config.headers['Content-Type'] = 'application/json'
+
     return config
   })
   
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Unauthorized so redirect
+    if (error.response && (error.response.status === 401 || error.response.status === 400)) {
+      console.warn('[axios interceptor] Unauthenticated — clearing storage and redirecting to login')
+
+      // Clear tokens and user state from localStorage and sessionStorage
+      localStorage.clear()
+      sessionStorage.clear()
+
+      // Remove accessible cookies
+      document.cookie.split(';').forEach(cookie => {
+        const eqPos = cookie.indexOf('=')
+        const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+      })
+
+      // Redirect to login
+      router.push({ name: 'UserLogin' })
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+
 
 export default api

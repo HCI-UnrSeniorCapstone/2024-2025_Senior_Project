@@ -414,8 +414,7 @@ export default {
     // Retrieves all study details using passed study ID at page mount
     async getStudyInfo() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${this.studyId}`
+        const path = `/load_study/${this.studyId}`
         const response = await api.get(path)
 
         this.study = response.data
@@ -438,9 +437,8 @@ export default {
     // Determines what the recommended # of trials should be
     async getRecPermLength() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/previous_session_length/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/previous_session_length/${this.studyId}`
+        const response = await api.get(path)
 
         const prevLength = response.data.prev_length
 
@@ -468,9 +466,8 @@ export default {
     // Generates a random set of trials for the user that is unique, "random", & balanced
     async getPermutation() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_new_trials_perm/${this.studyId}?trial_count=${this.selectedPermLength}`
-        const response = await axios.get(path)
+        const path = `/get_new_trials_perm/${this.studyId}?trial_count=${this.selectedPermLength}`
+        const response = await api.get(path)
 
         console.log('Permutations response:', response.data)
 
@@ -487,9 +484,8 @@ export default {
     // Retrieves occurences of trials (task-factor combos) in prior sessions (for the trial coverage heatmap)
     async getTrialOccurrences() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_trial_occurrences/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/get_trial_occurrences/${this.studyId}`
+        const response = await api.get(path)
 
         this.heatmapTasks = this.taskOptions.map(t => t.name)
         this.heatmapFactors = this.factorOptions.map(f => f.name)

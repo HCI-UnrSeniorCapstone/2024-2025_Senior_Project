@@ -192,7 +192,6 @@
 <script>
 
 import api from '@/axiosInstance'
-import axios from 'axios'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 
 export default {
@@ -282,8 +281,7 @@ export default {
         return
       }
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${studyID}`
+        const path = `/load_study/${studyID}`
         const response = await api.get(path)
 
         this.focus_study = response.data
@@ -305,8 +303,7 @@ export default {
     // Download a zip with the data of all sessions under the given study
     async downloadParticipantSessionData(sessionID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
+        const path = `/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
 
       const response = await api.get(path, {
         responseType: 'blob'
@@ -331,8 +328,7 @@ export default {
     // Populating the sessions table
     async populateSessions(sessionID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_info/${sessionID}`
+        const path = `/get_all_session_info/${sessionID}`
         const response = await api.get(path)
 
         console.log(response)
@@ -353,9 +349,8 @@ export default {
     // Getting trial appearances from prior sessions to populate the heatmap
     async getTrialOccurrences() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_trial_occurrences/${this.studyID}`
-        const response = await axios.get(path)
+        const path = `/get_trial_occurrences/${this.studyID}`
+        const response = await api.get(path)
 
         this.heatmapTasks = this.tasks.map(t => t.taskName)
         this.heatmapFactors = this.factors.map(f => f.factorName)

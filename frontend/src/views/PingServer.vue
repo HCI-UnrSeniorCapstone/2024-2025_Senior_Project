@@ -17,8 +17,6 @@ export default {
   },
   methods: {
     getMessage() {
-      const backendUrl = this.$backendUrl
-      const path = `${backendUrl}/ping`
       api.get('/ping', {
   withCredentials: true,
   headers: {
