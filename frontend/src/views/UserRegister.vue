@@ -1,62 +1,88 @@
 <template>
-    <v-container class="register-view" max-width="500px">
-      <v-form @submit.prevent="register">
-        <v-text-field
-          v-model="email"
-          label="Email"
-          type="email"
+  <v-container
+    class="d-flex justify-center align-center register-container"
+    fluid
+  >
+    <v-slide-y-transition mode="in-out">
+      <v-card
+        v-if="showCard"
+        elevation="4"
+        class="pa-8 register-card"
+      >
+        <div class="text-center mb-6">
+          <h1 class="register-title">Create an Account</h1>
+          <p class="register-subtitle">Sign up to get started</p>
+        </div>
+
+        <v-form @submit.prevent="register">
+          <v-text-field
+            v-model="email"
+            label="Email"
+            type="email"
+            required
+            class="mb-4"
+            density="comfortable"
+            hide-details="auto"
+          ></v-text-field>
+
+          <v-text-field
+          v-model="password"
+          :type="showPassword ? 'text' : 'password'"
+          label="Password"
+          :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+          @click:append-inner="showPassword = !showPassword"
           required
-        ></v-text-field>
-  
-        <v-text-field
-        v-model="password"
-        :type="showPassword ? 'text' : 'password'"
-        label="Password"
-        :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-        @click:append-inner="showPassword = !showPassword"
-        required
-        ></v-text-field>
+          class="mb-4"
+          density="comfortable"
+          hide-details="auto"
+          />
 
-        <v-text-field
-        v-model="passwordConfirm"
-        :type="showPasswordConfirm ? 'text' : 'password'"
-        label="Confirm Password"
-        :error="showPasswordMismatch"
-        :error-messages="showPasswordMismatch ? ['Passwords do not match'] : []"
-        required
-        ></v-text-field>
+          <v-text-field
+          v-model="passwordConfirm"
+          :type="showPassword ? 'text' : 'password'"
+          label="Confirm Password"
+          :error="showPasswordMismatch"
+          :error-messages="showPasswordMismatch ? ['Passwords do not match'] : []"
+          required
+          class="mb-6"
+          density="comfortable"
+          hide-details="auto"
+        />
 
-  
-        <!-- <v-text-field
-          v-model="firstName"
-          label="First Name"
-        ></v-text-field>
-  
-        <v-text-field
-          v-model="lastName"
-          label="Last Name"
-        ></v-text-field> -->
-  
-        <v-btn
-          :loading="loading"
-          type="submit"
-          color="primary"
-          block
-          :disabled="!passwordsMatch"
-        >
-          Register
-        </v-btn>
-  
-        <v-alert v-if="error" type="error" class="mt-4 text-center">
-          {{ error }}
-        </v-alert>
-  
-        <v-alert v-if="success" type="success" class="mt-4 text-center">
-          {{ success }}
-        </v-alert>
-      </v-form>
-    </v-container>
-  </template>
+          <v-btn
+            :loading="loading"
+            type="submit"
+            color="primary"
+            block
+            size="large"
+            :disabled="!passwordsMatch"
+          >
+            Register
+          </v-btn>
+
+          <v-alert v-if="error" type="error" class="mt-4 text-center" variant="outlined">
+            {{ error }}
+          </v-alert>
+
+          <v-alert v-if="success" type="success" class="mt-4 text-center" variant="outlined">
+            {{ success }}
+          </v-alert>
+
+          <v-row justify="center" class="mt-6">
+            <v-col cols="12" class="text-center">
+              <p>
+                Already have an account?
+                <RouterLink to="/UserLogin" class="login-link">Log in</RouterLink>
+              </p>
+            </v-col>
+          </v-row>
+        </v-form>
+      </v-card>
+    </v-slide-y-transition>
+  </v-container>
+</template>
+
+
   
   <script>
 import api from '@/axiosInstance'
@@ -75,7 +101,11 @@ import api from '@/axiosInstance'
         success: '',
         showPassword: false,
         showPasswordConfirm: false,
+        showCard: false,
       }
+    },
+    mounted() {
+    this.showCard = true // triggers animation
     },
     computed: {
       passwordsMatch() {
@@ -136,8 +166,32 @@ import api from '@/axiosInstance'
   </script>
   
   <style scoped>
-  .register-view {
-    margin-top: 80px;
-  }
+  .register-container {
+  height: 100vh;
+  background: linear-gradient(to right, #f5f7fa, #c3cfe2);
+}
+
+.register-card {
+  max-width: 500px;
+  width: 100%;
+  border-radius: 16px;
+}
+
+.register-title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.register-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+}
+.login-link {
+  color: #1976d2;
+  text-decoration: none;
+  font-weight: 500;
+}
   </style>
   

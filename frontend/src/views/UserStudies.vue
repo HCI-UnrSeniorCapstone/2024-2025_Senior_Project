@@ -9,15 +9,8 @@
 
       <v-row justify="space-between" class="mb-4">
         <v-col cols="12" md="8" lg="9">
-          <v-text-field
-            v-model="search"
-            label="Search"
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            hide-details
-            single-line
-          ></v-text-field>
-        </v-col>
+  <SearchBar v-model="search" />
+</v-col>
         <v-col cols="12" md="4" lg="3" class="d-flex justify-end">
           <v-btn class="create-study" color="primary" @click="openNewStudy">
             + Create New Study
@@ -145,12 +138,13 @@
 
 <script>
 import StudyPanel from '@/components/StudyPanel.vue'
+import SearchBar from '@/components/SearchBar.vue'
 
 import api from '@/axiosInstance'
 
 export default {
-  components: { StudyPanel },
-
+  components: { StudyPanel, SearchBar },
+  
   data() {
     return {
       search: '',
