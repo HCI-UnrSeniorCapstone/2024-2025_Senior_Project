@@ -41,7 +41,7 @@
 <script>
 import api from '@/axiosInstance'
 import Cookies from 'js-cookie'
-
+import { pingServer } from '@/utility/ping'
 export default {
   name: 'UserLogin',
   data() {
@@ -92,6 +92,19 @@ export default {
     this.loading = false
   }
 },
+  },
+  async mounted() {
+    try {
+      const response = await pingServer()
+      if (response.status === 200) {
+        // This prevents users from loading in login on their own
+        // Now even if they did, there are protections to handle tokens
+        // But this is a way to control the UI
+        this.$router.push({ name: 'Dashboard' })
+      }
+    } catch (e) {
+      // Don't redirect, just let user log in manually
+    }
   },
 }
 </script>

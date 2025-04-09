@@ -15,14 +15,14 @@ import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
 import SessionSetup from '@/views/SessionSetup.vue'
-
+import { pingServer } from '@/utility/ping' 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   linkExactActiveClass: 'v-item-active',
   routes: [
     {
       path: '/',
-      redirect: '/UserLogin',
+      redirect: '/Dashboard',
       component: MainLayout,
       children: [
         {
@@ -111,6 +111,18 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach(async (to, from, next) => {
+  if (to.name !== 'UserLogin' && to.name !== 'UserRegister' && to.name !== 'Confirmed') {
+    try {
+      await pingServer()
+    } catch (err) {
+      // Silently fail — no redirect, no block
+    }
+  }
+
+  next() // Allow route change
 })
 
 export default router

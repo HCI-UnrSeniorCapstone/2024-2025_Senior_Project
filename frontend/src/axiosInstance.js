@@ -25,21 +25,6 @@ api.interceptors.request.use(config => {
     return config
   })
   
-// api.interceptors.response.use(
-//   response => response,
-//   error => {
-//     // Unauthorized so redirect
-//     if (error.response && (error.response.status === 401 || error.response.status === 400)) {
-//       console.warn('[axios interceptor] Unauthenticated — redirecting to login')
-//       // Optional: Clear any tokens or user state
-//       localStorage.removeItem('authToken')
-//       router.push({ name: 'UserLogin' }) // Update this if your login route is different
-//     }
-
-//     return Promise.reject(error)
-//   }
-// )
-
 api.interceptors.response.use(
   response => response,
   error => {
