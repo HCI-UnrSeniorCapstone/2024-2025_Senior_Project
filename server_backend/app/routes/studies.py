@@ -166,158 +166,121 @@ def is_overwrite_study_allowed(study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/overwrite_study/<int:study_id>", methods=["POST"])
+@bp.route("/api/overwrite_study", methods=["POST"])
 @auth_required()
-def overwrite_study(study_id):
-    submission_data = request.form.get("data")
+def overwrite_study():
+    submission_data = request.get_json()
+
     if not submission_data:
         return jsonify({"error": "No study data provided"}), 400
 
-    try:
-        # Get request and convert to json
-        submission_data = json.loads(submission_data)
-    except Exception:
-        return jsonify({"error": "Failed to parse JSON"}), 400
+    study_id = submission_data.get("studyID")
+    if not study_id:
+        return jsonify({"error": "Missing studyID in submission"}), 400
 
     try:
         conn = get_db_connection()
         cur = conn.cursor()
 
         # Check if study exists
-        check_study_query = """
-        SELECT study_id
-        FROM study
-        WHERE study_id = %s
-        """
-        cur.execute(check_study_query, (study_id,))
-        study_exists = cur.fetchone()
-
-        if study_exists is None:
+        cur.execute("SELECT study_id FROM study WHERE study_id = %s", (study_id,))
+        if cur.fetchone() is None:
             return jsonify({"error": "Study does not exist"}), 404
 
-        # Check if user has access
-        check_user_query = """
-        SELECT study_user_role_description 
-        FROM study_user_role sur
-        INNER JOIN study_user_role_type surt
-        ON surt.study_user_role_type_id = sur.study_user_role_type_id
-        WHERE user_id = %s AND study_id = %s
-        """
+        # Check user role
         cur.execute(
-            check_user_query,
-            (
-                current_user.id,
-                study_id,
-            ),
+            """
+            SELECT study_user_role_description 
+            FROM study_user_role sur
+            INNER JOIN study_user_role_type surt
+            ON surt.study_user_role_type_id = sur.study_user_role_type_id
+            WHERE user_id = %s AND study_id = %s
+        """,
+            (current_user.id, study_id),
         )
-        user_access_exists = cur.fetchone()
+        role_result = cur.fetchone()
 
-        # Error Message
-        if user_access_exists is None:
-            return jsonify({"error": "User does not have access to study"}), 404
-        # Error Message
-        if user_access_exists[0] == "Viewer":
-            return jsonify({"error": "User may only view this study"}), 404
+        if role_result is None:
+            return jsonify({"error": "User does not have access to study"}), 403
+        if role_result[0] == "Viewer":
+            return jsonify({"error": "User may only view this study"}), 403
 
-        if user_access_exists[0] == "Owner" or user_access_exists[0] == "Editor":
-
-            # If sessions exist, info can't be overwritten
-            check_sessions_query = """
-            SELECT participant_session_id
-            FROM participant_session
-            WHERE study_id = %s 
-            """
-            cur.execute(check_sessions_query, (study_id,))
-            sessions_exist = cur.fetchone()
-
-            # Error Message
-            if sessions_exist is not None:
-                return (
-                    jsonify(
-                        {
-                            "error": "Sessions already exist, so the study may not be overwritten"
-                        }
-                    ),
-                    404,
-                )
-
-            delete_task_query = """
-            DELETE 
-            FROM task
-            WHERE study_id = %s
-            """
-            cur.execute(delete_task_query, (study_id,))
-
-            delete_factor_query = """
-            DELETE 
-            FROM factor
-            WHERE study_id = %s
-            """
-            cur.execute(delete_factor_query, (study_id,))
-
-            # Get study_design_type
-            cur.execute(
-                "SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s",
-                (submission_data["studyDesignType"],),
+        # Check if sessions exist
+        cur.execute(
+            "SELECT participant_session_id FROM participant_session WHERE study_id = %s",
+            (study_id,),
+        )
+        if cur.fetchone():
+            return (
+                jsonify(
+                    {
+                        "error": "Sessions already exist, so the study may not be overwritten"
+                    }
+                ),
+                400,
             )
-            result = cur.fetchone()
-            study_design_type_id = result[0]
 
-            # Update study query
-            update_study_query = """
+        # Delete existing tasks/factors
+        cur.execute("DELETE FROM task WHERE study_id = %s", (study_id,))
+        cur.execute("DELETE FROM factor WHERE study_id = %s", (study_id,))
+
+        # Resolve study_design_type_id
+        cur.execute(
+            "SELECT study_design_type_id FROM study_design_type WHERE study_design_type_description = %s",
+            (submission_data["studyDesignType"],),
+        )
+        study_design_type_id = cur.fetchone()[0]
+
+        # Update study core info
+        cur.execute(
+            """
             UPDATE study 
             SET study_name = %s,
                 study_description = %s,
                 study_design_type_id = %s,
                 expected_participants = %s
-            WHERE study_id = %s;
-            """
+            WHERE study_id = %s
+        """,
+            (
+                submission_data["studyName"],
+                submission_data["studyDescription"],
+                study_design_type_id,
+                submission_data["participantCount"],
+                study_id,
+            ),
+        )
 
-            study_name = submission_data["studyName"]
-            study_description = submission_data["studyDescription"]
-            expected_participants = submission_data["participantCount"]
+        # Recreate task/factor entries
+        create_study_task_factor_details(study_id, submission_data, cur)
 
-            # Execute study update
-            cur.execute(
-                update_study_query,
-                (
-                    study_name,
-                    study_description,
-                    study_design_type_id,
-                    expected_participants,
-                    study_id,
-                ),
-            )
+        # Handle consent file (optional)
+        base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+        if "consentFile" in submission_data:
+            consent_file = submission_data["consentFile"]
+            filename = secure_filename(consent_file.get("filename", "consent_form.pdf"))
+            content = consent_file.get("content")
 
-            # Build up rest of info
-            create_study_task_factor_details(study_id, submission_data, cur)
+            if filename and content:
+                full_path = os.path.join(base_dir, "study_consent_forms", str(study_id))
+                os.makedirs(full_path, exist_ok=True)
+                file_path = os.path.join(full_path, filename)
 
-            # Attempt to save consent form if provided
-            base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
-            if "consent_file" in request.files:
-                file = request.files["consent_file"]
-                save_study_consent_form(study_id, file, cur, base_dir)
-            else:
-                # If no provided consent file we attempt to delete because we could be in the edit study form view and user is trying to remove
-                remove_study_consent_form(study_id, cur)
+                with open(file_path, "wb") as f:
+                    f.write(base64.b64decode(content))
 
-            # Commit the transaction
-            conn.commit()
-            # Close cursor
-            cur.close()
+                # save_study_consent_form_metadata(study_id, filename, cur)
+        else:
+            # No file present → remove existing file
+            remove_study_consent_form(study_id, cur)
 
-            return jsonify({"message": "Study overwritten successfully"}), 200
+        conn.commit()
+        cur.close()
+        return jsonify({"message": "Study overwritten successfully"}), 200
 
     except Exception as e:
-        # Ensure atomicity so if study json or file saves fail we rollback
         if "conn" in locals():
             conn.rollback()
-        # Error message
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        # 500 means internal error, AKA the database probably broke
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 @bp.route("/api/get_study_data", methods=["GET"])
