@@ -1,3 +1,4 @@
+import base64
 from io import BytesIO
 import os
 
@@ -15,6 +16,7 @@ from app.utility.db_connection import get_db_connection
 from app import create_app
 from flask_security import auth_required
 from flask_login import current_user
+from werkzeug.utils import secure_filename
 
 bp = Blueprint("studies", __name__)
 
@@ -24,52 +26,58 @@ bp = Blueprint("studies", __name__)
 @bp.route("/api/create_study", methods=["POST"])
 @auth_required()
 def create_study():
-    # Get request and convert to json
-    submission_data = request.form.get("data")
-    if not submission_data:
-        return {"error": "No study data provided"}, 400
-
     try:
-        submission_data = json.loads(submission_data)
-    except Exception:
-        return jsonify({"error": "Failed to parse JSON"}), 400
+        submission_data = request.get_json()
+        if not submission_data:
+            return jsonify({"error": "Missing JSON body"}), 400
 
-    try:
         # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()
 
+        # Insert study details
         study_id = create_study_details(submission_data, cur)
         create_study_task_factor_details(study_id, submission_data, cur)
 
-        # Get owner id
-        select_study_user_role_type = """
-        SELECT study_user_role_type_id FROM study_user_role_type WHERE study_user_role_description = 'Owner'
-        """
-        cur.execute(select_study_user_role_type)
-        result = cur.fetchone()
-        study_user_role_type_id = result[0]
-
-        # study_user_role
-        insert_study_user_role_query = """
-        INSERT INTO study_user_role (user_id, study_id, study_user_role_type_id)
-        VALUES (%s, %s, %s)
-        """
+        # Get owner role ID
         cur.execute(
-            insert_study_user_role_query,
+            """
+            SELECT study_user_role_type_id 
+            FROM study_user_role_type 
+            WHERE study_user_role_description = 'Owner'
+        """
+        )
+        study_user_role_type_id = cur.fetchone()[0]
+
+        # Assign owner role
+        cur.execute(
+            """
+            INSERT INTO study_user_role (user_id, study_id, study_user_role_type_id)
+            VALUES (%s, %s, %s)
+        """,
             (current_user.id, study_id, study_user_role_type_id),
         )
 
-        # Attempt to save consent form if provided
-        if "consent_file" in request.files:
-            file = request.files["consent_file"]
-            base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
-            save_study_consent_form(study_id, file, cur, base_dir)
+        # Save base64-encoded consent file if present
+        if "consentFile" in submission_data:
+            file_info = submission_data["consentFile"]
+            filename = secure_filename(file_info.get("filename"))
+            base64_data = file_info.get("content")
 
-        # Commit changes to the database
+            if filename and base64_data:
+                file_bytes = base64.b64decode(base64_data)
+                base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+                full_path = os.path.join(base_dir, "study_consent_forms", str(study_id))
+
+                os.makedirs(full_path, exist_ok=True)
+                with open(os.path.join(full_path, filename), "wb") as f:
+                    f.write(file_bytes)
+
+                # Optionally store metadata in DB
+                # save_study_consent_form_metadata(study_id, filename, cur)
+
+        # Commit and finish
         conn.commit()
-
-        # Close cursor
         cur.close()
         return (
             jsonify({"message": "Study created successfully", "study_id": study_id}),
@@ -77,15 +85,10 @@ def create_study():
         )
 
     except Exception as e:
-        # Ensure atomicity so if study json or file saves fail we rollback
         if "conn" in locals():
             conn.rollback()
-        # Error message
-        error_type = type(e).__name__
-        error_message = str(e)
 
-        # 500 means internal error, AKA the database probably broke
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
 @bp.route("/api/is_overwrite_study_allowed/<int:study_id>", methods=["GET"])
