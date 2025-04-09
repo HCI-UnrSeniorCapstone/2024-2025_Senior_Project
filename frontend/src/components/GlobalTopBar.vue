@@ -13,63 +13,65 @@
         <v-icon>mdi-help-circle-outline</v-icon>
       </v-btn>
 
-      <v-menu offset-y transition="slide-y-reverse">
-        <template #activator="{ props }">
-          <v-btn icon v-bind="props" size="large">
-            <v-avatar color="primary" size="48">
-              <v-icon size="32">mdi-account-circle</v-icon>
+      <v-menu offset-y transition="slide-y-transition">
+  <template #activator="{ props }">
+    <v-btn icon v-bind="props" size="large">
+      <v-avatar color="primary" size="48">
+        <v-icon size="32">mdi-account-circle</v-icon>
+      </v-avatar>
+    </v-btn>
+  </template>
+
+  <v-slide-y-transition mode="in-out">
+    <v-card style="min-width: 320px; padding: 8px;">
+      <v-list-item class="px-4 py-3">
+        <v-row align="center" no-gutters style="width: 100%">
+          <v-col cols="auto">
+            <v-avatar size="40">
+              <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" />
             </v-avatar>
-          </v-btn>
-        </template>
+          </v-col>
+          <v-col class="pl-3">
+            <span class="text-subtitle-1 font-weight-medium">{{ displayName }}</span>
+          </v-col>
+        </v-row>
+      </v-list-item>
 
-        <!-- (the card and menu content stays the same) -->
-        <v-card style="min-width: 320px; padding: 8px;">
-          <v-list-item class="px-4 py-3">
-            <v-row align="center" no-gutters style="width: 100%">
-              <v-col cols="auto">
-                <v-avatar size="40">
-                  <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" />
-                </v-avatar>
-              </v-col>
-              <v-col class="pl-3">
-                <span class="text-subtitle-1 font-weight-medium">{{ displayName }}</span>
-              </v-col>
-            </v-row>
-          </v-list-item>
+      <v-divider class="my-2" />
 
-          <v-divider class="my-2" />
+      <v-list>
+        <v-list-item @click="goToProfile" class="px-4">
+          <v-row align="center" no-gutters style="width: 100%">
+            <v-col cols="auto">
+              <v-icon>mdi-account</v-icon>
+            </v-col>
+            <v-col class="pl-3">
+              <span class="text-subtitle-2">Edit Profile</span>
+            </v-col>
+            <v-col cols="auto">
+              <v-icon>mdi-chevron-right</v-icon>
+            </v-col>
+          </v-row>
+        </v-list-item>
 
-          <v-list>
-            <v-list-item @click="goToProfile" class="px-4">
-              <v-row align="center" no-gutters style="width: 100%">
-                <v-col cols="auto">
-                  <v-icon>mdi-account</v-icon>
-                </v-col>
-                <v-col class="pl-3">
-                  <span class="text-subtitle-2">Edit Profile</span>
-                </v-col>
-                <v-col cols="auto">
-                  <v-icon>mdi-chevron-right</v-icon>
-                </v-col>
-              </v-row>
-            </v-list-item>
+        <v-list-item @click="logOut" class="px-4">
+          <v-row align="center" no-gutters style="width: 100%">
+            <v-col cols="auto">
+              <v-icon>mdi-logout</v-icon>
+            </v-col>
+            <v-col class="pl-3">
+              <span class="text-subtitle-2">Logout</span>
+            </v-col>
+            <v-col cols="auto">
+              <v-icon>mdi-chevron-right</v-icon>
+            </v-col>
+          </v-row>
+        </v-list-item>
+      </v-list>
+    </v-card>
+  </v-slide-y-transition>
+</v-menu>
 
-            <v-list-item @click="logOut" class="px-4">
-              <v-row align="center" no-gutters style="width: 100%">
-                <v-col cols="auto">
-                  <v-icon>mdi-logout</v-icon>
-                </v-col>
-                <v-col class="pl-3">
-                  <span class="text-subtitle-2">Logout</span>
-                </v-col>
-                <v-col cols="auto">
-                  <v-icon>mdi-chevron-right</v-icon>
-                </v-col>
-              </v-row>
-            </v-list-item>
-          </v-list>
-        </v-card>
-      </v-menu>
     </template>
   </v-app-bar>
 </template>
@@ -98,7 +100,7 @@ export default {
   },
   methods: {
     goToProfile() {
-      console.log('Go to Profile');
+      this.$router.push({ name: 'UserProfile' });
     },
     async logOut() {
       try {

@@ -16,6 +16,7 @@ import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
 import SessionSetup from '@/views/SessionSetup.vue'
 import { pingServer } from '@/utility/ping' 
+import UserProfile from '../views/UserProfile.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   linkExactActiveClass: 'v-item-active',
@@ -44,6 +45,11 @@ const router = createRouter({
           path: '/UserLogin',
           name: 'UserLogin',
           component: UserLogin,
+        },
+        {
+          path: '/profile',
+          name: 'UserProfile',
+          component: UserProfile,
         },
         {
           path: '/UserStudies',
