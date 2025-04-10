@@ -4,144 +4,123 @@
 
     <v-spacer></v-spacer>
 
-    <template v-if="!isAuthPage">
+    <!-- Always show About button -->
+    <v-btn icon @click="goToAbout">
+      <v-icon>mdi-help-circle-outline</v-icon>
+    </v-btn>
+
+    <!-- Only show if user is authenticated -->
+    <template v-if="auth.isAuthenticated">
       <v-btn icon>
         <v-icon>mdi-bell-outline</v-icon>
       </v-btn>
 
-      <v-btn icon>
-        <v-icon>mdi-help-circle-outline</v-icon>
-      </v-btn>
-
       <v-menu offset-y transition="slide-y-transition">
-  <template #activator="{ props }">
-    <v-btn icon v-bind="props" size="large">
-      <v-avatar color="primary" size="48">
-        <v-icon size="32">mdi-account-circle</v-icon>
-      </v-avatar>
-    </v-btn>
-  </template>
-
-  <v-slide-y-transition mode="in-out">
-    <v-card style="min-width: 320px; padding: 8px;">
-      <v-list-item class="px-4 py-3">
-        <v-row align="center" no-gutters style="width: 100%">
-          <v-col cols="auto">
-            <v-avatar size="40">
-              <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" />
+        <template #activator="{ props }">
+          <v-btn icon v-bind="props" size="large">
+            <v-avatar color="primary" size="48">
+              <v-icon size="32">mdi-account-circle</v-icon>
             </v-avatar>
-          </v-col>
-          <v-col class="pl-3">
-            <span class="text-subtitle-1 font-weight-medium">{{ displayName }}</span>
-          </v-col>
-        </v-row>
-      </v-list-item>
+          </v-btn>
+        </template>
 
-      <v-divider class="my-2" />
+        <v-slide-y-transition mode="in-out">
+          <v-card style="min-width: 320px; padding: 8px">
+            <v-list-item class="px-4 py-3">
+              <v-row align="center" no-gutters style="width: 100%">
+                <v-col cols="auto">
+                  <v-avatar size="40">
+                    <img
+                      src="https://randomuser.me/api/portraits/men/32.jpg"
+                      alt="User"
+                    />
+                  </v-avatar>
+                </v-col>
+                <v-col class="pl-3">
+                  <span class="text-subtitle-1 font-weight-medium">{{
+                    displayName
+                  }}</span>
+                </v-col>
+              </v-row>
+            </v-list-item>
 
-      <v-list>
-        <v-list-item @click="goToProfile" class="px-4">
-          <v-row align="center" no-gutters style="width: 100%">
-            <v-col cols="auto">
-              <v-icon>mdi-account</v-icon>
-            </v-col>
-            <v-col class="pl-3">
-              <span class="text-subtitle-2">Edit Profile</span>
-            </v-col>
-            <v-col cols="auto">
-              <v-icon>mdi-chevron-right</v-icon>
-            </v-col>
-          </v-row>
-        </v-list-item>
+            <v-divider class="my-2" />
 
-        <v-list-item @click="logOut" class="px-4">
-          <v-row align="center" no-gutters style="width: 100%">
-            <v-col cols="auto">
-              <v-icon>mdi-logout</v-icon>
-            </v-col>
-            <v-col class="pl-3">
-              <span class="text-subtitle-2">Logout</span>
-            </v-col>
-            <v-col cols="auto">
-              <v-icon>mdi-chevron-right</v-icon>
-            </v-col>
-          </v-row>
-        </v-list-item>
-      </v-list>
-    </v-card>
-  </v-slide-y-transition>
-</v-menu>
+            <v-list>
+              <v-list-item @click="goToProfile" class="px-4">
+                <v-row align="center" no-gutters style="width: 100%">
+                  <v-col cols="auto">
+                    <v-icon>mdi-account</v-icon>
+                  </v-col>
+                  <v-col class="pl-3">
+                    <span class="text-subtitle-2">Edit Profile</span>
+                  </v-col>
+                  <v-col cols="auto">
+                    <v-icon>mdi-chevron-right</v-icon>
+                  </v-col>
+                </v-row>
+              </v-list-item>
 
+              <v-list-item @click="logOut" class="px-4">
+                <v-row align="center" no-gutters style="width: 100%">
+                  <v-col cols="auto">
+                    <v-icon>mdi-logout</v-icon>
+                  </v-col>
+                  <v-col class="pl-3">
+                    <span class="text-subtitle-2">Logout</span>
+                  </v-col>
+                  <v-col cols="auto">
+                    <v-icon>mdi-chevron-right</v-icon>
+                  </v-col>
+                </v-row>
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-slide-y-transition>
+      </v-menu>
     </template>
   </v-app-bar>
 </template>
 
-
 <script>
 import api from '@/axiosInstance'
+import { auth } from '@/stores/auth'
+
 export default {
   name: 'GlobalTopBar',
   data() {
     return {
       displayName: 'Loading...',
-    };
-  },
-  computed: {
-    isAuthPage() {
-      return ['UserLogin', 'UserRegister', 'Confirmed'].includes(this.$route.name);
-    }
-  },
-  watch: {
-    '$route.name'(newRoute) {
-      if (!['UserLogin', 'UserRegister', 'Confirmed'].includes(newRoute)) {
-        this.fetchUserInfo();
-      }
+      auth, // expose for template
     }
   },
   methods: {
     goToProfile() {
-      this.$router.push({ name: 'UserProfile' });
+      this.$router.push({ name: 'UserProfile' })
+    },
+    goToAbout() {
+      this.$router.push({ name: 'AboutPage' })
     },
     async logOut() {
       try {
-        const response = await api.post('/accounts/logout', {}, {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
+        const response = await api.post('/accounts/logout')
 
         if (response.status === 200) {
-          console.log('Logged out successfully');
-          this.$router.push({ name: 'UserLogin' });
+          auth.isAuthenticated = false
+          auth.user = null
+          this.$router.push({ name: 'UserLogin' })
         }
       } catch (err) {
-        console.error('Error logging out:', err);
+        console.error('Error logging out:', err)
       }
     },
-    async fetchUserInfo() {
-      try {
-        const response = await api.get('/accounts/get_user_profile_info', {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const user = response.data;
-        const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        this.displayName = fullName || user.email;
-
-      } catch (err) {
-        console.error('Error fetching user info:', err);
-        this.displayName = 'User';
-      }
-    }
   },
   mounted() {
-    if (!this.isAuthPage) {
-      this.fetchUserInfo();
+    if (auth.user) {
+      const fullName =
+        `${auth.user.first_name || ''} ${auth.user.last_name || ''}`.trim()
+      this.displayName = fullName || auth.user.email
     }
-  }
-};
+  },
+}
 </script>

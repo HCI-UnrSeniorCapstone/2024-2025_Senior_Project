@@ -1,5 +1,6 @@
 <template>
-  <v-navigation-drawer expand-on-hover rail>
+  <!-- Only render the drawer if the user is authenticated -->
+  <v-navigation-drawer v-if="auth.isAuthenticated" expand-on-hover rail>
     <v-list density="compact" nav>
       <v-list-item
         to="/Dashboard"
@@ -24,3 +25,16 @@
     </v-list>
   </v-navigation-drawer>
 </template>
+
+<script>
+import { auth } from '@/stores/auth'
+
+export default {
+  name: 'GlobalNavBar',
+  data() {
+    return {
+      auth,
+    }
+  },
+}
+</script>
