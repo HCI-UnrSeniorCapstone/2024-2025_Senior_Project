@@ -91,8 +91,20 @@ export default {
   data() {
     return {
       displayName: 'Loading...',
-      auth, // expose for template
+      auth,
     }
+  },
+  watch: {
+    'auth.user': {
+      handler(newUser) {
+        if (newUser) {
+          const fullName =
+            `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim()
+          this.displayName = fullName || newUser.email
+        }
+      },
+      immediate: true, // Trigger immediately if auth.user is already set
+    },
   },
   methods: {
     goToProfile() {
@@ -114,13 +126,6 @@ export default {
         console.error('Error logging out:', err)
       }
     },
-  },
-  mounted() {
-    if (auth.user) {
-      const fullName =
-        `${auth.user.first_name || ''} ${auth.user.last_name || ''}`.trim()
-      this.displayName = fullName || auth.user.email
-    }
   },
 }
 </script>
