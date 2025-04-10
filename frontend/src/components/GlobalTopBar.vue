@@ -31,8 +31,14 @@
                 <v-col cols="auto">
                   <v-avatar size="40">
                     <img
-                      src="https://randomuser.me/api/portraits/men/32.jpg"
+                      src="/images/unr n.jpg"
                       alt="User"
+                      style="
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                        border-radius: 50%;
+                      "
                     />
                   </v-avatar>
                 </v-col>

@@ -1,7 +1,7 @@
 <template>
   <v-card class="profile-card" elevation="2" rounded="xl">
     <v-img
-      src="/images/Nevada-Wolf-Pack-football-logo.jpg"
+      src="/images/unr n.jpg"
       alt="User profile"
       height="150"
       contain
