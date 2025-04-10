@@ -297,22 +297,25 @@ export default {
 
     async fetchConsentForm() {
       try {
-        const path = `/get_study_consent_form/${this.studyData.study_id}`
-        const consentResponse = await api.get(path, {
-          responseType: 'blob',
-        })
-        if (consentResponse.status == 200) {
-          const fName =
-            consentResponse.headers['x-original-filename'] || 'consent_form.pdf'
-          const blob = new File([consentResponse.data], fName, {
+        const path = `/get_study_consent_form`
+        const response = await api.post(
+          path,
+          { study_id: this.studyData.study_id },
+          {
+            responseType: 'blob',
+          },
+        )
+
+        if (response.status === 200) {
+          const fileName =
+            response.headers['x-original-filename'] || 'consent_form.pdf'
+          const blob = new File([response.data], fileName, {
             type: 'application/pdf',
           })
           this.consentForm = blob
           this.hasConsentForm = true
           this.showConsentForm = true
-        }
-        // No study form for this particular study so do not prompt for ack
-        if (consentResponse.status == 204) {
+        } else if (response.status === 204) {
           this.hasConsentForm = false
           this.showDemographicForm = true
         }

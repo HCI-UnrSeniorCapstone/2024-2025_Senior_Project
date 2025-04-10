@@ -91,11 +91,13 @@
                 <v-icon
                   v-tooltip="'Delete'"
                   size="small"
-                  @click="displayDialog({
-                    title: 'Delete Study?',
-                    text: 'Are you sure you want to delete this study?',
-                    studyID: item.studyID,
-                  })"
+                  @click="
+                    displayDialog({
+                      title: 'Delete Study?',
+                      text: 'Are you sure you want to delete this study?',
+                      studyID: item.studyID,
+                    })
+                  "
                 >
                   mdi-delete
                 </v-icon>
@@ -148,8 +150,18 @@ export default {
       drawer: false,
       selectedStudy: {},
       headers: [
-        { align: 'start', key: 'dateCreated', sortable: false, title: 'Date Created' },
-        { key: 'studyName', title: 'User Study Name', sortable: false, width: '250px' },
+        {
+          align: 'start',
+          key: 'dateCreated',
+          sortable: false,
+          title: 'Date Created',
+        },
+        {
+          key: 'studyName',
+          title: 'User Study Name',
+          sortable: false,
+          width: '250px',
+        },
         { key: 'studyDesc', title: 'Description', sortable: false },
         { key: 'sessionCount', title: 'Sessions', sortable: false },
         { key: 'progress', title: 'Progress', sortable: false, width: '200px' },
@@ -177,7 +189,7 @@ export default {
           query: { ...this.$route.query, studyID: undefined },
         })
       }
-    }
+    },
   },
 
   methods: {
@@ -196,9 +208,9 @@ export default {
                 studyDesc: study[3],
                 sessionCount: study[4],
                 role: study[5],
-                canEdit: canEdit, 
+                canEdit: canEdit,
               }
-            })
+            }),
           )
         }
       } catch (error) {
@@ -236,7 +248,7 @@ export default {
 
         const disposition = response.headers['content-disposition']
         const filename = disposition
-          ? disposition.split('filename=')[1].replace(/"/g, '') 
+          ? disposition.split('filename=')[1].replace(/"/g, '')
           : 'download.zip'
 
         const blob = new Blob([response.data], { type: 'application/zip' })
@@ -251,7 +263,7 @@ export default {
 
     async checkIfOverwriteAllowed(studyID) {
       try {
-        const payload = { studyID: studyID }  // Pass studyID in the request body
+        const payload = { studyID: studyID } // Pass studyID in the request body
         const response = await api.post('/is_overwrite_study_allowed', payload)
 
         if (response.data === true) {
@@ -261,21 +273,21 @@ export default {
         }
       } catch (error) {
         console.error('Error checking overwrite permission:', error)
-        this.isButtonVisible = false 
+        this.isButtonVisible = false
       }
     },
 
     async duplicateStudy(studyID) {
-  try {
-    const payload = { studyID: studyID }; // Send studyID in the body
-    const response = await api.post('/copy_study', payload)
+      try {
+        const payload = { studyID: studyID }
+        const response = await api.post('/copy_study', payload)
 
-    // Refresh the page to show changes
-    location.reload()
-  } catch (error) {
-    console.error('Error copying study', error)
-  }
-},
+        // Refresh the page to show changes
+        location.reload()
+      } catch (error) {
+        console.error('Error copying study', error)
+      }
+    },
 
     editExistingStudy(study_id) {
       this.$router.push({
@@ -289,16 +301,15 @@ export default {
         const studyID = this.dialogDetails.studyID
 
         try {
-          const path = `/delete_study/${studyID}`
-          const response = await api.post(path)
-          this.studies = this.studies.filter(study => study.studyID !== studyID) 
+          const response = await api.post(`/delete_study`, { studyID })
+          this.studies = this.studies.filter(study => study.studyID !== studyID)
         } catch (error) {
           console.error('Error:', error.response?.data || error.message)
         }
       }
       this.dialog = false
     },
-  }
+  },
 }
 </script>
 
