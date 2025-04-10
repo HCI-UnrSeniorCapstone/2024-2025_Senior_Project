@@ -190,7 +190,6 @@
 </template>
 
 <script>
-
 import api from '@/axiosInstance'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 
@@ -281,8 +280,8 @@ export default {
         return
       }
       try {
-        const path = `/load_study/${studyID}`
-        const response = await api.get(path)
+        const response = await api.post('/load_study', { studyID })
+        this.focus_study = response.data
 
         this.focus_study = response.data
 
@@ -305,9 +304,9 @@ export default {
       try {
         const path = `/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
 
-      const response = await api.get(path, {
-        responseType: 'blob'
-      })
+        const response = await api.get(path, {
+          responseType: 'blob',
+        })
         // Get the content-disposition header to extract the filename
         const disposition = response.headers['content-disposition']
         const filename = disposition

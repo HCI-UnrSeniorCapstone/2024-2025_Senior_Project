@@ -4,26 +4,33 @@
       <v-row>
         <v-col cols="12" md="10">
           <form @submit.prevent="submit">
-        <!-- Study Details in a card -->
-        <h2 class="text-h6 font-weight-bold mb-2">Study Details</h2>
-<v-card class="pa-4 mb-6">
-  <StudyDetails
-    v-model:studyName="studyName"
-    v-model:studyDescription="studyDescription"
-    v-model:studyDesignType="studyDesignType"
-    v-model:participantCount="participantCount"
-    :studyNameRules="studyNameRules"
-    :studyDescriptionRules="studyDescriptionRules"
-    :studyDesignTypeRules="studyDesignTypeRules"
-    :participantCountRules="participantCountRules"
-  />
-</v-card>
+            <!-- Study Details in a card -->
+            <h2 class="text-h6 font-weight-bold mb-2">Study Details</h2>
+            <v-card class="pa-4 mb-6">
+              <StudyDetails
+                v-model:studyName="studyName"
+                v-model:studyDescription="studyDescription"
+                v-model:studyDesignType="studyDesignType"
+                v-model:participantCount="participantCount"
+                :studyNameRules="studyNameRules"
+                :studyDescriptionRules="studyDescriptionRules"
+                :studyDesignTypeRules="studyDesignTypeRules"
+                :participantCountRules="participantCountRules"
+              />
+            </v-card>
             <h3>Tasks</h3>
             <v-expansion-panels multiple v-model="expandedTPanels">
               <v-expansion-panel v-for="(task, index) in tasks" :key="index">
                 <v-expansion-panel-title @click="toggleTaskPanel(index)">
                   <template v-slot:default="{}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div
+                      style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        width: 100%;
+                      "
+                    >
                       <span>{{ 'Task ' + (index + 1) }}</span>
                     </div>
                   </template>
@@ -39,22 +46,46 @@
             </v-expansion-panels>
 
             <div class="action-btns">
-              <v-btn @click="addTaskFactor('task')" color="grey" class="add-rmv-btn">+</v-btn>
               <v-btn
-                @click="displayDialog({ title: 'Remove Confirmation', text: 'Are you sure you want to remove this task?', source: 'task' })"
+                @click="addTaskFactor('task')"
+                color="grey"
+                class="add-rmv-btn"
+                >+</v-btn
+              >
+              <v-btn
+                @click="
+                  displayDialog({
+                    title: 'Remove Confirmation',
+                    text: 'Are you sure you want to remove this task?',
+                    source: 'task',
+                  })
+                "
                 :disabled="!canRemoveTask"
                 color="grey"
                 class="add-rmv-btn"
-              >-</v-btn>
+                >-</v-btn
+              >
             </div>
 
             <h3>Factors</h3>
             <v-expansion-panels multiple v-model="expandedFPanels">
-              <v-expansion-panel v-for="(factor, index) in factors" :key="index">
+              <v-expansion-panel
+                v-for="(factor, index) in factors"
+                :key="index"
+              >
                 <v-expansion-panel-title @click="toggleFactorPanel(index)">
                   <template v-slot:default="{}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                      <span>{{ 'Factor ' + String.fromCharCode(65 + index) }}</span>
+                    <div
+                      style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        width: 100%;
+                      "
+                    >
+                      <span>{{
+                        'Factor ' + String.fromCharCode(65 + index)
+                      }}</span>
                     </div>
                   </template>
                 </v-expansion-panel-title>
@@ -68,30 +99,59 @@
             </v-expansion-panels>
 
             <div class="action-btns">
-              <v-btn @click="addTaskFactor('factor')" color="grey" class="add-rmv-btn">+</v-btn>
               <v-btn
-                @click="displayDialog({ title: 'Remove Confirmation', text: 'Are you sure you want to remove this factor?', source: 'factor' })"
+                @click="addTaskFactor('factor')"
+                color="grey"
+                class="add-rmv-btn"
+                >+</v-btn
+              >
+              <v-btn
+                @click="
+                  displayDialog({
+                    title: 'Remove Confirmation',
+                    text: 'Are you sure you want to remove this factor?',
+                    source: 'factor',
+                  })
+                "
                 :disabled="!canRemoveFactor"
                 color="grey"
                 class="add-rmv-btn"
-              >-</v-btn>
+                >-</v-btn
+              >
             </div>
 
             <!-- Forms/Uploads Component -->
             <h3 class="text-h6 font-weight-bold mb-2">Forms / Uploads</h3>
-            <div class="text-medium-emphasis">(All file uploads below are optional)</div>
+            <div class="text-medium-emphasis">
+              (All file uploads below are optional)
+            </div>
             <v-card class="pa-4 mb-6">
-  <FormsUploads
-    v-model:consentForm="consentForm"
-    v-model:preSurveyFile="preSurveyFile"
-    v-model:postSurveyFile="postSurveyFile"
-    v-model:showConsentPreview="showConsentPreview"
-  />
-</v-card>
+              <FormsUploads
+                v-model:consentForm="consentForm"
+                v-model:preSurveyFile="preSurveyFile"
+                v-model:postSurveyFile="postSurveyFile"
+                v-model:showConsentPreview="showConsentPreview"
+              />
+            </v-card>
 
             <v-row class="btn-row mt-8" justify="center">
-              <v-btn class="me-4 save-exit-btn" @click="displayDialog({ title: 'Exit Confirmation', text: 'Are you sure you want to exit before saving?', source: 'exit' })">Exit</v-btn>
-              <v-btn class="me-4 save-exit-btn" type="submit" :disabled="!isFormValid">Save</v-btn>
+              <v-btn
+                class="me-4 save-exit-btn"
+                @click="
+                  displayDialog({
+                    title: 'Exit Confirmation',
+                    text: 'Are you sure you want to exit before saving?',
+                    source: 'exit',
+                  })
+                "
+                >Exit</v-btn
+              >
+              <v-btn
+                class="me-4 save-exit-btn"
+                type="submit"
+                :disabled="!isFormValid"
+                >Save</v-btn
+              >
             </v-row>
           </form>
         </v-col>
@@ -100,7 +160,11 @@
       <!-- Dialog -->
       <div class="text-center pa-4">
         <v-dialog v-model="dialog" max-width="400" persistent>
-          <v-card prepend-icon="mdi-alert-outline" :text="dialogDetails.text" :title="dialogDetails.title">
+          <v-card
+            prepend-icon="mdi-alert-outline"
+            :text="dialogDetails.text"
+            :title="dialogDetails.title"
+          >
             <template v-slot:actions>
               <v-spacer />
               <v-btn @click="closeDialog()">Cancel</v-btn>
@@ -117,7 +181,12 @@
     </v-container>
 
     <!-- Collapse warning -->
-    <v-snackbar v-model="collapseError" :timeout="2000" color="red" variant="tonal">
+    <v-snackbar
+      v-model="collapseError"
+      :timeout="2000"
+      color="red"
+      variant="tonal"
+    >
       {{ collapseErrorMsg }}
     </v-snackbar>
   </v-main>
@@ -172,7 +241,9 @@ export default {
         v => v.length <= 25 || 'Study name must be less than 25 characters.',
       ],
       studyDescriptionRules: [
-        v => v.length <= 250 || 'Study description must be less than 250 characters.',
+        v =>
+          v.length <= 250 ||
+          'Study description must be less than 250 characters.',
       ],
       studyDesignTypeRules: [v => !!v || 'Must choose a study design type.'],
       participantCountRules: [v => v > 0 || 'Need at least 1 participant.'],
@@ -191,10 +262,15 @@ export default {
 
   computed: {
     isFormValid() {
-      const validate = (rules, value) => rules.every(rule => rule(value) === true)
+      const validate = (rules, value) =>
+        rules.every(rule => rule(value) === true)
 
-      const tasksValid = this.expandedTPanels.every(index => this.taskRefs[index]?.validateTaskFields?.() ?? true)
-      const factorsValid = this.expandedFPanels.every(index => this.factorRefs[index]?.validateFactorFields?.() ?? true)
+      const tasksValid = this.expandedTPanels.every(
+        index => this.taskRefs[index]?.validateTaskFields?.() ?? true,
+      )
+      const factorsValid = this.expandedFPanels.every(
+        index => this.factorRefs[index]?.validateFactorFields?.() ?? true,
+      )
 
       return (
         validate(this.studyNameRules, this.studyName) &&
@@ -228,19 +304,19 @@ export default {
 
   methods: {
     async convertFileToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const base64String = reader.result.split(',')[1]  // Strip the data prefix
-        resolve({
-          filename: file.name,
-          content: base64String,
-        })
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
-  },
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1] // Strip the data prefix
+          resolve({
+            filename: file.name,
+            content: base64String,
+          })
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    },
     addTaskFactor(type) {
       const isTask = type === 'task'
       const list = isTask ? this.tasks : this.factors
@@ -248,15 +324,22 @@ export default {
 
       list.push(
         isTask
-          ? { taskName: '', taskDescription: '', taskDirections: '', taskDuration: '', measurementOptions: [] }
-          : { factorName: '', factorDescription: '' }
+          ? {
+              taskName: '',
+              taskDescription: '',
+              taskDirections: '',
+              taskDuration: '',
+              measurementOptions: [],
+            }
+          : { factorName: '', factorDescription: '' },
       )
       panels.push(list.length - 1)
     },
 
     removeTaskFactor(type) {
       const list = type === 'task' ? this.tasks : this.factors
-      const panels = type === 'task' ? this.expandedTPanels : this.expandedFPanels
+      const panels =
+        type === 'task' ? this.expandedTPanels : this.expandedFPanels
       const lastIndex = list.length - 1
 
       list.pop()
@@ -314,7 +397,11 @@ export default {
 
     async fetchStudyDetails(studyID) {
       try {
-        const response = await api.get(`/load_study/${studyID}`)
+        const response = await api.post(
+          `/load_study`,
+          { studyID },
+          { headers: { 'Content-Type': 'application/json' } },
+        )
         const study = response.data
 
         Object.assign(this, {
@@ -331,10 +418,18 @@ export default {
 
         // Consent form
         try {
-          const consentResponse = await api.get(`/get_study_consent_form/${studyID}`, { responseType: 'blob' })
+          const consentResponse = await api.post(
+            '/get_study_consent_form',
+            { study_id: studyID },
+            { responseType: 'blob' },
+          )
           if (consentResponse.status === 200) {
-            const fileName = consentResponse.headers['x-original-filename'] || 'consent_form.pdf'
-            this.consentForm = new File([consentResponse.data], fileName, { type: 'application/pdf' })
+            const fileName =
+              consentResponse.headers['x-original-filename'] ||
+              'consent_form.pdf'
+            this.consentForm = new File([consentResponse.data], fileName, {
+              type: 'application/pdf',
+            })
           }
         } catch (err) {
           if (err.response.status !== 204) {
@@ -347,34 +442,33 @@ export default {
     },
 
     async submit() {
-  const payload = {
-    studyName: this.studyName,
-    studyDescription: this.studyDescription,
-    studyDesignType: this.studyDesignType,
-    participantCount: this.participantCount,
-    tasks: this.tasks,
-    factors: this.factors,
-  }
+      const payload = {
+        studyName: this.studyName,
+        studyDescription: this.studyDescription,
+        studyDesignType: this.studyDesignType,
+        participantCount: this.participantCount,
+        tasks: this.tasks,
+        factors: this.factors,
+        studyID: this.studyID,
+      }
 
-  // Handle base64 encoding of consent form
-  if (this.consentForm) {
-    payload.consentFile = await this.convertFileToBase64(this.consentForm)
-  }
+      // Handle base64 encoding of consent form
+      if (this.consentForm) {
+        payload.consentFile = await this.convertFileToBase64(this.consentForm)
+      }
 
-  try {
-    const path = this.editMode
-      ? `/overwrite_study/${this.studyID}`  // Optional: switch this to `/api/update_study`
-      : `/create_study`
+      try {
+        const path = this.editMode ? `/overwrite_study` : `/create_study`
 
-    const res = await api.post(path, payload)
+        const res = await api.post(path, payload)
 
-    this.studySaveStatus('success', 'Study saved successfully!')
-    setTimeout(() => this.exit(), 1500)
-  } catch (error) {
-    console.error('Submit error:', error.response?.data || error.message)
-    this.studySaveStatus('error', 'Study failed to save!')
-  }
-},
+        this.studySaveStatus('success', 'Study saved successfully!')
+        setTimeout(() => this.exit(), 1500)
+      } catch (error) {
+        console.error('Submit error:', error.response?.data || error.message)
+        this.studySaveStatus('error', 'Study failed to save!')
+      }
+    },
   },
 }
 </script>

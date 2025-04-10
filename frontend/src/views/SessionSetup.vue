@@ -201,7 +201,6 @@
 </template>
 
 <script>
-
 import api from '@/axiosInstance'
 import draggable from 'vuedraggable'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
@@ -414,9 +413,9 @@ export default {
     // Retrieves all study details using passed study ID at page mount
     async getStudyInfo() {
       try {
-        const path = `/load_study/${this.studyId}`
-        const response = await api.get(path)
-
+        const response = await api.post('/load_study', {
+          studyID: this.studyId,
+        })
         this.study = response.data
 
         console.log(this.study)
