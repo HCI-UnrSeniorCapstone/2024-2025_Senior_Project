@@ -15,7 +15,7 @@ def ping():
     return jsonify({"message": "Pong!"}), 200
 
 
-# Test Database Connection and Fetch Data from 'user' table
+# Test Database Connection
 @bp.route("/api/test_db")
 @auth_required()
 def test_db():
