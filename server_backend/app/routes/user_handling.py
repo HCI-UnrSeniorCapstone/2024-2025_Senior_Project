@@ -6,6 +6,21 @@ from app.utility.db_connection import get_db_connection
 bp = Blueprint("user_handling", __name__)
 
 
+@bp.route("/api/accounts/change-email", methods=["POST"])
+@auth_required()
+def change_email():
+    data = request.get_json()
+    new_email = data.get("email")
+
+    if not new_email:
+        return jsonify({"error": "Email is required"}), 400
+
+    current_user.email = new_email
+    db.session.commit()
+
+    return jsonify({"message": "Email updated"}), 200
+
+
 @bp.route("/api/accounts/update_user_profile", methods=["POST"])
 @auth_required()
 def update_user_profile():
@@ -41,6 +56,7 @@ def update_user_profile():
         return jsonify({"error": str(e)}), 500
 
 
+# This is the ping to check for auth, vue will use this to handle redirects
 @bp.route("/api/accounts/get_user_profile_info", methods=["GET"])
 @auth_required()
 def get_user_profile_info():

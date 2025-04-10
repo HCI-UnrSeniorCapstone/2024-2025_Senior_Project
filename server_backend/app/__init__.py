@@ -112,6 +112,11 @@ def create_app(testing=False):
     app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME")
     app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD")
     app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
+    app.config["SECURITY_CONFIRM_EMAIL_CHANGE"] = True
+    app.config["SECURITY_EMAIL_SUBJECT_CHANGE_NOTICE"] = (
+        "Confirm your new Fulcrum email"
+    )
+
     mail.init_app(app)
 
     app.config["SECURITY_JSON"] = True  # Forces JSON responses instead of HTML
