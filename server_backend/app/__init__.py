@@ -55,10 +55,6 @@ def create_app(testing=False):
     # app.config["SECURITY_PASSWORD_HASH"] = "argon2"
     app.config["SECURITY_PASSWORD_SALT"] = os.getenv("SECRET_PASSWORD_SALT")
 
-    # Import models
-    from security.models import User, Role
-
-    user_datastore = SQLAlchemyUserDatastore(db, User, Role)
     # Customized settings so that VUE can be used instead of default server-side html rendering via Flask Security
     app.config["SECURITY_FLASH_MESSAGES"] = False
     app.config["SECURITY_URL_PREFIX"] = "/api/accounts"
@@ -117,6 +113,11 @@ def create_app(testing=False):
         "Confirm your new Fulcrum email"
     )
 
+    # app.config["MAIL_BACKEND"] = "console"  # USE THIS ONLY WHEN DEBUGGING THE EMAIL
+    app.config["SECURITY_USER_IDENTITY_ATTRIBUTES"] = [
+        {"email": {"mapper": "email", "primary": True}}
+    ]
+
     mail.init_app(app)
 
     app.config["SECURITY_JSON"] = True  # Forces JSON responses instead of HTML
@@ -129,9 +130,6 @@ def create_app(testing=False):
     app.config["SECURITY_TOKEN_MAX_AGE"] = 3600  # Optional, token TTL in seconds
     app.config["SECURITY_USER_SERIALIZER"] = "utility.user_serializer.user_serializer"
 
-    csrf.init_app(app)
-    security = Security(app, user_datastore)
-
     # SQLAlchemy ONLY for Flask-Security
     # This is done since Flask-Security is easy to use when using an ORM
     app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -139,8 +137,24 @@ def create_app(testing=False):
     )
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
     db.init_app(app)
-    fsqla.FsModels.set_db_info(db)
+    csrf.init_app(app)
+    # fsqla.FsModels.set_db_info(db)
+
+    # Import models
+    from security.models import User, Role
+
+    # fsqla.FsModels.set_db_info(db, user_model=User, role_model=Role)
+    user_datastore = SQLAlchemyUserDatastore(db, User, Role)
+
+    security = Security(app, user_datastore)
+    with app.app_context():
+        db.create_all()
+
+        for rule in app.url_map.iter_rules():
+            if "change" in rule.rule:
+                print(f"[DEBUG] Registered route: {rule.rule} -> {rule.endpoint}")
     CORS(
         app,
         resources={r"/*": {"origins": {os.getenv("EXPECTED_FRONTEND_DOMAIN_URL")}}},

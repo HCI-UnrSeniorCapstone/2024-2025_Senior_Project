@@ -12,7 +12,7 @@ from flask_security.models import fsqla_v3 as fsqla
 
 # Association table for user roles
 roles_users = db.Table(
-    "users_roles",  # Match the table name in DB
+    "users_roles",  # match name in db
     db.Column("user_id", db.Integer, db.ForeignKey("user.user_id")),
     db.Column("role_type_id", db.Integer, db.ForeignKey("role_type.role_type_id")),
 )
@@ -48,11 +48,10 @@ class Role(db.Model, fsqla.FsRoleMixin):
 class User(db.Model, fsqla.FsUserMixin):
     __tablename__ = "user"
 
-    user_id: Mapped[int] = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, primary_key=True)
     first_name: Mapped[str] = db.Column(db.String(255))
     last_name: Mapped[str] = db.Column(db.String(255))
-    email: Mapped[str] = db.Column(db.String(255))
-    # user_password: Mapped[Optional[str]] = db.Column(db.String(255), nullable=True)
+    email: Mapped[str] = db.Column(db.String(255), unique=True, nullable=False)
     user_password: Mapped[Optional[str]] = db.Column(db.TEXT, nullable=True)
     created_at: Mapped[TIMESTAMP] = db.Column(
         db.TIMESTAMP, default=func.current_timestamp()
