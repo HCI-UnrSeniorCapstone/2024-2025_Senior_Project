@@ -7,78 +7,44 @@ from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
 import pandas as pd
 from app.utility.studies import (
+    create_study_data,
     create_study_details,
     create_study_task_factor_details,
     save_study_consent_form,
     remove_study_consent_form,
+    get_all_study_data_helper,
 )
 from app.utility.db_connection import get_db_connection
 from app import create_app
 from flask_security import auth_required
 from flask_login import current_user
-from werkzeug.utils import secure_filename
+
 
 bp = Blueprint("studies", __name__)
 
 
 # Gets and saves data from study form page and stores it into a json file. Then uploads data into db
-# The query will need to be UPDATED since the user is hardcoded rn
 @bp.route("/api/create_study", methods=["POST"])
 @auth_required()
 def create_study():
     try:
-        submission_data = request.get_json()
-        if not submission_data:
-            return jsonify({"error": "Missing JSON body"}), 400
-
-        # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Insert study details
-        study_id = create_study_details(submission_data, cur)
-        create_study_task_factor_details(study_id, submission_data, cur)
+        # Get JSON data from the request body
+        submission_data = request.get_json()
 
-        # Get owner role ID
-        cur.execute(
-            """
-            SELECT study_user_role_type_id 
-            FROM study_user_role_type 
-            WHERE study_user_role_description = 'Owner'
-        """
-        )
-        study_user_role_type_id = cur.fetchone()[0]
+        if not submission_data:
+            return jsonify({"error": "Missing JSON body"}), 400
 
-        # Assign owner role
-        cur.execute(
-            """
-            INSERT INTO study_user_role (user_id, study_id, study_user_role_type_id)
-            VALUES (%s, %s, %s)
-        """,
-            (current_user.id, study_id, study_user_role_type_id),
-        )
+        study_id = create_study_data(submission_data, current_user.id, cur)
 
-        # Save base64-encoded consent file if present
+        # Handle consent file (optional)
+        base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
         if "consentFile" in submission_data:
-            file_info = submission_data["consentFile"]
-            filename = secure_filename(file_info.get("filename"))
-            base64_data = file_info.get("content")
-
-            if filename and base64_data:
-                file_bytes = base64.b64decode(base64_data)
-                base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
-                full_path = os.path.join(base_dir, "study_consent_forms", str(study_id))
-
-                os.makedirs(full_path, exist_ok=True)
-                with open(os.path.join(full_path, filename), "wb") as f:
-                    f.write(file_bytes)
-
-                # Optionally store metadata in DB
-                # save_study_consent_form_metadata(study_id, filename, cur)
-
-        # Commit and finish
+            file = submission_data["consentFile"]
+            save_study_consent_form(study_id, file, cur, base_dir)
         conn.commit()
-        cur.close()
         return (
             jsonify({"message": "Study created successfully", "study_id": study_id}),
             200,
@@ -88,12 +54,21 @@ def create_study():
         if "conn" in locals():
             conn.rollback()
 
-        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+        error_type = type(e).__name__
+        error_message = str(e)
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/is_overwrite_study_allowed/<int:study_id>", methods=["GET"])
+@bp.route("/api/is_overwrite_study_allowed", methods=["POST"])
 @auth_required()
-def is_overwrite_study_allowed(study_id):
+def is_overwrite_study_allowed():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if not submission_data or "studyID" not in submission_data:
+        return jsonify({"error": "Missing studyID in request body"}), 400
+
+    study_id = submission_data["studyID"]
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -256,19 +231,8 @@ def overwrite_study():
         # Handle consent file (optional)
         base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
         if "consentFile" in submission_data:
-            consent_file = submission_data["consentFile"]
-            filename = secure_filename(consent_file.get("filename", "consent_form.pdf"))
-            content = consent_file.get("content")
-
-            if filename and content:
-                full_path = os.path.join(base_dir, "study_consent_forms", str(study_id))
-                os.makedirs(full_path, exist_ok=True)
-                file_path = os.path.join(full_path, filename)
-
-                with open(file_path, "wb") as f:
-                    f.write(base64.b64decode(content))
-
-                # save_study_consent_form_metadata(study_id, filename, cur)
+            file = submission_data["consentFile"]
+            save_study_consent_form(study_id, file, cur, base_dir)
         else:
             # No file present → remove existing file
             remove_study_consent_form(study_id, cur)
@@ -353,9 +317,16 @@ def get_study_data():
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/copy_study/<int:study_id>", methods=["POST"])
+@bp.route("/api/copy_study", methods=["POST"])
 @auth_required()
-def copy_study(study_id):
+def copy_study():
+    # Get JSON data from the request body
+    submission_data = request.get_json()
+
+    if not submission_data or "studyID" not in submission_data:
+        return jsonify({"error": "Missing studyID in request body"}), 400
+
+    study_id = submission_data["studyID"]
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -393,36 +364,27 @@ def copy_study(study_id):
         if user_access_exists is None:
             return jsonify({"error": "User does not have access to study"}), 404
 
-        url = os.getenv("VUE_APP_BACKEND_URL").strip()
-        port = os.getenv("VUE_APP_BACKEND_PORT").strip()
-        full_url = f"http://{url}:{port}"
-
-        load_study_url = f"{full_url}/load_study/{study_id}"
-        load_response = requests.get(load_study_url)
-
-        if load_response.status_code != 200:
-            return {
-                "error": "Failed to load study data",
-                "status": load_response.status_code,
-            }, load_response.status_code
-
-        study_data = load_response.json()
+        # Get the study data
+        study_data = get_all_study_data_helper(study_id)
 
         # Give new study name
         study_count = study_results[0]
         study_data["studyName"] = study_results[1] + " (" + str(study_count) + ")"
 
-        create_study_url = f"{full_url}/create_study/{user_id}"
-        create_response = requests.post(create_study_url, json=study_data)
-        if create_response.status_code != 200:
-            return {
-                "error": "Failed to create study data",
-                "status": create_response.status_code,
-            }, create_response.status_code
+        # Call the helper function to create the new study in the database
+        study_id = create_study_data(study_data, current_user.id, cur)
 
-        return create_response.json(), 200
+        conn.commit()
+        # Return success message
+        return (
+            jsonify({"message": "Study copied successfully", "study_id": study_id}),
+            200,
+        )
 
     except Exception as e:
+        if "conn" in locals():
+            conn.rollback()
+
         # Error message
         error_type = type(e).__name__
         error_message = str(e)
@@ -432,111 +394,20 @@ def copy_study(study_id):
 
 
 # This route is for loading ALL the detail on a single study, essentially rebuilding in reverse of how create_study deconstructs and saves into db
-@bp.route("/api/load_study/<int:study_id>", methods=["GET"])
+@bp.route("/api/load_study", methods=["POST"])
 @auth_required()
-def load_study(study_id):
+def load_study():
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
+        # Get the JSON data from the request body
+        submission_data = request.get_json()
 
-        # Get Study Details
-        get_study_info = """
-        SELECT
-            s.study_name AS 'User Study Name',
-            s.study_description AS 'Description',
-            s.expected_participants AS '# Expected Participants',
-            surt.study_user_role_description AS 'Role',
-            sdt.study_design_type_description AS 'Study Design Type'
-        FROM study AS s
-        INNER JOIN study_user_role AS sur
-            ON sur.study_id = s.study_id
-        INNER JOIN study_user_role_type AS surt
-            ON sur.study_user_role_type_id = surt.study_user_role_type_id
-        INNER JOIN study_design_type AS sdt
-            ON s.study_design_type_id = sdt.study_design_type_id
-        WHERE s.study_id = %s
-        """
-        cur.execute(get_study_info, (study_id,))
-        study_res = cur.fetchone()
+        if not submission_data or "studyID" not in submission_data:
+            return jsonify({"error": "Missing studyID in request body"}), 400
 
-        # Get all the tasks under the study
-        get_tasks = """
-        SELECT
-            task_id AS 'Task ID',
-            task_name AS 'Task Name',
-            task_description AS 'Task Description',
-            task_directions AS 'Task Directions',
-            duration AS 'Duration'
-        FROM task
-        WHERE study_id = %s;
-        """
-        cur.execute(get_tasks, (study_id,))
-        task_res = cur.fetchall()
+        study_id = submission_data["studyID"]
 
-        # Get all the factors under the study
-        get_factors = """
-        SELECT
-            factor_id AS 'Factor ID',
-            factor_name AS 'Factor Name',
-            factor_description AS 'Factor Description'
-        FROM factor
-        WHERE study_id = %s;
-        
-        """
-        cur.execute(get_factors, (study_id,))
-        factor_res = cur.fetchall()
-
-        # Creating the study obj before adding measurement option info
-        study_data = {
-            "studyName": study_res[0],
-            "studyDescription": study_res[1],
-            "studyDesignType": study_res[4],
-            "participantCount": str(study_res[2]),
-            "tasks": [
-                {
-                    "taskID": task[0],
-                    "taskName": task[1],
-                    "taskDescription": task[2],
-                    "taskDirections": task[3],
-                    "taskDuration": task[4],
-                    "measurementOptions": [],
-                }
-                for task in task_res
-            ],
-            "factors": [
-                {
-                    "factorID": factor[0],
-                    "factorName": factor[1],
-                    "factorDescription": factor[2],
-                }
-                for factor in factor_res
-            ],
-        }
-
-        # Get all the measurements under the task under the study
-        get_task_measurements = """
-        SELECT
-            tm.task_id AS 'Task ID',
-            mo.measurement_option_name AS 'Measurement Option'
-        FROM task_measurement AS tm
-        JOIN task AS t
-        ON tm.task_id = t.task_id
-        JOIN measurement_option AS mo
-        ON tm.measurement_option_id = mo.measurement_option_id
-        WHERE tm.task_id IN (SELECT task_id FROM task WHERE study_id = %s);
-        """
-        cur.execute(get_task_measurements, (study_id,))
-        measurement_res = cur.fetchall()
-
-        # Use taskID to get the measurement types into the correct task measurement[]
-        for task in study_data["tasks"]:
-            task["measurementOptions"] = [
-                measurement[1]
-                for measurement in measurement_res
-                if measurement[0] == task["taskID"]
-            ]
-
-        cur.close()
+        # Call the helper function to get the study data
+        study_data = get_all_study_data_helper(study_id)
 
         return jsonify(study_data), 200
 
@@ -545,15 +416,22 @@ def load_study(study_id):
         error_type = type(e).__name__
         error_message = str(e)
 
-        # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
 # Note, the study still exists in the database but not available to users
-@bp.route("/api/delete_study/<int:study_id>", methods=["POST"])
+@bp.route("/api/delete_study", methods=["POST"])
 @auth_required()
-def delete_study(study_id):
+def delete_study():
     try:
+
+        # Get the JSON data from the request body
+        submission_data = request.get_json()
+
+        if not submission_data or "studyID" not in submission_data:
+            return jsonify({"error": "Missing studyID in request body"}), 400
+
+        study_id = submission_data["studyID"]
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
@@ -611,9 +489,16 @@ def delete_study(study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-@bp.route("/api/get_study_consent_form/<int:study_id>", methods=["GET"])
-def get_study_consent_form(study_id):
+@bp.route("/api/get_study_consent_form", methods=["POST"])
+def get_study_consent_form():
     try:
+        data = request.get_json()
+
+        # Check if study_id is provided
+        if not data or "study_id" not in data:
+            return jsonify({"error": "Missing study_id in request body"}), 400
+
+        study_id = data["study_id"]
         conn = get_db_connection()
         cur = conn.cursor()
 
