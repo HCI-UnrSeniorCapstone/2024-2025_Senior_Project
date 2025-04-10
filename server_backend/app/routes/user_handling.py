@@ -6,19 +6,19 @@ from app.utility.db_connection import get_db_connection
 bp = Blueprint("user_handling", __name__)
 
 
-@bp.route("/api/accounts/change-email", methods=["POST"])
-@auth_required()
-def change_email():
-    data = request.get_json()
-    new_email = data.get("email")
+# @bp.route("/api/accounts/change-email", methods=["POST"])
+# @auth_required()
+# def change_email():
+#     data = request.get_json()
+#     new_email = data.get("email")
+#     print(new_email)
+#     if not new_email:
+#         return jsonify({"error": "Email is required"}), 400
 
-    if not new_email:
-        return jsonify({"error": "Email is required"}), 400
+#     current_user.email = new_email
+#     db.session.commit()
 
-    current_user.email = new_email
-    db.session.commit()
-
-    return jsonify({"message": "Email updated"}), 200
+#     return jsonify({"message": "Email updated"}), 200
 
 
 @bp.route("/api/accounts/update_user_profile", methods=["POST"])
@@ -105,30 +105,3 @@ def logout():
         return jsonify({"message": "Logged out successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@bp.route("/api/accounts/update_profile_register", methods=["POST"])
-@auth_required()
-def update_profile():
-    data = request.get_json()
-    first_name = data.get("first_name")
-    last_name = data.get("last_name")
-
-    if first_name:
-        current_user.first_name = first_name
-        print(current_user)
-    if last_name:
-        current_user.last_name = last_name
-
-    db.session.commit()
-
-    return (
-        jsonify(
-            {
-                "message": "Profile updated",
-                "first_name": current_user.first_name,
-                "last_name": current_user.last_name,
-            }
-        ),
-        200,
-    )
