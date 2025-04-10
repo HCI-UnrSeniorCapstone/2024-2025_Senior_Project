@@ -201,7 +201,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import draggable from 'vuedraggable'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 
@@ -413,10 +413,9 @@ export default {
     // Retrieves all study details using passed study ID at page mount
     async getStudyInfo() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${this.studyId}`
-        const response = await axios.get(path)
-
+        const response = await api.post('/load_study', {
+          studyID: this.studyId,
+        })
         this.study = response.data
 
         console.log(this.study)
@@ -437,9 +436,10 @@ export default {
     // Determines what the recommended # of trials should be
     async getRecPermLength() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/previous_session_length/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/previous_session_length`
+        const response = await api.post(path, {
+          study_id: this.studyID,
+        })
 
         const prevLength = response.data.prev_length
 
@@ -467,13 +467,14 @@ export default {
     // Generates a random set of trials for the user that is unique, "random", & balanced
     async getPermutation() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_new_trials_perm/${this.studyId}?trial_count=${this.selectedPermLength}`
-        const response = await axios.get(path)
+        const path = `/get_new_trials_perm`
+        const response = await api.post(path, {
+          study_id: this.studyId,
+          trial_count: this.selectedPermLength,
+        })
 
         console.log('Permutations response:', response.data)
 
-        this.trials = []
         this.trials = response.data.new_perm.map(([taskID, factorID]) => ({
           taskID,
           factorID,
@@ -486,9 +487,10 @@ export default {
     // Retrieves occurences of trials (task-factor combos) in prior sessions (for the trial coverage heatmap)
     async getTrialOccurrences() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_trial_occurrences/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/get_trial_occurrences`
+        const response = await api.post(path, {
+          study_id: this.studyId,
+        })
 
         this.heatmapTasks = this.taskOptions.map(t => t.name)
         this.heatmapFactors = this.factorOptions.map(f => f.name)

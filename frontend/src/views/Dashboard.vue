@@ -1,7 +1,7 @@
 <template>
   <v-container
-    class="d-flex flex-column justify-center align-center"
-    style="height: 100vh"
+    class="d-flex flex-column justify-center align-center fill-height transparent-bg"
+    fluid
   >
     <v-skeleton-loader
       :loading="true"
@@ -24,11 +24,12 @@ export default {
 }
 </script>
 
-<style scoped>
-.text-center {
-  text-align: center;
+<!-- Leave this unscoped so it affects v-container properly -->
+<style>
+.fill-height {
+  min-height: 100vh;
 }
-.v-skeleton-loader {
-  border-radius: 10px;
+.transparent-bg {
+  background-color: transparent !important;
 }
 </style>

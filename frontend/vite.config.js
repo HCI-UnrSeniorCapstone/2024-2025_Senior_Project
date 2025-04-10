@@ -21,8 +21,16 @@ export default defineConfig({
     },
   },
   define: {
-    // Inject the config values globally, prefix with VITE_ for Vite compatibility
     'import.meta.env.VITE_BACKEND_URL': JSON.stringify(config.backendUrl),
     'import.meta.env.VITE_BACKEND_PORT': JSON.stringify(config.backendPort),
+  },
+  server: {
+    proxy: {
+      '/api': {
+        target: `${config.backendUrl}:${config.backendPort}`,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 })
