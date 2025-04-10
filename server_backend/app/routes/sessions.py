@@ -316,12 +316,22 @@ def get_all_session_data_instance_from_participant_zip(participant_id):
 
 # All session data for a participant session
 @bp.route(
-    "/api/get_all_session_data_instance_from_participant_session_zip/<int:participant_session_id>",
-    methods=["GET"],
+    "/api/get_all_session_data_instance_from_participant_session_zip",
+    methods=["POST"],
 )
 @auth_required()
-def get_all_session_data_instance_from_participant_session_zip(participant_session_id):
+def get_all_session_data_instance_from_participant_session_zip():
     try:
+        data = request.get_json()
+
+        # Check if participant_session_id is provided
+        if not data or "participant_session_id" not in data:
+            return (
+                jsonify({"error": "Missing participant_session_id in request body"}),
+                400,
+            )
+
+        participant_session_id = data["participant_session_id"]
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -369,12 +379,22 @@ def get_all_session_data_instance_from_participant_session_zip(participant_sessi
 
 # Only one specific file of data
 @bp.route(
-    "/api/get_one_session_data_instance_zip/<int:session_data_instance_id>",
-    methods=["GET"],
+    "/api/get_one_session_data_instance_zip",
+    methods=["POST"],
 )
 @auth_required()
-def get_one_session_data_instance_zip(session_data_instance_id):
+def get_one_session_data_instance_zip():
     try:
+        data = request.get_json()
+
+        # Check if session_data_instance_id is provided
+        if not data or "session_data_instance_id" not in data:
+            return (
+                jsonify({"error": "Missing session_data_instance_id in request body"}),
+                400,
+            )
+
+        session_data_instance_id = data["session_data_instance_id"]
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -417,12 +437,20 @@ def get_one_session_data_instance_zip(session_data_instance_id):
 
 
 # All session data for a trial
-@bp.route(
-    "/api/get_all_session_data_instance_for_a_trial_zip/<int:trial_id>", methods=["GET"]
-)
+@bp.route("/api/get_all_session_data_instance_for_a_trial_zip", methods=["POST"])
 @auth_required()
-def get_all_session_data_instance_for_a_trial_zip(trial_id):
+def get_all_session_data_instance_for_a_trial_zip():
     try:
+        data = request.get_json()
+
+        # Check if trial_id is provided
+        if not data or "trial_id" not in data:
+            return (
+                jsonify({"error": "Missing trial_id in request body"}),
+                400,
+            )
+
+        trial_id = data["trial_id"]
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -472,10 +500,20 @@ def get_all_session_data_instance_for_a_trial_zip(trial_id):
 
 
 # All session data for a study
-@bp.route("/api/get_all_session_data_instance_zip/<int:study_id>", methods=["GET"])
+@bp.route("/api/get_all_session_data_instance_zip", methods=["POST"])
 @auth_required()
-def get_all_session_data_instance_zip(study_id):
+def get_all_session_data_instance_zip():
     try:
+        data = request.get_json()
+
+        # Check if study_id is provided
+        if not data or "study_id" not in data:
+            return (
+                jsonify({"error": "Missing study_id in request body"}),
+                400,
+            )
+
+        study_id = data["study_id"]
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -511,14 +549,19 @@ def get_all_session_data_instance_zip(study_id):
 
 
 # When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
-@bp.route("/api/create_participant_session/<int:study_id>", methods=["POST"])
+@bp.route("/api/create_participant_session", methods=["POST"])
 @auth_required()
-def create_participant_session(study_id):
+def create_participant_session():
     # Get request and convert to json
-    submissionData = request.get_json()
+    data = request.get_json()
 
-    # Formatting display
-    json_object = json.dumps(submissionData, indent=5)
+    # Check if study_id is provided
+    if not data or "study_id" not in data:
+        return (
+            jsonify({"error": "Missing study_id in request body"}),
+            400,
+        )
+    study_id = data["study_id"]
     try:
         # Connect to the database
         conn = get_db_connection()
@@ -527,7 +570,7 @@ def create_participant_session(study_id):
         # Get gender_type
         cur.execute(
             "SELECT gender_type_id FROM gender_type WHERE gender_description = %s",
-            (submissionData["participantGender"],),
+            (data["participantGender"],),
         )
         result = cur.fetchone()
         gender_type_id = result[0]
@@ -535,7 +578,7 @@ def create_participant_session(study_id):
         # Get highest_education_type
         cur.execute(
             "SELECT highest_education_type_id FROM highest_education_type WHERE highest_education_description = %s",
-            (submissionData["participantEducationLv"],),
+            (data["participantEducationLv"],),
         )
         result = cur.fetchone()
         highest_education_type_id = result[0]
@@ -548,17 +591,17 @@ def create_participant_session(study_id):
         cur.execute(
             insert_participant_query,
             (
-                submissionData["participantAge"],
+                data["participantAge"],
                 gender_type_id,
                 highest_education_type_id,
-                submissionData["participantTechCompetency"],
+                data["participantTechCompetency"],
             ),
         )
 
         # id of the participant just created
         participant_id = cur.lastrowid
 
-        race_ethnicities = submissionData.get("participantRaceEthnicity", [])
+        race_ethnicities = data.get("participantRaceEthnicity", [])
         for ethnicity in race_ethnicities:
             # Get ethnicity_type
             cur.execute(
@@ -610,10 +653,19 @@ def create_participant_session(study_id):
 
 
 # Get session general info for study panel
-@bp.route("/api/get_all_session_info/<int:study_id>", methods=["GET"])
+@bp.route("/api/get_all_session_info", methods=["POST"])
 @auth_required()
-def get_all_session_info(study_id):
+def get_all_session_info():
     try:
+        data = request.get_json()
+
+        # Check if study_id is provided
+        if not data or "study_id" not in data:
+            return (
+                jsonify({"error": "Missing study_id in request body"}),
+                400,
+            )
+        study_id = data["study_id"]
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
@@ -646,103 +698,23 @@ def get_all_session_info(study_id):
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
-# Gets CSV data for 1 participant_session with corresponding types
-# Note: this does not use BATCHING or anything for data transfer optimization. This is for DEMO so don't feed in a lot of data
-@bp.route(
-    "/api/get_participant_session_data/<int:study_id>/<int:participant_session_id>",
-    methods=["GET"],
-)
-@auth_required()
-def get_participant_session_data(study_id, participant_session_id):
-    try:
-        # Connect to the database
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        select_participant_session_data_query = """
-        SELECT sdi.session_data_instance_id, sdi.results_path, sdi.measurement_option_id, sdi.task_id, sdi.factor_id
-        FROM session_data_instance sdi
-        JOIN participant_session ps
-        ON ps.participant_session_id = sdi.participant_session_id
-        WHERE ps.study_id = %s AND ps.participant_session_id = %s
-        """
-
-        cur.execute(
-            select_participant_session_data_query, (study_id, participant_session_id)
-        )
-
-        results = cur.fetchall()
-
-        if not results:
-            return (
-                jsonify(
-                    {
-                        "error": "No data found for the given study_id and participant_session_id."
-                    }
-                ),
-                404,
-            )
-
-        df_dict = {}
-        measurement_option_dict = {}
-        task_dict = {}
-        factor_dict = {}
-
-        for result in results:
-            # Convert CSV to dataframe
-            df = pd.read_csv(result[1])
-
-            # Convert DataFrame to a list of lists (each row is a list)
-            df_list = df.values.tolist()
-
-            # Add dataframe JSON to dictionary
-            df_dict[result[0]] = df_list
-
-            select_measurment_option_description_query = """
-            SELECT measurement_option_name
-            FROM measurement_option
-            WHERE measurement_option_id = %s
-            """
-
-            cur.execute(select_measurment_option_description_query, (result[2],))
-            option_name = cur.fetchone()
-
-            if option_name:
-                measurement_option_dict[result[0]] = option_name[0]
-            else:
-                measurement_option_dict[result[0]] = None
-
-            # task dict based upon same id as everything else for key
-            task_dict[result[0]] = result[3]
-
-            # factor dict based upon same id as everything else for key
-            factor_dict[result[0]] = result[4]
-        cur.close()
-
-        # Create the response body with both dictionaries
-        response = {
-            "df_dict": df_dict,
-            "measurement_option_dict": measurement_option_dict,
-            "task_dict": task_dict,
-            "factor_dict": factor_dict,
-        }
-        return jsonify(response), 200
-
-    except Exception as e:
-        # Error message
-        error_type = type(e).__name__
-        error_message = str(e)
-
-        return jsonify({"error_type": error_type, "error_message": error_message}), 500
-
-
 # Stores the participant's consent agreement for individual sessions
 @bp.route(
-    "/api/save_participant_consent/<int:study_id>/<int:participant_session_id>",
+    "/api/save_participant_consent",
     methods=["POST"],
 )
-def save_participant_consent(study_id, participant_session_id):
+def save_participant_consent():
     try:
+        data = request.get_json()
+
+        # Check if study_id is provided
+        if not data or "study_id" not in data or "participant_session_id" not in data:
+            return (
+                jsonify({"error": "Missing study_id in request body"}),
+                400,
+            )
+        study_id = data["study_id"]
+        participant_session_id = data["participant_session_id"]
         # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()

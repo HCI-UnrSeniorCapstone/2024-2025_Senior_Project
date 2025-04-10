@@ -424,7 +424,6 @@ def load_study():
 @auth_required()
 def delete_study():
     try:
-
         # Get the JSON data from the request body
         submission_data = request.get_json()
 
