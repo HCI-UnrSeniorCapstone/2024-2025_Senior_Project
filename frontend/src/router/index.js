@@ -15,8 +15,10 @@ import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
 import SessionSetup from '@/views/SessionSetup.vue'
-import { pingServer } from '@/utility/ping' 
+import { pingServer } from '@/utility/ping'
 import UserProfile from '../views/UserProfile.vue'
+import AboutPage from '../views/AboutPage.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   linkExactActiveClass: 'v-item-active',
@@ -34,12 +36,12 @@ const router = createRouter({
         {
           path: '/confirmed',
           name: 'Confirmed',
-          component: Confirmed
+          component: Confirmed,
         },
         {
           path: '/register',
           name: 'UserRegister',
-          component: UserRegister
+          component: UserRegister,
         },
         {
           path: '/UserLogin',
@@ -50,6 +52,11 @@ const router = createRouter({
           path: '/profile',
           name: 'UserProfile',
           component: UserProfile,
+        },
+        {
+          path: '/about',
+          name: 'AboutPage',
+          component: AboutPage,
         },
         {
           path: '/UserStudies',
@@ -119,8 +126,10 @@ const router = createRouter({
   ],
 })
 
+const publicPages = ['UserLogin', 'UserRegister', 'Confirmed', 'AboutPage']
+
 router.beforeEach(async (to, from, next) => {
-  if (to.name !== 'UserLogin' && to.name !== 'UserRegister' && to.name !== 'Confirmed') {
+  if (!publicPages.includes(to.name)) {
     try {
       await pingServer()
     } catch (err) {
@@ -128,7 +137,7 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  next() // Allow route change
+  next()
 })
 
 export default router

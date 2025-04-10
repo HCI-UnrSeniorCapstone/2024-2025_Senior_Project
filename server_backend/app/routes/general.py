@@ -7,7 +7,7 @@ from flask_login import current_user
 bp = Blueprint("general", __name__)
 
 
-# Basic ping
+# IMPORTANT: This is used to check if session still good
 @bp.route("/api/ping", methods=["GET"])
 @auth_required()
 def ping():

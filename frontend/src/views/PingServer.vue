@@ -5,7 +5,7 @@
 </template>
 <script>
 /*
-NOTE: This is TEMP to show the connection to the server
+NOTE: This is used to check if session still good
 */
 import api from '@/axiosInstance'
 export default {
@@ -17,12 +17,13 @@ export default {
   },
   methods: {
     getMessage() {
-      api.get('/ping', {
-  withCredentials: true,
-  headers: {
-    'Authentication-Token': localStorage.getItem('auth_token'),
-  },
-})
+      api
+        .get('/ping', {
+          withCredentials: true,
+          headers: {
+            'Authentication-Token': localStorage.getItem('auth_token'),
+          },
+        })
         .then(res => {
           this.msg = res.data.message // Display the response message from server
         })
