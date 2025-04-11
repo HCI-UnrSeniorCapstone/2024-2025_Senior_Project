@@ -302,11 +302,15 @@ export default {
     // Download a zip with the data of all sessions under the given study
     async downloadParticipantSessionData(sessionID) {
       try {
-        const path = `/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
+        const path = `/get_all_session_data_instance_from_participant_session_zip`
 
-        const response = await api.get(path, {
-          responseType: 'blob',
-        })
+        const response = await api.get(
+          path,
+          { participant_session_id: sessionID },
+          {
+            responseType: 'blob',
+          },
+        )
         // Get the content-disposition header to extract the filename
         const disposition = response.headers['content-disposition']
         const filename = disposition
@@ -327,8 +331,8 @@ export default {
     // Populating the sessions table
     async populateSessions(sessionID) {
       try {
-        const path = `/get_all_session_info/${sessionID}`
-        const response = await api.get(path)
+        const path = `/get_all_session_info`
+        const response = await api.post(path, { study_id: sessionID })
 
         console.log(response)
         if (Array.isArray(response.data)) {
@@ -348,8 +352,8 @@ export default {
     // Getting trial appearances from prior sessions to populate the heatmap
     async getTrialOccurrences() {
       try {
-        const path = `/get_trial_occurrences/${this.studyID}`
-        const response = await api.get(path)
+        const path = `/get_trial_occurrences`
+        const response = await api.post(path, { study_id: this.studyID })
 
         this.heatmapTasks = this.tasks.map(t => t.taskName)
         this.heatmapFactors = this.factors.map(f => f.factorName)

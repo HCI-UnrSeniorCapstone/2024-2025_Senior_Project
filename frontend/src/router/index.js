@@ -8,9 +8,6 @@ import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
 import SessionForm from '../views/SessionForm.vue'
-import TestSendCSV from '../views/TestCSVToServer.vue'
-import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
-import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
 import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
@@ -105,21 +102,6 @@ const router = createRouter({
               ? JSON.parse(route.query.formattedStudy)
               : null,
           }),
-        },
-        {
-          path: '/TestSendCSV',
-          name: 'TestSendCSV',
-          component: TestSendCSV,
-        },
-        {
-          path: '/TestGetCSVInfo',
-          name: 'TestGetCSVInfo',
-          component: TestGetCSVInfo,
-        },
-        {
-          path: '/TestGetParticipantSessionCSVInfo',
-          name: 'TestGetParticipantSessionCSVInfo',
-          component: TestGetParticipantSessionCSVInfo,
         },
       ],
     },

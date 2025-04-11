@@ -287,8 +287,12 @@ export default {
           participantRaceEthnicity: this.participantRaceEthnicity,
           participantTechCompetency: this.participantTechCompetency,
         }
-        const path = `/create_participant_session/${this.studyData.study_id}`
-        const response = await api.post(path, submissionData)
+        const path = `/create_participant_session`
+        const response = await api.post(
+          path,
+          { study_id: this.studyData.study_id },
+          submissionData,
+        )
         this.participantSessId = response.data.participant_session_id
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
@@ -336,8 +340,11 @@ export default {
 
     async saveParticipantAck() {
       try {
-        const path = `/save_participant_consent/${this.studyData.study_id}/${this.participantSessId}`
-        await api.post(path)
+        const path = `/save_participant_consent`
+        await api.post(path, {
+          study_id: this.studyData.study_id,
+          participant_session_id: this.participantSessId,
+        })
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }

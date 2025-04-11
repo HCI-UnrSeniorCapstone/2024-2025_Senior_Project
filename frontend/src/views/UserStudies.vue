@@ -243,8 +243,12 @@ export default {
 
     async downloadStudyData(studyID) {
       try {
-        const path = `/get_all_session_data_instance_zip/${studyID}`
-        const response = await api.get(path, { responseType: 'blob' })
+        const path = `/get_all_session_data_instance_zip`
+        const response = await api.post(
+          path,
+          { study_id: studyID },
+          { responseType: 'blob' },
+        )
 
         const disposition = response.headers['content-disposition']
         const filename = disposition
