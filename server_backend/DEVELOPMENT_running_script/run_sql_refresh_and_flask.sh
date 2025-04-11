@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Load specific environment variables from the .env file
-export $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=|^MYSQL_DB=' ../.env | xargs)
+eval $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=|^MYSQL_DB=|^MYSQL_USER=|^MYSQL_PASSWORD=' ../.env | sed 's/\r//' | xargs -d '\n' -I {} echo export \"{}\")
+
 
 DB_NAME=$(echo $MYSQL_DB | tr -d '\r')
 
@@ -11,7 +12,7 @@ start_time=$(date +%s)
 run_sql_file() {
     local file=$1
     echo "Running $file..." >&2
-    mysql $DB_NAME < "../sql_database/$file"
+    mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$DB_NAME" < "../sql_database/$file"
     if [ $? -eq 0 ]; then
         echo "$file completed successfully." >&2
     else
@@ -32,6 +33,7 @@ clear_results_directory() {
         echo "Directories removed successfully." >&2
     else
         echo "Error removing directories." >&2
+        exit 1
     fi
 }
 
@@ -66,7 +68,7 @@ update_database_participant_session() {
     VALUES ($participant_id, $study_id, $ended_at, $comments, $is_valid);"
     
     # Execute the insert statement for participant_session
-    participant_session_id=$(mysql -e "$insert_participant_session; SELECT LAST_INSERT_ID();" -s -N)
+    participant_session_id=$(mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "$insert_participant_session; SELECT LAST_INSERT_ID();" -s -N)
 
     # Check for successful execution of participant_session insert
     if [ $? -eq 0 ]; then
@@ -102,7 +104,7 @@ update_database_trial() {
     INSERT INTO trial (participant_session_id, task_id, factor_id, started_at, ended_at)
     VALUES ($participant_session_id, $task_id, $factor_id, '$created_at', '$ended_at');"
 
-    trial_id=$(mysql -e "$insert_trial; SELECT LAST_INSERT_ID();" -s -N)
+    trial_id=$(mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "$insert_trial; SELECT LAST_INSERT_ID();" -s -N)
 
     # Check for successful trial insert 
     if [ $? -eq 0 ]; then
@@ -125,15 +127,15 @@ update_database_trial() {
 
         # Measurement option is keyboard
         if [ "$csv" -eq 4 ]; then
-        generate_data_keyboard "$file_path" "$start_time"
+            generate_data_keyboard "$file_path" "$start_time"
         else
-        generate_data_coords "$file_path" "$start_time"
+            generate_data_coords "$file_path" "$start_time"
         fi
         insert_session_data_instance="USE $DB_NAME;
         INSERT INTO session_data_instance (trial_id, measurement_option_id, results_path)
         VALUES ($trial_id, $csv, '$file_path');"
         
-        session_data_instance_id=$(mysql -e "$insert_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
+        session_data_instance_id=$(mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "$insert_session_data_instance; SELECT LAST_INSERT_ID();" -s -N)
         # Check for successful session_data_instance insert
         if [ $? -eq 0 ]; then
             echo "Session data instance $session_data_instance_id for trial $trial_id inserted successfully." >&2
