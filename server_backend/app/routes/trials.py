@@ -27,7 +27,6 @@ def get_new_trials_perm():
                 jsonify({"error": "Missing study_id or trial_count in request"}),
                 400,
             )
-        perm_length = request.args.get("trial_count", type=int)
 
         if not perm_length:
             return (
