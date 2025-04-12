@@ -90,18 +90,15 @@
             <p v-else>You’re all set! Start by creating your first study.</p>
           </v-col>
           <v-col cols="auto">
-            <router-link
-              :to="
-                auth.isAuthenticated
-                  ? { name: 'StudyForm' }
-                  : { name: 'UserRegister' }
-              "
+            <v-btn
+              color="primary"
+              class="rounded-pill px-6"
+              elevation="2"
+              @click="handleCTA"
             >
-              <v-btn color="primary" class="rounded-pill px-6" elevation="2">
-                {{ auth.isAuthenticated ? 'Create a Study' : 'Sign Up' }}
-                <v-icon end>mdi-arrow-right</v-icon>
-              </v-btn>
-            </router-link>
+              {{ auth.isAuthenticated ? 'Create a Study' : 'Sign Up' }}
+              <v-icon end>mdi-arrow-right</v-icon>
+            </v-btn>
           </v-col>
         </v-row>
       </v-card>
@@ -111,12 +108,15 @@
 
 <script>
 import { auth } from '@/stores/auth'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   name: 'AboutPage',
+  setup() {
+    const studyStore = useStudyStore()
+    return { studyStore, auth }
+  },
   data() {
     return {
-      auth,
       developers: [
         {
           name: 'Nicholas Jarvis',
@@ -132,6 +132,18 @@ export default {
         },
       ],
     }
+  },
+  methods: {
+    handleCTA() {
+      if (this.auth.isAuthenticated) {
+        this.studyStore.clearStudyID()
+        sessionStorage.removeItem('currentStudyID')
+        this.studyStore.incrementFormResetKey()
+        this.$router.push({ name: 'StudyForm' })
+      } else {
+        this.$router.push({ name: 'UserRegister' })
+      }
+    },
   },
 }
 </script>
