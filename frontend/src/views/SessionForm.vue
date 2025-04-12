@@ -281,6 +281,7 @@ export default {
     async getSessionID() {
       try {
         const submissionData = {
+          study_id: this.studyData.study_id,
           participantGender: this.participantGender,
           participantEducationLv: this.participantEducationLv,
           participantAge: this.participantAge,
@@ -288,11 +289,7 @@ export default {
           participantTechCompetency: this.participantTechCompetency,
         }
         const path = `/create_participant_session`
-        const response = await api.post(
-          path,
-          { study_id: this.studyData.study_id },
-          submissionData,
-        )
+        const response = await api.post(path, submissionData)
         this.participantSessId = response.data.participant_session_id
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)

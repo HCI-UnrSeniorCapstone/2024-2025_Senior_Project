@@ -2,24 +2,25 @@ import { defineStore } from 'pinia'
 
 export const useStudyStore = defineStore('study', {
   state: () => ({
-    currentStudyID: null,
-    drawerStudyID: null,
-    sessionID: null,
-    formResetKey: 0,
+    currentStudyID: null, // Used when editing or creating a study
+    drawerStudyID: null, // Used to reopen the drawer after navigating away
+    sessionID: null, // Used by SessionReporting view
+    formResetKey: 0, // Used to force remount of StudyForm
   }),
 
   actions: {
-    // Restore from sessionStorage when store is created
+    // Restore all values from sessionStorage
     initializeFromSession() {
       const storedStudyID = sessionStorage.getItem('currentStudyID')
       const storedDrawerID = sessionStorage.getItem('drawerStudyID')
       const storedSessionID = sessionStorage.getItem('sessionID')
 
-      if (storedStudyID) this.currentStudyID = Number(storedStudyID)
-      if (storedDrawerID) this.drawerStudyID = Number(storedDrawerID)
-      if (storedSessionID) this.sessionID = Number(storedSessionID)
+      if (storedStudyID !== null) this.currentStudyID = Number(storedStudyID)
+      if (storedDrawerID !== null) this.drawerStudyID = Number(storedDrawerID)
+      if (storedSessionID !== null) this.sessionID = Number(storedSessionID)
     },
 
+    // STUDY ID
     setStudyID(id) {
       this.currentStudyID = id
       sessionStorage.setItem('currentStudyID', id)
@@ -29,6 +30,7 @@ export const useStudyStore = defineStore('study', {
       sessionStorage.removeItem('currentStudyID')
     },
 
+    // DRAWER STUDY ID
     setDrawerStudyID(id) {
       this.drawerStudyID = id
       sessionStorage.setItem('drawerStudyID', id)
@@ -38,6 +40,7 @@ export const useStudyStore = defineStore('study', {
       sessionStorage.removeItem('drawerStudyID')
     },
 
+    // SESSION ID
     setSessionID(id) {
       this.sessionID = id
       sessionStorage.setItem('sessionID', id)
@@ -47,11 +50,12 @@ export const useStudyStore = defineStore('study', {
       sessionStorage.removeItem('sessionID')
     },
 
+    // Remount trigger
     incrementFormResetKey() {
       this.formResetKey++
     },
 
-    // Optional: nuke everything
+    // Optional: clear everything at once (e.g., on logout)
     reset() {
       this.clearStudyID()
       this.clearDrawerStudyID()

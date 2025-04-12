@@ -4,6 +4,7 @@ import { useStudyStore } from '@/stores/study'
 import { computed } from 'vue'
 const route = useRoute()
 const studyStore = useStudyStore()
+studyStore.initializeFromSession()
 
 // Use custom key only for StudyForm
 const routerViewKey = computed(() => {

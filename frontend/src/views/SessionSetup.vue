@@ -61,6 +61,7 @@
             style="height: 250px"
           >
             <coverage-heatmap
+              v-if="chartReady"
               :tasks="heatmapTasks"
               :factors="heatmapFactors"
               :trials="heatmapMatrix"
@@ -213,6 +214,7 @@ export default {
 
   data() {
     return {
+      chartReady: false,
       studyId: null,
       study: null,
       formattedStudy: null,
@@ -240,12 +242,12 @@ export default {
     }
   },
 
-  async mounted() {
+  mounted() {
     console.log('mounted: SessionSetup')
     this.studyId = useStudyStore().currentStudyID
     console.log('study id in session setup' + this.studyId)
-    await this.getStudyInfo()
-    await this.getRecPermLength()
+    this.getStudyInfo()
+    this.getRecPermLength()
     // Dynamically add trial cards to the pg immediately based on recommended count
     for (let i = 0; i < this.recommendedPermLength; i++) {
       this.addTrial()
@@ -439,7 +441,7 @@ export default {
       try {
         const path = `/previous_session_length`
         const response = await api.post(path, {
-          study_id: this.studyID,
+          studyID: this.studyId,
         })
 
         const prevLength = response.data.prev_length
@@ -468,6 +470,8 @@ export default {
     // Generates a random set of trials for the user that is unique, "random", & balanced
     async getPermutation() {
       try {
+        console.log('Selected Perm Length:', this.selectedPermLength)
+
         const path = `/get_new_trials_perm`
         const response = await api.post(path, {
           study_id: this.studyId,
@@ -496,6 +500,10 @@ export default {
         this.heatmapTasks = this.taskOptions.map(t => t.name)
         this.heatmapFactors = this.factorOptions.map(f => f.name)
         this.heatmapMatrix = response.data.matrix
+
+        this.$nextTick(() => {
+          this.chartReady = true
+        })
       } catch (error) {
         console.error('Error fetching trial occurrences:', error)
       }
