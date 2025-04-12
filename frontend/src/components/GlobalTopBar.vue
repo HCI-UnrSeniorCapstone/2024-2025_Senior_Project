@@ -91,7 +91,7 @@
 <script>
 import api from '@/axiosInstance'
 import { auth } from '@/stores/auth'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   name: 'GlobalTopBar',
   data() {
@@ -126,6 +126,8 @@ export default {
         if (response.status === 200) {
           auth.isAuthenticated = false
           auth.user = null
+          const studyStore = useStudyStore()
+          studyStore.reset()
           this.$router.push({ name: 'UserLogin' })
         }
       } catch (err) {

@@ -117,7 +117,8 @@
 <script>
 import api from '@/axiosInstance'
 import ProfileCard from '@/components/ProfileCard.vue'
-
+import { auth } from '@/stores/auth'
+import { useStudyStore } from '@/stores/study'
 export default {
   name: 'UserProfile',
   components: { ProfileCard },
@@ -241,6 +242,10 @@ export default {
       try {
         const res = await api.post('/accounts/logout')
         if (res.status === 200) {
+          auth.isAuthenticated = false
+          auth.user = null
+          const studyStore = useStudyStore()
+          studyStore.reset()
           this.$router.push({ name: 'UserLogin' })
         }
       } catch (err) {

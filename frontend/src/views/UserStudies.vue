@@ -108,9 +108,8 @@
       </v-row>
 
       <StudyPanel
-        v-if="drawer && selectedStudy.studyID"
+        v-if="drawer && studyStore.drawerStudyID"
         :drawer="drawer"
-        :studyID="selectedStudy.studyID"
         @update:drawer="drawer = $event"
         @close="drawer = false"
       />
@@ -140,10 +139,13 @@
 import StudyPanel from '@/components/StudyPanel.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import api from '@/axiosInstance'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   components: { StudyPanel, SearchBar },
-
+  setup() {
+    const studyStore = useStudyStore()
+    return { studyStore }
+  },
   data() {
     return {
       search: '',
@@ -175,6 +177,10 @@ export default {
   },
 
   async mounted() {
+    const studyStore = useStudyStore()
+    if (studyStore.drawerStudyID) {
+      this.openDrawer(studyStore.drawerStudyID)
+    }
     await this.populateStudies()
     const studyID = this.$route.query.studyID
     if (studyID) {
@@ -219,7 +225,13 @@ export default {
     },
 
     openNewStudy() {
-      this.$router.push('/StudyForm')
+      const studyStore = useStudyStore()
+      studyStore.clearStudyID()
+      // studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
+      sessionStorage.removeItem('currentStudyID')
+      studyStore.incrementFormResetKey()
+
+      this.$router.push({ name: 'StudyForm' })
     },
 
     calculateProgress(sessionCount) {
@@ -231,8 +243,11 @@ export default {
     openDrawer(studyID) {
       const match = this.studies.find(study => study.studyID == studyID)
       if (match) {
+        const studyStore = useStudyStore()
+
         this.selectedStudy = match
         this.drawer = true
+        studyStore.setDrawerStudyID(match.studyID)
       }
     },
 
@@ -293,11 +308,11 @@ export default {
       }
     },
 
-    editExistingStudy(study_id) {
-      this.$router.push({
-        name: 'StudyForm',
-        params: { studyID: study_id },
-      })
+    editExistingStudy(studyID) {
+      const studyStore = useStudyStore()
+      studyStore.setStudyID(studyID)
+      studyStore.incrementFormResetKey()
+      this.$router.push({ name: 'StudyForm' })
     },
 
     async closeDialog(choice) {

@@ -192,15 +192,11 @@
 <script>
 import api from '@/axiosInstance'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   props: {
     drawer: {
       type: Boolean,
-      required: true,
-    },
-    studyID: {
-      type: Number,
       required: true,
     },
   },
@@ -230,8 +226,8 @@ export default {
         { key: 'comment', title: 'Comments', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      // Holds all the sessions returned from the db query
       sessions: [],
+
       // Heatmap details
       heatmapMatrix: {},
       heatmapTasks: [],
@@ -250,16 +246,20 @@ export default {
         this.$emit('update:drawer', value)
       },
     },
+    studyID() {
+      return useStudyStore().drawerStudyID
+    },
   },
 
   // Watching for dynamic changes to the studyID and calls fetch route when it changes
   watch: {
     studyID: {
       immediate: true,
-      handler(newStudyID) {
-        if (newStudyID) {
-          this.fetchStudyDetails(newStudyID)
-          this.populateSessions(newStudyID)
+      async handler(newID) {
+        if (newID) {
+          await this.fetchStudyDetails(newID)
+          await this.populateSessions(newID)
+          await this.getTrialOccurrences()
         } else {
           console.warn('studyID not defined on mount')
         }
@@ -267,10 +267,7 @@ export default {
     },
   },
 
-  async mounted() {
-    // For populating trial coverage heatmap immediately
-    this.getTrialOccurrences()
-  },
+  async mounted() {},
 
   methods: {
     // Retrieving all information on the study
@@ -386,7 +383,11 @@ export default {
 
     // Route to view for session setup
     startNewSession() {
-      this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
+      const studyStore = useStudyStore()
+      studyStore.setStudyID(this.studyID) // Needed for SessionSetup
+      studyStore.setDrawerStudyID(this.studyID) // So we can reopen it on return
+      console.log('study id after set', this.studyID)
+      this.$router.push({ name: 'SessionSetup' })
     },
   },
 }

@@ -27,7 +27,7 @@ api.interceptors.response.use(
 
     const isAuthError =
       error.response &&
-      (error.response.status === 401 || error.response.status === 400)
+      (error.response.status === 401 || error.response.status === 403)
     const isPublic = publicRoutes.includes(currentRoute)
 
     if (isAuthError && !isPublic) {

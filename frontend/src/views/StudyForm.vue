@@ -201,7 +201,7 @@ import Task from '../components/Task.vue'
 import Factor from '../components/Factor.vue'
 import StudyDetails from '../components/StudyDetails.vue'
 import FormsUploads from '../components/FormsUploads.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   components: {
     Task,
@@ -290,15 +290,22 @@ export default {
   },
 
   mounted() {
-    this.addTaskFactor('task')
-    this.addTaskFactor('factor')
-
-    this.studyID = this.$route.params.studyID || null
-    this.userID = this.$route.params.userID || null
+    const studyStore = useStudyStore()
+    this.studyID = studyStore.currentStudyID
     this.editMode = !!this.studyID
 
     if (this.editMode) {
       this.fetchStudyDetails(this.studyID)
+    } else {
+      // Clean out leftover edit fields
+      this.studyName = ''
+      this.studyDescription = ''
+      this.studyDesignType = null
+      this.participantCount = ''
+      this.tasks = []
+      this.factors = []
+      this.addTaskFactor('task')
+      this.addTaskFactor('factor')
     }
   },
 

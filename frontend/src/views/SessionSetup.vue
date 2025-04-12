@@ -204,7 +204,7 @@
 import api from '@/axiosInstance'
 import draggable from 'vuedraggable'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   components: {
     draggable,
@@ -241,7 +241,9 @@ export default {
   },
 
   async mounted() {
-    this.studyId = this.$route.params.id // Study ID passed from prev pg
+    console.log('mounted: SessionSetup')
+    this.studyId = useStudyStore().currentStudyID
+    console.log('study id in session setup' + this.studyId)
     await this.getStudyInfo()
     await this.getRecPermLength()
     // Dynamically add trial cards to the pg immediately based on recommended count
@@ -300,7 +302,6 @@ export default {
       } else if (source == 'cancel') {
         this.$router.push({
           name: 'UserStudies',
-          query: { studyID: this.studyId },
         })
       }
       this.dialog = false
