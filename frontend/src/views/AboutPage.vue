@@ -124,11 +124,11 @@ export default {
         },
         {
           name: 'Brandon Rowell',
-          avatar: '/images/brandon.jpg',
+          avatar: '/images/Nevada-Wolf-Pack-football-logo.jpg',
         },
         {
           name: 'Heather Zechter',
-          avatar: '/images/heather.jpg',
+          avatar: '/images/Nevada-Wolf-Pack-football-logo.jpg',
         },
       ],
     }
