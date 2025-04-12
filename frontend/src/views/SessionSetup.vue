@@ -241,7 +241,9 @@ export default {
   },
 
   async mounted() {
+    console.log('mounted: SessionSetup')
     this.studyId = useStudyStore().currentStudyID
+    console.log('study id in session setup' + this.studyId)
     await this.getStudyInfo()
     await this.getRecPermLength()
     // Dynamically add trial cards to the pg immediately based on recommended count

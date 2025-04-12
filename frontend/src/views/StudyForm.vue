@@ -290,15 +290,22 @@ export default {
   },
 
   mounted() {
-    this.addTaskFactor('task')
-    this.addTaskFactor('factor')
-
     const studyStore = useStudyStore()
     this.studyID = studyStore.currentStudyID
     this.editMode = !!this.studyID
 
     if (this.editMode) {
       this.fetchStudyDetails(this.studyID)
+    } else {
+      // Clean out leftover edit fields
+      this.studyName = ''
+      this.studyDescription = ''
+      this.studyDesignType = null
+      this.participantCount = ''
+      this.tasks = []
+      this.factors = []
+      this.addTaskFactor('task')
+      this.addTaskFactor('factor')
     }
   },
 

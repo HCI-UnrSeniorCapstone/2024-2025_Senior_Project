@@ -3,7 +3,7 @@
     <v-main>
       <GlobalTopBar />
       <GlobalNavBar v-if="showNavBar" />
-      <router-view />
+      <router-view :key="$route.fullPath" />
     </v-main>
   </v-app>
 </template>
@@ -28,7 +28,7 @@ export default {
   },
   setup() {
     const route = useRoute()
-    
+
     // Do not show side bar on certain routes
     const hiddenRoutes = ['UserLogin', 'UserRegister', 'Confirmed']
 

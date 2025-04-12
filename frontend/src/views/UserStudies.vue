@@ -227,7 +227,8 @@ export default {
     openNewStudy() {
       const studyStore = useStudyStore()
       studyStore.clearStudyID()
-      studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
+      // studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
+      sessionStorage.removeItem('currentStudyID')
       studyStore.incrementFormResetKey()
 
       this.$router.push({ name: 'StudyForm' })
