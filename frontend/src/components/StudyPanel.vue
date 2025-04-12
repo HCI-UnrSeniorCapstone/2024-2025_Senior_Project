@@ -190,17 +190,13 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   props: {
     drawer: {
       type: Boolean,
-      required: true,
-    },
-    studyID: {
-      type: Number,
       required: true,
     },
   },
@@ -230,8 +226,8 @@ export default {
         { key: 'comment', title: 'Comments', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      // Holds all the sessions returned from the db query
       sessions: [],
+
       // Heatmap details
       heatmapMatrix: {},
       heatmapTasks: [],
@@ -250,16 +246,20 @@ export default {
         this.$emit('update:drawer', value)
       },
     },
+    studyID() {
+      return useStudyStore().drawerStudyID
+    },
   },
 
   // Watching for dynamic changes to the studyID and calls fetch route when it changes
   watch: {
     studyID: {
       immediate: true,
-      handler(newStudyID) {
-        if (newStudyID) {
-          this.fetchStudyDetails(newStudyID)
-          this.populateSessions(newStudyID)
+      async handler(newID) {
+        if (newID) {
+          await this.fetchStudyDetails(newID)
+          await this.populateSessions(newID)
+          await this.getTrialOccurrences()
         } else {
           console.warn('studyID not defined on mount')
         }
@@ -267,10 +267,7 @@ export default {
     },
   },
 
-  async mounted() {
-    // For populating trial coverage heatmap immediately
-    this.getTrialOccurrences()
-  },
+  async mounted() {},
 
   methods: {
     // Retrieving all information on the study
@@ -280,9 +277,8 @@ export default {
         return
       }
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${studyID}`
-        const response = await axios.get(path)
+        const response = await api.post('/load_study', { studyID })
+        this.focus_study = response.data
 
         this.focus_study = response.data
 
@@ -303,13 +299,15 @@ export default {
     // Download a zip with the data of all sessions under the given study
     async downloadParticipantSessionData(sessionID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_data_instance_from_participant_session_zip/${sessionID}`
+        const path = `/get_all_session_data_instance_from_participant_session_zip`
 
-        const response = await axios.get(path, {
-          responseType: 'blob',
-        })
-
+        const response = await api.get(
+          path,
+          { participant_session_id: sessionID },
+          {
+            responseType: 'blob',
+          },
+        )
         // Get the content-disposition header to extract the filename
         const disposition = response.headers['content-disposition']
         const filename = disposition
@@ -330,9 +328,8 @@ export default {
     // Populating the sessions table
     async populateSessions(sessionID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_info/${sessionID}`
-        const response = await axios.get(path)
+        const path = `/get_all_session_info`
+        const response = await api.post(path, { study_id: sessionID })
 
         console.log(response)
         if (Array.isArray(response.data)) {
@@ -352,9 +349,8 @@ export default {
     // Getting trial appearances from prior sessions to populate the heatmap
     async getTrialOccurrences() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_trial_occurrences/${this.studyID}`
-        const response = await axios.get(path)
+        const path = `/get_trial_occurrences`
+        const response = await api.post(path, { study_id: this.studyID })
 
         this.heatmapTasks = this.tasks.map(t => t.taskName)
         this.heatmapFactors = this.factors.map(f => f.factorName)
@@ -387,7 +383,11 @@ export default {
 
     // Route to view for session setup
     startNewSession() {
-      this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
+      const studyStore = useStudyStore()
+      studyStore.setStudyID(this.studyID) // Needed for SessionSetup
+      studyStore.setDrawerStudyID(this.studyID) // So we can reopen it on return
+      console.log('study id after set', this.studyID)
+      this.$router.push({ name: 'SessionSetup' })
     },
   },
 }

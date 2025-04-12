@@ -9,14 +9,7 @@
 
       <v-row justify="space-between" class="mb-4">
         <v-col cols="12" md="8" lg="9">
-          <v-text-field
-            v-model="search"
-            label="Search"
-            prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            hide-details
-            single-line
-          ></v-text-field>
+          <SearchBar v-model="search" />
         </v-col>
         <v-col cols="12" md="4" lg="3" class="d-flex justify-end">
           <v-btn class="create-study" color="primary" @click="openNewStudy">
@@ -115,9 +108,8 @@
       </v-row>
 
       <StudyPanel
-        v-if="drawer && selectedStudy.studyID"
+        v-if="drawer && studyStore.drawerStudyID"
         :drawer="drawer"
-        :studyID="selectedStudy.studyID"
         @update:drawer="drawer = $event"
         @close="drawer = false"
       />
@@ -145,11 +137,15 @@
 
 <script>
 import StudyPanel from '@/components/StudyPanel.vue'
-import axios from 'axios'
-
+import SearchBar from '@/components/SearchBar.vue'
+import api from '@/axiosInstance'
+import { useStudyStore } from '@/stores/study'
 export default {
-  components: { StudyPanel },
-
+  components: { StudyPanel, SearchBar },
+  setup() {
+    const studyStore = useStudyStore()
+    return { studyStore }
+  },
   data() {
     return {
       search: '',
@@ -174,22 +170,18 @@ export default {
         { key: 'role', title: 'Role', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      // dialog box for user confirmation
       dialog: false,
-      dialogDetails: {
-        title: '',
-        text: '',
-        study: '',
-      },
-      // holds all the studies returned from db query
+      dialogDetails: { title: '', text: '', study: '' },
       studies: [],
     }
   },
 
-  //populate table on page load w/ a temporary hardcoded userID of 1
   async mounted() {
-    await this.populateStudies(1)
-    // If we canceled during sessions setup this will seed the view so the study panel opens to the appropriate study automatically
+    const studyStore = useStudyStore()
+    if (studyStore.drawerStudyID) {
+      this.openDrawer(studyStore.drawerStudyID)
+    }
+    await this.populateStudies()
     const studyID = this.$route.query.studyID
     if (studyID) {
       this.openDrawer(Number(studyID))
@@ -197,7 +189,6 @@ export default {
   },
 
   watch: {
-    // Prevents study panel from reopening upon refresh if previously closed
     drawer(newVal) {
       if (!newVal && this.$route.query.studyID) {
         this.$router.replace({
@@ -208,20 +199,14 @@ export default {
   },
 
   methods: {
-    // populating the studies table
-    async populateStudies(userID) {
+    async populateStudies() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_data/${userID}`
-        const response = await axios.get(path)
+        const response = await api.get('/get_study_data')
 
         if (Array.isArray(response.data)) {
           this.studies = await Promise.all(
             response.data.map(async study => {
-              const canEdit = await this.checkIfOverwriteAllowed(
-                userID,
-                study[1],
-              )
+              const canEdit = await this.checkIfOverwriteAllowed(study[1])
               return {
                 dateCreated: study[0],
                 studyID: study[1],
@@ -229,7 +214,7 @@ export default {
                 studyDesc: study[3],
                 sessionCount: study[4],
                 role: study[5],
-                canEdit: canEdit, // Add the flag to the study object
+                canEdit: canEdit,
               }
             }),
           )
@@ -239,48 +224,52 @@ export default {
       }
     },
 
-    // route to an empty study form page
     openNewStudy() {
-      this.$router.push('/StudyForm')
+      const studyStore = useStudyStore()
+      studyStore.clearStudyID()
+      // studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
+      sessionStorage.removeItem('currentStudyID')
+      studyStore.incrementFormResetKey()
+
+      this.$router.push({ name: 'StudyForm' })
     },
 
-    // used to display progress in the table progress bars
     calculateProgress(sessionCount) {
       const [completed, expected] = sessionCount.split('/').map(Number)
       let percentVal = Math.floor((completed / expected) * 100)
       return percentVal
     },
 
-    // toggle drawer open and bind study-specific info to populate the right panel
     openDrawer(studyID) {
       const match = this.studies.find(study => study.studyID == studyID)
       if (match) {
+        const studyStore = useStudyStore()
+
         this.selectedStudy = match
         this.drawer = true
+        studyStore.setDrawerStudyID(match.studyID)
       }
     },
 
-    // dynamic confirmation for study deletion
     displayDialog(details) {
       this.dialogDetails = { ...details }
       this.dialog = true
     },
+
     async downloadStudyData(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_all_session_data_instance_zip/${studyID}`
+        const path = `/get_all_session_data_instance_zip`
+        const response = await api.post(
+          path,
+          { study_id: studyID },
+          { responseType: 'blob' },
+        )
 
-        const response = await axios.get(path, {
-          responseType: 'blob',
-        })
-
-        // Get the content-disposition header to extract the filename
         const disposition = response.headers['content-disposition']
         const filename = disposition
-          ? disposition.split('filename=')[1].replace(/"/g, '') // extracting the filename from header
+          ? disposition.split('filename=')[1].replace(/"/g, '')
           : 'download.zip'
 
-        // Download
         const blob = new Blob([response.data], { type: 'application/zip' })
         const link = document.createElement('a')
         link.href = URL.createObjectURL(blob)
@@ -290,11 +279,11 @@ export default {
         console.error('Error downloading study data:', error)
       }
     },
-    async checkIfOverwriteAllowed(userID, studyID) {
+
+    async checkIfOverwriteAllowed(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/is_overwrite_study_allowed/${userID}/${studyID}`
-        const response = await axios.get(path)
+        const payload = { studyID: studyID } // Pass studyID in the request body
+        const response = await api.post('/is_overwrite_study_allowed', payload)
 
         if (response.data === true) {
           return true
@@ -303,39 +292,36 @@ export default {
         }
       } catch (error) {
         console.error('Error checking overwrite permission:', error)
-        this.isButtonVisible = false // Hide the button if there's an error
+        this.isButtonVisible = false
       }
     },
+
     async duplicateStudy(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/copy_study/${studyID}/${1}`
-        const response = await axios.post(path)
+        const payload = { studyID: studyID }
+        const response = await api.post('/copy_study', payload)
 
         // Refresh the page to show changes
         location.reload()
       } catch (error) {
         console.error('Error copying study', error)
-        this.isButtonVisible = false // Hide the button if there's an error
       }
     },
-    editExistingStudy(study_id) {
-      this.$router.push({
-        name: 'StudyForm',
-        params: { studyID: study_id, userID: 1 }, // 1 is hardcoded for now until we have users
-      })
+
+    editExistingStudy(studyID) {
+      const studyStore = useStudyStore()
+      studyStore.setStudyID(studyID)
+      studyStore.incrementFormResetKey()
+      this.$router.push({ name: 'StudyForm' })
     },
-    // impacts whether we actually delete the study or not based on the user input
+
     async closeDialog(choice) {
       if (choice == 'yes') {
         const studyID = this.dialogDetails.studyID
-        const userID = 1 //temp
 
         try {
-          const backendUrl = this.$backendUrl
-          const path = `${backendUrl}/delete_study/${studyID}/${userID}` // passing study and user id to tell what to "delete"
-          const response = await axios.post(path)
-          this.studies = this.studies.filter(study => study.studyID !== studyID) //removing from local studies list
+          const response = await api.post(`/delete_study`, { studyID })
+          this.studies = this.studies.filter(study => study.studyID !== studyID)
         } catch (error) {
           console.error('Error:', error.response?.data || error.message)
         }

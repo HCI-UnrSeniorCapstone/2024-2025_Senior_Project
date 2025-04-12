@@ -130,7 +130,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import { useRouter } from 'vue-router'
 import ConsentAckScreen from '@/components/ConsentAckScreen.vue'
 
@@ -281,15 +281,15 @@ export default {
     async getSessionID() {
       try {
         const submissionData = {
+          study_id: this.studyData.study_id,
           participantGender: this.participantGender,
           participantEducationLv: this.participantEducationLv,
           participantAge: this.participantAge,
           participantRaceEthnicity: this.participantRaceEthnicity,
           participantTechCompetency: this.participantTechCompetency,
         }
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/create_participant_session/${this.studyData.study_id}`
-        const response = await axios.post(path, submissionData)
+        const path = `/create_participant_session`
+        const response = await api.post(path, submissionData)
         this.participantSessId = response.data.participant_session_id
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
@@ -298,23 +298,25 @@ export default {
 
     async fetchConsentForm() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_study_consent_form/${this.studyData.study_id}`
-        const consentResponse = await axios.get(path, {
-          responseType: 'blob',
-        })
-        if (consentResponse.status == 200) {
-          const fName =
-            consentResponse.headers['x-original-filename'] || 'consent_form.pdf'
-          const blob = new File([consentResponse.data], fName, {
+        const path = `/get_study_consent_form`
+        const response = await api.post(
+          path,
+          { study_id: this.studyData.study_id },
+          {
+            responseType: 'blob',
+          },
+        )
+
+        if (response.status === 200) {
+          const fileName =
+            response.headers['x-original-filename'] || 'consent_form.pdf'
+          const blob = new File([response.data], fileName, {
             type: 'application/pdf',
           })
           this.consentForm = blob
           this.hasConsentForm = true
           this.showConsentForm = true
-        }
-        // No study form for this particular study so do not prompt for ack
-        if (consentResponse.status == 204) {
+        } else if (response.status === 204) {
           this.hasConsentForm = false
           this.showDemographicForm = true
         }
@@ -335,9 +337,11 @@ export default {
 
     async saveParticipantAck() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/save_participant_consent/${this.studyData.study_id}/${this.participantSessId}`
-        await axios.post(path)
+        const path = `/save_participant_consent`
+        await api.post(path, {
+          study_id: this.studyData.study_id,
+          participant_session_id: this.participantSessId,
+        })
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }
@@ -346,7 +350,7 @@ export default {
     async startSession() {
       try {
         const path = 'http://127.0.0.1:5001/run_study'
-        const response = await axios.post(path, this.studyData)
+        const response = await api.post(path, this.studyData)
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       }
