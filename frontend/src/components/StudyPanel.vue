@@ -192,15 +192,11 @@
 <script>
 import api from '@/axiosInstance'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   props: {
     drawer: {
       type: Boolean,
-      required: true,
-    },
-    studyID: {
-      type: Number,
       required: true,
     },
   },
@@ -209,6 +205,7 @@ export default {
   },
   data() {
     return {
+      studyID: null,
       studyName: '',
       studyDescription: '',
       studyDesignType: '',
@@ -268,8 +265,17 @@ export default {
   },
 
   async mounted() {
-    // For populating trial coverage heatmap immediately
-    this.getTrialOccurrences()
+    const studyStore = useStudyStore()
+    this.studyID = studyStore.drawerStudyID
+
+    if (this.studyID) {
+      await this.fetchStudyDetails(this.studyID)
+      await this.populateSessions(this.studyID)
+      // For populating trial coverage heatmap immediately
+      await this.getTrialOccurrences()
+    } else {
+      console.warn('studyID not defined in store')
+    }
   },
 
   methods: {
@@ -386,7 +392,10 @@ export default {
 
     // Route to view for session setup
     startNewSession() {
-      this.$router.push({ name: 'SessionSetup', params: { id: this.studyID } })
+      const studyStore = useStudyStore()
+      studyStore.setStudyID(this.studyID) // Needed for SessionSetup
+      studyStore.setDrawerStudyID(this.studyID) // So we can reopen it on return
+      this.$router.push({ name: 'SessionSetup' })
     },
   },
 }

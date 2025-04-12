@@ -61,13 +61,12 @@ const router = createRouter({
           component: UserStudies,
         },
         {
-          // Id not required (only needed when editing study)
-          path: '/StudyForm/:studyID?/:userID?',
+          path: '/StudyForm',
           name: 'StudyForm',
           component: StudyForm,
         },
         {
-          path: '/SessionReporting/:id',
+          path: '/SessionReporting',
           name: 'SessionReporting',
           component: SessionReporting,
         },
@@ -89,7 +88,7 @@ const router = createRouter({
           component: TestDB,
         },
         {
-          path: '/SessionSetup/:id',
+          path: '/SessionSetup',
           name: 'SessionSetup',
           component: SessionSetup,
         },
