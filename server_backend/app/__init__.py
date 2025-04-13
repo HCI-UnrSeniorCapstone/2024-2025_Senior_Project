@@ -176,6 +176,7 @@ def create_app(testing=False):
     from app.routes.testing_reset_db import bp as testing_reset_db_bp
     from app.routes.user_handling import bp as user_handling
     from app.routes.trials import bp as trials_bp
+    from app.routes.analytics import analytics_bp
 
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
@@ -183,5 +184,6 @@ def create_app(testing=False):
     app.register_blueprint(testing_reset_db_bp)
     app.register_blueprint(user_handling)
     app.register_blueprint(trials_bp)
+    app.register_blueprint(analytics_bp)
 
     return app
