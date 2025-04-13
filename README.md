@@ -47,6 +47,7 @@ For experiments conducted outside the platform (e.g., VR, web-based, PowerPoint)
         - Run `npm install`
         - Run `npm install chart.js`
         - Run `npm install papaparse`
+        - Run `npm install js-cookie`
 
       - **_Appending Dependency List_**
         - This is automatically handled by npm :)
