@@ -1,6 +1,7 @@
 from collections import defaultdict
 from flask import Blueprint, current_app, jsonify, request
 from app.utility.db_connection import get_db_connection
+from flask_security import auth_required
 
 bp = Blueprint("trials", __name__)
 
@@ -13,10 +14,19 @@ from app.utility.permutations import (
 
 
 # Gets a new unique trial sequence (permutation)
-@bp.route("/get_new_trials_perm/<int:study_id>", methods=["GET"])
-def get_new_trials_perm(study_id):
+@bp.route("/api/get_new_trials_perm", methods=["POST"])
+@auth_required()
+def get_new_trials_perm():
     try:
-        perm_length = request.args.get("trial_count", type=int)
+        data = request.get_json()
+        study_id = data.get("study_id")
+        perm_length = data.get("trial_count")
+
+        if not study_id or not perm_length:
+            return (
+                jsonify({"error": "Missing study_id or trial_count in request"}),
+                400,
+            )
 
         if not perm_length:
             return (
@@ -101,9 +111,18 @@ def get_new_trials_perm(study_id):
 
 
 # Finding the number of trials in a study's most recent session to enforce consistency as new sessions are made
-@bp.route("/previous_session_length/<int:study_id>", methods=["GET"])
-def previous_session_length(study_id):
+@bp.route("/api/previous_session_length", methods=["POST"])
+@auth_required()
+def previous_session_length():
     try:
+        # Get the JSON data from the request body
+        submission_data = request.get_json()
+
+        if not submission_data or "studyID" not in submission_data:
+            return jsonify({"error": "Missing studyID in request body"}), 400
+
+        study_id = submission_data["studyID"]
+
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
@@ -135,9 +154,17 @@ def previous_session_length(study_id):
 
 
 # Finds the number of times each trial (task-factor pair) has been tested under a given study
-@bp.route("/get_trial_occurrences/<int:study_id>", methods=["GET"])
-def get_trial_occurrences(study_id):
+@bp.route("/api/get_trial_occurrences", methods=["POST"])
+@auth_required()
+def get_trial_occurrences():
     try:
+        # Get the JSON data from the request body
+        submission_data = request.get_json()
+        if not submission_data or "study_id" not in submission_data:
+            return jsonify({"error": "Missing study_id in request body"}), 400
+
+        study_id = submission_data["study_id"]
+
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()

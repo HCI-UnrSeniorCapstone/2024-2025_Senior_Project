@@ -11,78 +11,99 @@ INSERT INTO user (
         first_name,
         last_name,
         email,
-        created_at
+        created_at,
+        user_password
     )
 VALUES (
         1,
         'John',
         'Doe',
         'john.doe@example.com',
-        '2024-11-01 10:15:00'
+        '2024-11-01 10:15:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         2,
         'Jane',
         'Smith',
         'jane.smith@example.com',
-        '2024-11-02 12:30:00'
+        '2024-11-02 12:30:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         3,
         'Henry',
         'Brown',
         'henry.brown@example.com',
-        '2024-11-03 14:45:00'
+        '2024-11-03 14:45:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         4,
         'Emily',
         'Davis',
         'emily.davis@example.com',
-        '2024-11-04 16:00:00'
+        '2024-11-04 16:00:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         5,
         'Chris',
         'Wilson',
         'chris.wilson@example.com',
-        '2024-11-05 18:15:00'
+        '2024-11-05 18:15:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         6,
         'Anna',
         'Taylor',
         'anna.taylor@example.com',
-        '2024-11-06 09:20:00'
+        '2024-11-06 09:20:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         7,
         'Robert',
         'Johnson',
         'robert.johnson@example.com',
-        '2024-11-07 11:50:00'
+        '2024-11-07 11:50:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         8,
         'Sophia',
         'Martinez',
         'sophia.martinez@example.com',
-        '2024-11-08 13:10:00'
+        '2024-11-08 13:10:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         9,
         'Daniel',
         'Hernandez',
         'daniel.hernandez@example.com',
-        '2024-11-09 15:35:00'
+        '2024-11-09 15:35:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     ),
     (
         10,
         'Isabella',
         'Moore',
         'isabella.moore@example.com',
-        '2024-11-10 17:40:00'
+        '2024-11-10 17:40:00',
+        '$argon2id$v=19$m=65536,t=3,p=4$+f8/J0QIYYwxBqDUGoOw9g$gP0G2PD3YrAI7ZsY9QrCmA8zzzJz+aF4sQXDNSRsyBA'
     );
+
+INSERT INTO role_type(
+    role_type_name,
+    role_type_description
+)
+VALUES ('Researcher', 'Making and running studies'), ('Facilitator', 'Managing researchers');
+
+INSERT INTO users_roles(user_id, role_type_id)
+VALUES (1, 1),(2, 1),(3, 1),(4, 1),(5, 1),(6, 1),(7, 1),(8, 1),(9, 1),(10, 1);
+
 -- Study Design Types
 INSERT INTO study_design_type (
         study_design_type_id,

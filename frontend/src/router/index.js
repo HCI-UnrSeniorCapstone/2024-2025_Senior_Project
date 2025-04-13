@@ -8,10 +8,13 @@ import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
 import SessionForm from '../views/SessionForm.vue'
-import TestSendCSV from '../views/TestCSVToServer.vue'
-import TestGetCSVInfo from '../views/TestGetCSVInfo.vue'
-import TestGetParticipantSessionCSVInfo from '../views/TestGetParticipantSessionCSVInfo.vue'
+import UserLogin from '../views/UserLogin.vue'
+import Confirmed from '../views/Confirmed.vue'
+import UserRegister from '../views/UserRegister.vue'
 import SessionSetup from '@/views/SessionSetup.vue'
+import { pingServer } from '@/utility/ping'
+import UserProfile from '../views/UserProfile.vue'
+import AboutPage from '../views/AboutPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,18 +31,42 @@ const router = createRouter({
           component: Dashboard,
         },
         {
+          path: '/confirmed',
+          name: 'Confirmed',
+          component: Confirmed,
+        },
+        {
+          path: '/register',
+          name: 'UserRegister',
+          component: UserRegister,
+        },
+        {
+          path: '/UserLogin',
+          name: 'UserLogin',
+          component: UserLogin,
+        },
+        {
+          path: '/profile',
+          name: 'UserProfile',
+          component: UserProfile,
+        },
+        {
+          path: '/about',
+          name: 'AboutPage',
+          component: AboutPage,
+        },
+        {
           path: '/UserStudies',
           name: 'UserStudies',
           component: UserStudies,
         },
         {
-          // Id not required (only needed when editing study)
-          path: '/StudyForm/:studyID?/:userID?',
+          path: '/StudyForm',
           name: 'StudyForm',
           component: StudyForm,
         },
         {
-          path: '/SessionReporting/:id',
+          path: '/SessionReporting',
           name: 'SessionReporting',
           component: SessionReporting,
         },
@@ -61,7 +88,7 @@ const router = createRouter({
           component: TestDB,
         },
         {
-          path: '/SessionSetup/:id',
+          path: '/SessionSetup',
           name: 'SessionSetup',
           component: SessionSetup,
         },
@@ -75,24 +102,23 @@ const router = createRouter({
               : null,
           }),
         },
-        {
-          path: '/TestSendCSV',
-          name: 'TestSendCSV',
-          component: TestSendCSV,
-        },
-        {
-          path: '/TestGetCSVInfo',
-          name: 'TestGetCSVInfo',
-          component: TestGetCSVInfo,
-        },
-        {
-          path: '/TestGetParticipantSessionCSVInfo',
-          name: 'TestGetParticipantSessionCSVInfo',
-          component: TestGetParticipantSessionCSVInfo,
-        },
       ],
     },
   ],
+})
+
+const publicPages = ['UserLogin', 'UserRegister', 'Confirmed', 'AboutPage']
+
+router.beforeEach(async (to, from, next) => {
+  if (!publicPages.includes(to.name)) {
+    try {
+      await pingServer()
+    } catch (err) {
+      // Silently fail — no redirect, no block
+    }
+  }
+
+  next()
 })
 
 export default router

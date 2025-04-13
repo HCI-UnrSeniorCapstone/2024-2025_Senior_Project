@@ -61,6 +61,7 @@
             style="height: 250px"
           >
             <coverage-heatmap
+              v-if="chartReady"
               :tasks="heatmapTasks"
               :factors="heatmapFactors"
               :trials="heatmapMatrix"
@@ -201,10 +202,10 @@
 </template>
 
 <script>
-import axios from 'axios'
+import api from '@/axiosInstance'
 import draggable from 'vuedraggable'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
-
+import { useStudyStore } from '@/stores/study'
 export default {
   components: {
     draggable,
@@ -213,6 +214,7 @@ export default {
 
   data() {
     return {
+      chartReady: false,
       studyId: null,
       study: null,
       formattedStudy: null,
@@ -240,10 +242,12 @@ export default {
     }
   },
 
-  async mounted() {
-    this.studyId = this.$route.params.id // Study ID passed from prev pg
-    await this.getStudyInfo()
-    await this.getRecPermLength()
+  mounted() {
+    console.log('mounted: SessionSetup')
+    this.studyId = useStudyStore().currentStudyID
+    console.log('study id in session setup' + this.studyId)
+    this.getStudyInfo()
+    this.getRecPermLength()
     // Dynamically add trial cards to the pg immediately based on recommended count
     for (let i = 0; i < this.recommendedPermLength; i++) {
       this.addTrial()
@@ -300,7 +304,6 @@ export default {
       } else if (source == 'cancel') {
         this.$router.push({
           name: 'UserStudies',
-          query: { studyID: this.studyId },
         })
       }
       this.dialog = false
@@ -413,10 +416,9 @@ export default {
     // Retrieves all study details using passed study ID at page mount
     async getStudyInfo() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/load_study/${this.studyId}`
-        const response = await axios.get(path)
-
+        const response = await api.post('/load_study', {
+          studyID: this.studyId,
+        })
         this.study = response.data
 
         console.log(this.study)
@@ -437,9 +439,10 @@ export default {
     // Determines what the recommended # of trials should be
     async getRecPermLength() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/previous_session_length/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/previous_session_length`
+        const response = await api.post(path, {
+          studyID: this.studyId,
+        })
 
         const prevLength = response.data.prev_length
 
@@ -467,13 +470,16 @@ export default {
     // Generates a random set of trials for the user that is unique, "random", & balanced
     async getPermutation() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_new_trials_perm/${this.studyId}?trial_count=${this.selectedPermLength}`
-        const response = await axios.get(path)
+        console.log('Selected Perm Length:', this.selectedPermLength)
+
+        const path = `/get_new_trials_perm`
+        const response = await api.post(path, {
+          study_id: this.studyId,
+          trial_count: this.selectedPermLength,
+        })
 
         console.log('Permutations response:', response.data)
 
-        this.trials = []
         this.trials = response.data.new_perm.map(([taskID, factorID]) => ({
           taskID,
           factorID,
@@ -486,13 +492,18 @@ export default {
     // Retrieves occurences of trials (task-factor combos) in prior sessions (for the trial coverage heatmap)
     async getTrialOccurrences() {
       try {
-        const backendUrl = this.$backendUrl
-        const path = `${backendUrl}/get_trial_occurrences/${this.studyId}`
-        const response = await axios.get(path)
+        const path = `/get_trial_occurrences`
+        const response = await api.post(path, {
+          study_id: this.studyId,
+        })
 
         this.heatmapTasks = this.taskOptions.map(t => t.name)
         this.heatmapFactors = this.factorOptions.map(f => f.name)
         this.heatmapMatrix = response.data.matrix
+
+        this.$nextTick(() => {
+          this.chartReady = true
+        })
       } catch (error) {
         console.error('Error fetching trial occurrences:', error)
       }

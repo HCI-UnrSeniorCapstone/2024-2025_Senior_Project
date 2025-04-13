@@ -1,6 +1,6 @@
-# This file actually runs the flask
 from app import create_app
 
+# Create the app
 app = create_app()
 
 if __name__ == "__main__":

@@ -4,37 +4,20 @@
       <v-row>
         <v-col cols="12" md="10">
           <form @submit.prevent="submit">
-            <h2>Study Details</h2>
-            <v-text-field
-              v-model="studyName"
-              :counter="25"
-              label="Study Name *"
-              :rules="studyNameRules"
-            ></v-text-field>
-
-            <v-text-field
-              v-model="studyDescription"
-              :counter="250"
-              label="Study Description"
-              :rules="studyDescriptionRules"
-            ></v-text-field>
-
-            <div class="flex-row">
-              <v-select
-                v-model="studyDesignType"
-                :items="['Between', 'Within']"
-                label="Study Design Type *"
-                :rules="studyDesignTypeRules"
-              ></v-select>
-
-              <v-text-field
-                v-model="participantCount"
-                type="number"
-                label="Expected # of Participants *"
-                :rules="participantCountRules"
-              ></v-text-field>
-            </div>
-
+            <!-- Study Details in a card -->
+            <h2 class="text-h6 font-weight-bold mb-2">Study Details</h2>
+            <v-card class="pa-4 mb-6">
+              <StudyDetails
+                v-model:studyName="studyName"
+                v-model:studyDescription="studyDescription"
+                v-model:studyDesignType="studyDesignType"
+                v-model:participantCount="participantCount"
+                :studyNameRules="studyNameRules"
+                :studyDescriptionRules="studyDescriptionRules"
+                :studyDesignTypeRules="studyDesignTypeRules"
+                :participantCountRules="participantCountRules"
+              />
+            </v-card>
             <h3>Tasks</h3>
             <v-expansion-panels multiple v-model="expandedTPanels">
               <v-expansion-panel v-for="(task, index) in tasks" :key="index">
@@ -67,9 +50,8 @@
                 @click="addTaskFactor('task')"
                 color="grey"
                 class="add-rmv-btn"
+                >+</v-btn
               >
-                +
-              </v-btn>
               <v-btn
                 @click="
                   displayDialog({
@@ -81,9 +63,8 @@
                 :disabled="!canRemoveTask"
                 color="grey"
                 class="add-rmv-btn"
+                >-</v-btn
               >
-                -
-              </v-btn>
             </div>
 
             <h3>Factors</h3>
@@ -122,9 +103,8 @@
                 @click="addTaskFactor('factor')"
                 color="grey"
                 class="add-rmv-btn"
+                >+</v-btn
               >
-                +
-              </v-btn>
               <v-btn
                 @click="
                   displayDialog({
@@ -136,28 +116,23 @@
                 :disabled="!canRemoveFactor"
                 color="grey"
                 class="add-rmv-btn"
+                >-</v-btn
               >
-                -
-              </v-btn>
             </div>
 
-            <h3>Forms/Uploads</h3>
+            <!-- Forms/Uploads Component -->
+            <h3 class="text-h6 font-weight-bold mb-2">Forms / Uploads</h3>
             <div class="text-medium-emphasis">
               (All file uploads below are optional)
             </div>
-            <!-- Consent Form Upload -->
-            <FileUploadAndPreview
-              v-model="consentUpload"
-              label="Consent Form (PDF)"
-              accept=".pdf,.txt,.md"
-              :preview-disabled="!consentUpload"
-              @preview="previewConsentForm"
-            ></FileUploadAndPreview>
-
-            <ConsentAckScreen
-              v-model:display="showConsentPreview"
-              :form="consentUpload"
-            />
+            <v-card class="pa-4 mb-6">
+              <FormsUploads
+                v-model:consentForm="consentForm"
+                v-model:preSurveyFile="preSurveyFile"
+                v-model:postSurveyFile="postSurveyFile"
+                v-model:showConsentPreview="showConsentPreview"
+              />
+            </v-card>
 
             <!-- Provide a template Survey to help -->
             <v-btn
@@ -248,6 +223,7 @@
         </v-col>
       </v-row>
 
+      <!-- Dialog -->
       <div class="text-center pa-4">
         <v-dialog v-model="dialog" max-width="400" persistent>
           <v-card
@@ -256,23 +232,19 @@
             :title="dialogDetails.title"
           >
             <template v-slot:actions>
-              <v-spacer></v-spacer>
-
-              <v-btn @click="closeDialog()"> Cancel </v-btn>
-
-              <v-btn @click="closeDialog(dialogDetails.source)"> Agree </v-btn>
+              <v-spacer />
+              <v-btn @click="closeDialog()">Cancel</v-btn>
+              <v-btn @click="closeDialog(dialogDetails.source)">Agree</v-btn>
             </template>
           </v-card>
         </v-dialog>
       </div>
-    </v-container>
 
-    <div>
+      <!-- Top Alert -->
       <v-alert v-if="saveStatus" :type="alertType" class="top-alert" closable>
         {{ alertMessage }}
       </v-alert>
-    </div>
-  </v-main>
+    </v-container>
 
   <v-snackbar v-model="collapseError" :timeout="2000" color="red">
     {{ collapseErrorMsg }}
@@ -284,33 +256,32 @@
 </template>
 
 <script>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import api from '@/axiosInstance'
+
 import Task from '../components/Task.vue'
 import Factor from '../components/Factor.vue'
-import axios from 'axios'
-import { useRouter } from 'vue-router'
-import { ref } from 'vue'
-import FileUploadAndPreview from '@/components/FileUploadAndPreview.vue'
-import ConsentAckScreen from '@/components/ConsentAckScreen.vue'
-import Questionnaire from '@/components/Questionnaire.vue'
-
+import StudyDetails from '../components/StudyDetails.vue'
+import FormsUploads from '../components/FormsUploads.vue'
+import { useStudyStore } from '@/stores/study'
 export default {
   components: {
     Task,
     Factor,
-    FileUploadAndPreview,
-    ConsentAckScreen,
-    Questionnaire,
+    StudyDetails,
+    FormsUploads,
   },
 
   setup() {
     const router = useRouter()
-    const exit = () => {
-      router.push({ name: 'UserStudies' })
-    }
-    const factorRefs = ref([])
-    const taskRefs = ref([])
+    const exit = () => router.push({ name: 'UserStudies' })
 
-    return { exit, taskRefs, factorRefs }
+    return {
+      exit,
+      taskRefs: ref([]),
+      factorRefs: ref([]),
+    }
   },
 
   data() {
@@ -319,10 +290,8 @@ export default {
       studyDescription: '',
       studyDesignType: null,
       participantCount: '',
-      // handle dynamic number of tasks/factors
       tasks: [],
       factors: [],
-      // used to track the state of task & factor expansion panels
       expandedTPanels: [0],
       expandedFPanels: [0],
 
@@ -356,34 +325,16 @@ export default {
       ],
       studyDesignTypeRules: [v => !!v || 'Must choose a study design type.'],
       participantCountRules: [v => v > 0 || 'Need at least 1 participant.'],
-      // dialog box for user confirmation
       dialog: false,
-      dialogDetails: {
-        title: '',
-        text: '',
-        source: '',
-      },
-      // warning when trying to collapse improperly fileld panel
+      dialogDetails: { title: '', text: '', source: '' },
       collapseError: false,
       collapseErrorMsg: 'Cannot collapse with improperly filled field(s)',
-      // study saved successfully
       saveStatus: false,
       alertType: 'success',
       alertMessage: '',
-    }
-  },
-
-  // view will load with 1 task and factor populated automatically
-  async mounted() {
-    this.addTaskFactor('task')
-    this.addTaskFactor('factor')
-    // Passed params when an existing study is being opened for editing
-    this.studyID = this.$route.params.studyID || null
-    this.userID = this.$route.params.userID || null
-    this.editMode = !!this.studyID
-
-    if (this.editMode) {
-      await this.fetchStudyDetails(this.studyID)
+      studyID: null,
+      userID: null,
+      editMode: false,
     }
   },
 
@@ -407,149 +358,145 @@ export default {
   },
 
   computed: {
-    // fxn constantly checking if ALL fields are valid and used to disable save button until true
     isFormValid() {
-      const studyNameCheck = this.studyNameRules.every(
-        rule => rule(this.studyName) === true,
-      )
-      const studyDescCheck = this.studyDescriptionRules.every(
-        rule => rule(this.studyDescription) === true,
-      )
-      const studyDesignCheck = this.studyDesignTypeRules.every(
-        rule => rule(this.studyDesignType) === true,
-      )
-      const pCountCheck = this.participantCountRules.every(
-        rule => rule(this.participantCount) === true,
-      )
+      const validate = (rules, value) =>
+        rules.every(rule => rule(value) === true)
 
-      // only validates expanded task panels since closed ones must already be in a valid state to collapse
-      const tasksValid = this.expandedTPanels.every(index => {
-        const taskRef = this.taskRefs[index]
-        return taskRef?.validateTaskFields() ?? true
-      })
-      // same as above but for factors
-      const factorsValid = this.expandedFPanels.every(index => {
-        const factorRef = this.factorRefs[index]
-        return factorRef?.validateFactorFields() ?? true
-      })
+      const tasksValid = this.expandedTPanels.every(
+        index => this.taskRefs[index]?.validateTaskFields?.() ?? true,
+      )
+      const factorsValid = this.expandedFPanels.every(
+        index => this.factorRefs[index]?.validateFactorFields?.() ?? true,
+      )
 
       return (
-        studyNameCheck &&
-        studyDescCheck &&
-        studyDesignCheck &&
-        pCountCheck &&
+        validate(this.studyNameRules, this.studyName) &&
+        validate(this.studyDescriptionRules, this.studyDescription) &&
+        validate(this.studyDesignTypeRules, this.studyDesignType) &&
+        validate(this.participantCountRules, this.participantCount) &&
         tasksValid &&
         factorsValid
       )
     },
-
-    // min of 1 task required at all times, should disable delete/minus button if only 1 task currently
     canRemoveTask() {
       return this.tasks.length > 1
     },
-    // min of 1 factor required
     canRemoveFactor() {
       return this.factors.length > 1
     },
   },
 
+  mounted() {
+    const studyStore = useStudyStore()
+    this.studyID = studyStore.currentStudyID
+    this.editMode = !!this.studyID
+
+    if (this.editMode) {
+      this.fetchStudyDetails(this.studyID)
+    } else {
+      // Clean out leftover edit fields
+      this.studyName = ''
+      this.studyDescription = ''
+      this.studyDesignType = null
+      this.participantCount = ''
+      this.tasks = []
+      this.factors = []
+      this.addTaskFactor('task')
+      this.addTaskFactor('factor')
+    }
+  },
+
   methods: {
+    async convertFileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1] // Strip the data prefix
+          resolve({
+            filename: file.name,
+            content: base64String,
+          })
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+    },
     addTaskFactor(type) {
-      if (type == 'task') {
-        this.tasks.push({
-          taskName: '',
-          taskDescription: '',
-          taskDirections: '',
-          taskDuration: '',
-          measurementOptions: [],
-        })
-        // update expansion states and configuring new additions to start expanded
-        const tIndex = this.tasks.length - 1
-        this.expandedTPanels.push(tIndex)
-      } else {
-        this.factors.push({
-          factorName: '',
-          factorDescription: '',
-        })
-        // same expansion handling as above but for factors
-        const fIndex = this.factors.length - 1
-        this.expandedFPanels.push(fIndex)
-      }
+      const isTask = type === 'task'
+      const list = isTask ? this.tasks : this.factors
+      const panels = isTask ? this.expandedTPanels : this.expandedFPanels
+
+      list.push(
+        isTask
+          ? {
+              taskName: '',
+              taskDescription: '',
+              taskDirections: '',
+              taskDuration: '',
+              measurementOptions: [],
+            }
+          : { factorName: '', factorDescription: '' },
+      )
+      panels.push(list.length - 1)
     },
 
     removeTaskFactor(type) {
-      if (type == 'task') {
-        const tIndex = this.tasks.length - 1
-        this.tasks.pop()
-        this.expandedTPanels = this.expandedTPanels.filter(i => i !== tIndex)
-      } else if (type == 'factor') {
-        const fIndex = this.factors.length - 1
-        this.factors.pop()
-        this.expandedFPanels = this.expandedFPanels.filter(i => i !== fIndex)
-      }
+      const list = type === 'task' ? this.tasks : this.factors
+      const panels =
+        type === 'task' ? this.expandedTPanels : this.expandedFPanels
+      const lastIndex = list.length - 1
+
+      list.pop()
+      panels.splice(panels.indexOf(lastIndex), 1)
     },
 
     updateTask(index, updatedTask) {
       this.tasks[index] = { ...updatedTask }
     },
 
-    // prevent task expansion panels from collapsing while input is invalid
     toggleTaskPanel(index) {
       const taskRef = this.taskRefs[index]
-      if (taskRef && !taskRef.validateTaskFields()) {
-        // if exists and input is invalid
+      if (!taskRef?.validateTaskFields?.()) {
         if (!this.expandedTPanels.includes(index)) {
-          // and not already accounted for
-          this.expandedTPanels.push(index) // add to array that tracks open task panels
+          this.expandedTPanels.push(index)
           this.collapseError = true
         }
-      } else if (taskRef && taskRef.validateTaskFields()) {
-        this.expandedTPanels = this.expandedTPanels.filter(i => i !== index) // remove if valid, allowing panel to collapse
+      } else {
+        this.expandedTPanels = this.expandedTPanels.filter(i => i !== index)
       }
     },
 
-    // same as toggleTaskPanel() but for factors
     toggleFactorPanel(index) {
       const factorRef = this.factorRefs[index]
-      if (factorRef && !factorRef.validateFactorFields()) {
+      if (!factorRef?.validateFactorFields?.()) {
         if (!this.expandedFPanels.includes(index)) {
           this.expandedFPanels.push(index)
           this.collapseError = true
         }
-      } else if (factorRef && factorRef.validateFactorFields()) {
+      } else {
         this.expandedFPanels = this.expandedFPanels.filter(i => i !== index)
       }
     },
 
-    // dynamic confirmation based on what button/action triggered it
     displayDialog(details) {
       this.dialogDetails = details
       this.dialog = true
     },
 
-    // specialized action based on source of the dialog pop-up if "agree" is selected
     closeDialog(action) {
-      if (action == 'task' || action == 'factor') {
+      if (action === 'task' || action === 'factor') {
         this.removeTaskFactor(action)
-      } else if (action == 'exit') {
+      } else if (action === 'exit') {
         this.exit()
       }
       this.dialog = false
-    },
-
-    previewConsentForm() {
-      if (this.consentUpload) {
-        this.showConsentPreview = true
-      }
     },
 
     studySaveStatus(type, msg) {
       this.alertType = type
       this.alertMessage = msg
       this.saveStatus = true
-      setTimeout(() => {
-        this.saveStatus = false
-      }, 1500)
+      setTimeout(() => (this.saveStatus = false), 1500)
     },
 
     // Try to validate survey JSON uploads
@@ -598,36 +545,39 @@ export default {
     // Retrieve study details if we are editing an existing study
     async fetchStudyDetails(studyID) {
       try {
-        const backendUrl = this.$backendUrl
-        let path = `${backendUrl}/load_study/${studyID}`
-        const response = await axios.get(path)
+        const response = await api.post(
+          `/load_study`,
+          { studyID },
+          { headers: { 'Content-Type': 'application/json' } },
+        )
+        const study = response.data
 
-        const study_edit = response.data
-
-        this.studyName = study_edit.studyName
-        this.studyDescription = study_edit.studyDescription
-        this.studyDesignType = study_edit.studyDesignType
-        this.participantCount = study_edit.participantCount
-        this.tasks = study_edit.tasks.map(task => ({
-          ...task,
-          taskDuration: task.taskDuration !== null ? task.taskDuration : '',
-        }))
-        this.factors = study_edit.factors
+        Object.assign(this, {
+          studyName: study.studyName,
+          studyDescription: study.studyDescription,
+          studyDesignType: study.studyDesignType,
+          participantCount: study.participantCount,
+          tasks: study.tasks.map(t => ({
+            ...t,
+            taskDuration: t.taskDuration !== null ? t.taskDuration : '',
+          })),
+          factors: study.factors,
+        })
 
         // Consent form
         try {
-          path = `${backendUrl}/get_study_consent_form/${studyID}`
-          const consentResponse = await axios.get(path, {
-            responseType: 'blob',
-          })
-          if (consentResponse.status == 200) {
-            const fName =
+          const consentResponse = await api.post(
+            '/get_study_consent_form',
+            { study_id: studyID },
+            { responseType: 'blob' },
+          )
+          if (consentResponse.status === 200) {
+            const fileName =
               consentResponse.headers['x-original-filename'] ||
               'consent_form.pdf'
-            const blob = new File([consentResponse.data], fName, {
+            this.consentForm = new File([consentResponse.data], fileName, {
               type: 'application/pdf',
             })
-            this.consentUpload = blob
           }
         } catch (err) {
           if (err.response.status !== 204) {
@@ -635,58 +585,36 @@ export default {
           }
         }
       } catch (error) {
-        console.error('Error fetching details of existing study:', error)
+        console.error('Failed to fetch study details:', error)
       }
     },
 
     async submit() {
-      const submissionData = {
+      const payload = {
         studyName: this.studyName,
         studyDescription: this.studyDescription,
         studyDesignType: this.studyDesignType,
         participantCount: this.participantCount,
-        tasks: this.tasks.map(task => ({
-          taskName: task.taskName,
-          taskDescription: task.taskDescription,
-          taskDirections: task.taskDirections,
-          taskDuration: task.taskDuration,
-          measurementOptions: [...task.measurementOptions],
-        })),
-        factors: this.factors.map(factor => ({
-          factorName: factor.factorName,
-          factorDescription: factor.factorDescription,
-        })),
+        tasks: this.tasks,
+        factors: this.factors,
+        studyID: this.studyID,
+      }
+
+      // Handle base64 encoding of consent form
+      if (this.consentForm) {
+        payload.consentFile = await this.convertFileToBase64(this.consentForm)
       }
 
       try {
-        const backendUrl = this.$backendUrl
-        let path
-        const formData = new FormData()
+        const path = this.editMode ? `/overwrite_study` : `/create_study`
 
-        formData.append('data', JSON.stringify(submissionData))
-        if (this.consentUpload) {
-          formData.append('consent_file', this.consentUpload)
-        }
+        const res = await api.post(path, payload)
 
-        let response
-        // Editing existing study > overwrite
-        if (this.studyID && this.userID) {
-          path = `${backendUrl}/overwrite_study/${this.userID}/${this.studyID}`
-          response = await axios.post(path, formData)
-        } else {
-          // Creating a new study
-          path = `${backendUrl}/create_study/1`
-          response = await axios.post(path, formData)
-        }
-
-        // Everything successfully saved
         this.studySaveStatus('success', 'Study saved successfully!')
-        setTimeout(() => {
-          this.exit()
-        }, 1500)
+        setTimeout(() => this.exit(), 1500)
       } catch (error) {
+        console.error('Submit error:', error.response?.data || error.message)
         this.studySaveStatus('error', 'Study failed to save!')
-        console.error('Error:', error.response?.data || error.message)
       }
     },
   },
