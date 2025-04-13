@@ -20,6 +20,7 @@
     "chart.js": "^4.4.6",
     "papaparse": "^5.4.1",
     "pinia": "^2.2.4",
+    "survey-vue3-ui": "^2.0.3",
     "vee-validate": "^4.14.3",
     "vue": "^3.5.11",
     "vue-router": "^4.4.5",

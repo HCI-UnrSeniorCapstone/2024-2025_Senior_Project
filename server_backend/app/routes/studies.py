@@ -4,6 +4,7 @@ import os
 import requests
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
+from jsonschema import validate, ValidationError 
 import pandas as pd
 from app.utility.studies import (
     create_study_details,
@@ -678,3 +679,58 @@ def get_study_consent_form(study_id):
 
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+# Validate survey uploads before allowing to save
+@bp.route("/validate_survey_upload", methods=["POST"])
+def validate_survey_upload():
+    file = request.files.get('survey_file')
+    if not file:
+        return jsonify({"error_type": "FileError", "error_message": "No JSON file received."}), 400
+    try:
+        survey_json = json.load(file)
+
+        # High-level validation schema - Ref: https://builtin.com/software-engineering-perspectives/python-json-schema
+        survey_schema = {
+            "type": "object",
+            "required": ["elements", "title", "description"],
+            "properties": {
+                "title": { "type": "string" },
+                "description": { "type": "string" },
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["type", "name", "title"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["text", "comment", "dropdown", "tagbox", "boolean", "checkbox", "rating"]
+                            },
+                            "name": { "type": "string" },
+                            "title": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        }
+        
+        validate(instance=survey_json, schema=survey_schema)
+        
+        # Ensure no name duplicates since these are unique identifiers later
+        used_names = set()
+        for i, element in enumerate(survey_json["elements"]):
+            name = element.get("name")
+            if name in used_names:
+                raise ValueError(f"Duplicate 'name' found for question #{i+1}: '{name}'")
+            used_names.add(name)
+        
+        return jsonify( survey_json), 200
+
+    except ValidationError as ve:
+        return jsonify({"error_type": "ValidationError", "error_message": ve.message, "location": list(ve.path)}), 400
+    
+    except ValueError as ve:
+        return jsonify({"error_type": "ValueError", "error_message": str(ve)}), 400
+    
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 400
