@@ -1,11 +1,8 @@
 import TimePerTaskMetric from './TimePerTaskMetric';
 import CompletionRateMetric from './CompletionRateMetric';
-import ErrorRateMetric from './ErrorRateMetric';
+import PValueMetric from './PValueMetric';
 
-/**
- * Registry of available metrics
- * Singleton pattern to provide global access to metric instances
- */
+// Registry that manages all available metrics (singleton)
 export default class MetricRegistry {
   constructor() {
     if (MetricRegistry.instance) {
@@ -18,11 +15,9 @@ export default class MetricRegistry {
     MetricRegistry.instance = this;
   }
   
-  /**
-   * Register built-in default metrics
-   */
+  // Sets up the built-in metrics
   registerDefaultMetrics() {
-    // Register time-based metrics with different aggregations
+    // Register time metrics with different aggregations
     this.register('meanTimePerTask', new TimePerTaskMetric({ aggregation: 'mean' }));
     this.register('medianTimePerTask', new TimePerTaskMetric({ aggregation: 'median' }));
     this.register('minTimePerTask', new TimePerTaskMetric({ aggregation: 'min' }));
@@ -30,42 +25,26 @@ export default class MetricRegistry {
     
     // Register other default metrics
     this.register('completionRate', new CompletionRateMetric());
-    this.register('errorRate', new ErrorRateMetric());
+    this.register('pValue', new PValueMetric());
   }
   
-  /**
-   * Register a new metric
-   * @param {string} key - The key to identify the metric
-   * @param {MetricStrategy} metric - The metric strategy instance
-   */
+  // Add a new metric to the registry
   register(key, metric) {
     this.metrics.set(key, metric);
   }
   
-  /**
-   * Get a metric by key
-   * @param {string} key - The key of the metric to retrieve
-   * @returns {MetricStrategy|null} The metric strategy, or null if not found
-   */
+  // Look up a metric by its key
   getMetric(key) {
     return this.metrics.has(key) ? this.metrics.get(key) : null;
   }
   
-  /**
-   * Calculate a metric from data
-   * @param {string} key - The key of the metric to calculate
-   * @param {any} data - The data to calculate the metric from
-   * @returns {any} The calculated metric value, or null if metric not found
-   */
+  // Run calculation for the specified metric
   calculate(key, data) {
     const metric = this.getMetric(key);
     return metric ? metric.calculate(data) : null;
   }
   
-  /**
-   * Get a list of all available metrics
-   * @returns {Array} Array of objects with key and metadata for each metric
-   */
+  // Get list of all registered metrics
   getAvailableMetrics() {
     const result = [];
     this.metrics.forEach((metric, key) => {

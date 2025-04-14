@@ -1,6 +1,4 @@
-/**
- * Base Repository class for data access
- */
+// Base Repository class for data access
 export default class Repository {
   constructor() {
     if (this.constructor === Repository) {
@@ -8,37 +6,25 @@ export default class Repository {
     }
   }
   
-  /**
-   * Fetch all items
-   * @returns {Promise<Array>} Promise resolving to array of items
-   */
+  // Fetch all items
   async findAll() {
     throw new Error('Method findAll() must be implemented by subclass');
   }
   
-  /**
-   * Find an item by ID
-   * @param {string|number} id - The ID of the item to find
-   * @returns {Promise<Object>} Promise resolving to the found item
-   */
+  // Find an item by ID
+  // id - Item identifier
   async findById(id) {
     throw new Error('Method findById() must be implemented by subclass');
   }
   
-  /**
-   * Save an item
-   * @param {Object} item - The item to save
-   * @returns {Promise<Object>} Promise resolving to the saved item
-   */
+  // Save an item
+  // item - Data to save
   async save(item) {
     throw new Error('Method save() must be implemented by subclass');
   }
   
-  /**
-   * Delete an item
-   * @param {string|number} id - The ID of the item to delete
-   * @returns {Promise<boolean>} Promise resolving to success status
-   */
+  // Delete an item
+  // id - Item identifier to remove
   async delete(id) {
     throw new Error('Method delete() must be implemented by subclass');
   }

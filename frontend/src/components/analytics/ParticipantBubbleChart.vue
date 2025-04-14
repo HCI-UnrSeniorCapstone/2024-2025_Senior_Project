@@ -26,8 +26,8 @@ function initChart() {
   // Format data for bubble chart
   const bubbleData = props.participantData.map(participant => ({
     x: participant.averageCompletionTime,
-    y: participant.errorRate,
-    r: Math.max(5, participant.completionRate * 10), // Size based on completion rate
+    y: participant.pValue || 0.05, // Use p-value instead of error rate
+    r: Math.max(5, participant.completionTime / 10), // Size based on completion time
     participantId: participant.participantId
   }));
 
@@ -57,8 +57,8 @@ function initChart() {
               return [
                 `Participant: ${data.participantId}`,
                 `Avg. Completion Time: ${data.x.toFixed(1)}s`,
-                `Error Rate: ${data.y.toFixed(2)}%`,
-                `Completion Rate: ${(data.r / 10).toFixed(2) * 100}%`
+                `P-Value: ${data.y.toFixed(3)}`,
+                `Time: ${data.r * 10}s`
               ];
             }
           }
@@ -77,7 +77,7 @@ function initChart() {
         y: {
           title: {
             display: true,
-            text: 'Error Rate (%)'
+            text: 'P-Value (significance)'
           }
         }
       }

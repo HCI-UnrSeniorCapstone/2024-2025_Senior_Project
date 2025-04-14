@@ -1,8 +1,6 @@
 import ChartDecorator from './ChartDecorator';
 
-/**
- * Decorator that adds participant highlighting functionality to a chart
- */
+// Highlights specific participants in charts
 export default class ParticipantHighlightDecorator extends ChartDecorator {
   constructor(chart, options = {}) {
     super(chart);
@@ -37,18 +35,13 @@ export default class ParticipantHighlightDecorator extends ChartDecorator {
     // The exact implementation would depend on the charting library used
   }
   
-  /**
-   * Update the highlighted participant
-   * @param {string|number} participantId - The ID of the participant to highlight
-   */
+  // Change which participant to highlight
   setHighlightedParticipant(participantId) {
     this.options.highlightedParticipantId = participantId;
     this.render(); // Re-render with new highlighting
   }
   
-  /**
-   * Clear highlighting
-   */
+  // Remove all highlighting
   clearHighlighting() {
     this.options.highlightedParticipantId = null;
     this.render(); // Re-render without highlighting

@@ -22,9 +22,9 @@
           <v-icon x-small left>mdi-check-circle-outline</v-icon>
           Success
         </v-btn>
-        <v-btn small value="errors" class="px-2">
-          <v-icon x-small left>mdi-alert-circle-outline</v-icon>
-          Errors
+        <v-btn small value="pValue" class="px-2">
+          <v-icon x-small left>mdi-function-variant</v-icon>
+          P-Value
         </v-btn>
       </v-btn-toggle>
     </v-card-title>
@@ -97,8 +97,8 @@ export default {
           return 'Avg Time (s)';
         case 'success':
           return 'Success Rate (%)';
-        case 'errors':
-          return 'Error Rate';
+        case 'pValue':
+          return 'P-Value';
       }
     },
     
@@ -109,8 +109,8 @@ export default {
           return '#1976D2';  // Blue
         case 'success':
           return '#4CAF50';  // Green
-        case 'errors':
-          return '#FFC107';  // Amber/yellow
+        case 'pValue':
+          return '#9C27B0';  // Purple
       }
     }
   },
@@ -143,8 +143,8 @@ export default {
           return task.avgCompletionTime;
         case 'success':
           return task.successRate;
-        case 'errors':
-          return task.errorRate;
+        case 'pValue':
+          return task.pValue || 0.5;
       }
       return 0;
     },
@@ -156,8 +156,10 @@ export default {
           return `${value.toFixed(1)}s`;
         case 'success':
           return `${value.toFixed(1)}%`;
-        case 'errors':
-          return value.toFixed(2);
+        case 'pValue':
+          // Format p-value as percentage with significance indicator
+          const pct = (1 - value) * 100;
+          return `${pct.toFixed(1)}% ${value < 0.05 ? '★' : ''}`;
       }
       return value;
     },

@@ -16,7 +16,7 @@ from app.utility.analytics.data_processor import (
     get_participant_data
 )
 
-from app.utility.analytics.visualization_helpers import (
+from app.utility.analytics.visualization_helper import (
     plot_to_base64,
     generate_task_completion_chart,
     calculate_interaction_metrics
@@ -203,7 +203,7 @@ def test_plot_to_base64(mock_savefig):
     # Verify result type
     assert isinstance(result, str)
 
-@patch('app.utility.analytics.visualization_helpers.plot_to_base64')
+@patch('app.utility.analytics.visualization_helper.plot_to_base64')
 def test_generate_task_completion_chart(mock_plot_to_base64, sample_task_data):
     # Mock the base64 conversion
     mock_plot_to_base64.return_value = "base64_chart_data"

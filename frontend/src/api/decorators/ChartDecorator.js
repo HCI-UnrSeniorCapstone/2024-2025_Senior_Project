@@ -1,7 +1,4 @@
-/**
- * Base decorator class for charts
- * Follows the Decorator pattern to add functionality to charts
- */
+// Base decorator for adding features to charts
 export default class ChartDecorator {
   constructor(chart) {
     this.chart = chart;

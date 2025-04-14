@@ -1,19 +1,14 @@
 import Repository from './Repository';
 import analyticsApi from '../analyticsApi';
 
-/**
- * Repository for analytics data
- */
+// Repository for analytics data
 export default class AnalyticsRepository extends Repository {
   constructor() {
     super();
     this.apiClient = analyticsApi;
   }
   
-  /**
-   * Get all available studies
-   * @returns {Promise<Array>} Promise resolving to array of studies
-   */
+  // Get all available studies
   async findAllStudies() {
     try {
       return await this.apiClient.getStudies();
@@ -23,11 +18,8 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * Get summary data for a study
-   * @param {string|number} studyId - The ID of the study
-   * @returns {Promise<Object>} Promise resolving to study summary data
-   */
+  // Get summary data for a study
+  // studyId - Study identifier
   async getStudySummary(studyId) {
     try {
       return await this.apiClient.getSummaryMetrics(studyId);
@@ -37,11 +29,8 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * Get learning curve data for a study
-   * @param {string|number} studyId - The ID of the study
-   * @returns {Promise<Array>} Promise resolving to learning curve data
-   */
+  // Get learning curve data
+  // studyId - Study identifier
   async getLearningCurveData(studyId) {
     try {
       return await this.apiClient.getLearningCurveData(studyId);
@@ -51,11 +40,8 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * Get task performance comparison data for a study
-   * @param {string|number} studyId - The ID of the study
-   * @returns {Promise<Array>} Promise resolving to task performance data
-   */
+  // Get task performance comparison data
+  // studyId - Study identifier
   async getTaskPerformanceData(studyId) {
     try {
       return await this.apiClient.getTaskPerformanceData(studyId);
@@ -65,11 +51,8 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * Get participant data for a study
-   * @param {string|number} studyId - The ID of the study
-   * @returns {Promise<Array>} Promise resolving to participant data
-   */
+  // Get participant data for a study
+  // studyId - Study identifier
   async getParticipantData(studyId) {
     try {
       return await this.apiClient.getParticipantData(studyId);
@@ -79,12 +62,9 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * Export study data in specified format
-   * @param {string|number} studyId - The ID of the study
-   * @param {string} format - The export format (e.g., 'csv', 'json')
-   * @returns {Promise<Blob>} Promise resolving to the exported data blob
-   */
+  // Export study data to file
+  // studyId - Study identifier
+  // format - Export format (csv, json)
   async exportStudyData(studyId, format = 'csv') {
     try {
       return await this.apiClient.exportStudyData(studyId, format);
@@ -94,10 +74,8 @@ export default class AnalyticsRepository extends Repository {
     }
   }
   
-  /**
-   * These methods are inherited from Repository but not applicable
-   * for analytics (read-only data)
-   */
+  // Methods from Repository interface
+  // (analytics data is read-only)
   async findAll() {
     return this.findAllStudies();
   }

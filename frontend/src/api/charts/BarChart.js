@@ -1,9 +1,7 @@
 import ChartBase from './ChartBase';
 import * as d3 from 'd3';
 
-/**
- * Bar chart implementation using D3
- */
+// Bar chart using D3.js
 export default class BarChart extends ChartBase {
   initialize() {
     // Create SVG element

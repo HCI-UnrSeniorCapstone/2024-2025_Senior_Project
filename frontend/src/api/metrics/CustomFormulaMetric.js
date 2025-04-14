@@ -1,17 +1,8 @@
 import MetricStrategy from './MetricStrategy';
 
-/**
- * Strategy for calculating metrics using custom formulas
- */
+// Lets users create custom metric calculations
 export default class CustomFormulaMetric extends MetricStrategy {
-  /**
-   * Create a custom formula metric
-   * @param {Object} options - Configuration options
-   * @param {Function} options.formula - The formula function to calculate the metric
-   * @param {string} options.name - Name of the metric
-   * @param {string} options.description - Description of the metric
-   * @param {string} options.unit - Unit of measurement
-   */
+  // Setup a custom metric with a user-defined formula
   constructor(options) {
     super();
     
@@ -27,19 +18,12 @@ export default class CustomFormulaMetric extends MetricStrategy {
     };
   }
   
-  /**
-   * Calculate the metric using the custom formula
-   * @param {any} data - Data to pass to the custom formula
-   * @returns {any} Result of the custom formula
-   */
+  // Run the user-provided formula on the data
   calculate(data) {
     return this.formula(data);
   }
   
-  /**
-   * Get metadata about this metric
-   * @returns {Object} Metadata including name, description, and unit
-   */
+  // Return saved metric information
   getMetadata() {
     return this.metadata;
   }

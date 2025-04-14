@@ -47,16 +47,16 @@
           :loading="loading"
           class="participant-table"
         >
-          <!-- Custom render for success rate with colored progress bar -->
+          <!-- Custom render for p-value with colored indicator -->
           <template v-slot:item.successRate="{ item }">
-            <v-progress-linear
-              :value="item.successRate"
-              height="20"
-              :color="getSuccessRateColor(item.successRate)"
-              class="rounded-lg"
+            <v-chip
+              small
+              :color="getPValueColor(item.pValue || 0.5)"
+              text-color="white"
+              class="px-2"
             >
-              <span class="text-caption white--text">{{ item.successRate }}%</span>
-            </v-progress-linear>
+              {{ formatPValue(item.pValue || 0.5) }}
+            </v-chip>
           </template>
           
           <!-- Format time values as minutes:seconds or hours:minutes:seconds -->
@@ -94,7 +94,7 @@ export default {
         { text: 'Sessions', value: 'sessionCount', width: '15%' },
         { text: 'Time', value: 'completionTime', width: '20%' },
         { text: 'Success Rate', value: 'successRate', width: '30%' },
-        { text: 'Errors', value: 'errorCount', width: '20%' }
+        { text: 'P-Value', value: 'pValue', width: '20%' }
       ]
     };
   },
@@ -123,12 +123,19 @@ export default {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
     },
     
-    // Return color based on success rate percentage
-    getSuccessRateColor(rate) {
-      if (rate >= 80) return 'success';  // Green for high success
-      if (rate >= 60) return 'info';     // Blue for good success
-      if (rate >= 40) return 'warning';  // Orange for moderate success
-      return 'error';                    // Red for low success
+    // Format p-value for display
+    formatPValue(pValue) {
+      // Convert p-value to confidence percentage
+      const confidence = (1 - pValue) * 100;
+      return confidence.toFixed(1) + '% ' + (pValue < 0.05 ? '★' : '');
+    },
+    
+    // Return color based on p-value significance
+    getPValueColor(pValue) {
+      if (pValue < 0.01) return 'purple darken-2';  // Very significant
+      if (pValue < 0.05) return 'blue darken-1';    // Significant
+      if (pValue < 0.1) return 'amber darken-2';    // Marginally significant
+      return 'grey';                                // Not significant
     }
   }
 };

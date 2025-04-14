@@ -2,58 +2,55 @@
   <div class="study-selector">
     <!-- Main study dropdown with search -->
     <v-select
-      :value="value"
+      v-model="selectedStudyId"
       :items="studyOptions"
-      item-text="name"
+      item-title="name"
       item-value="id"
       label="Select Study"
-      outlined
-      dense
+      variant="outlined"
+      density="compact"
       :loading="loading"
       :error-messages="errorMessage"
-      :disabled="disabled || loading || studies.length === 0"
-      @input="$emit('input', $event)"
-      @change="$emit('change', $event)"
+      :disabled="disabled || loading || studyOptions.length === 0"
     >
       <!-- Study icon -->
-      <template v-slot:prepend-inner>
-        <v-icon small color="primary">mdi-clipboard-text</v-icon>
+      <template v-slot:prepend>
+        <v-icon color="primary">mdi-clipboard-text</v-icon>
       </template>
       
       <!-- Custom display for selected study -->
-      <template v-slot:selection="{ item }">
-        <div class="study-selection">
-          <span class="study-name">{{ item.name }}</span>
-          <span v-if="item.stats" class="study-stats">
-            {{ item.stats.participants }} participants
-          </span>
-        </div>
+      <template v-slot:item="{ item, props }">
+        <v-list-item v-bind="props">
+          <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
+          <v-list-item-subtitle v-if="item.raw.stats">
+            {{ item.raw.stats.participants }} participants
+          </v-list-item-subtitle>
+        </v-list-item>
       </template>
       
       <!-- Empty state when no studies exist -->
       <template v-slot:no-data>
         <div class="pa-2 text-center">
-          <v-icon color="grey lighten-1" size="24">mdi-alert-circle-outline</v-icon>
+          <v-icon color="grey-lighten-1" size="24">mdi-alert-circle-outline</v-icon>
           <p class="mb-0 mt-1">No studies available</p>
         </div>
       </template>
     </v-select>
     
     <!-- Refresh button with tooltip -->
-    <v-tooltip bottom>
-      <template v-slot:activator="{ on, attrs }">
+    <v-tooltip location="bottom">
+      <template v-slot:activator="{ props }">
         <div class="d-inline-block ml-2">
           <v-btn
             icon
-            small
+            size="small"
             color="primary"
             @click="refreshStudies"
             :loading="loading"
             :disabled="disabled"
-            v-bind="attrs"
-            v-on="on"
+            v-bind="props"
           >
-            <v-icon small>mdi-refresh</v-icon>
+            <v-icon>mdi-refresh</v-icon>
           </v-btn>
         </div>
       </template>
@@ -63,56 +60,71 @@
 </template>
 
 <script>
+import { ref, computed, onMounted, watch } from 'vue';
+import { useAnalyticsStore } from '@/stores/analyticsStore';
+
 export default {
   name: 'StudySelector',
-  props: {
-    // Selected study ID (for v-model binding)
-    value: {
-      type: [String, Number],
-      default: null
-    },
+  emits: ['study-selected'],
+  
+  setup(props, { emit }) {
+    const analyticsStore = useAnalyticsStore();
+    const loading = ref(false);
+    const errorMessage = ref('');
+    const disabled = ref(false);
+    const selectedStudyId = ref(null);
     
-    // List of studies to display in dropdown
-    studies: {
-      type: Array,
-      default: () => []
-    },
+    // Fetch studies when the component mounts
+    onMounted(async () => {
+      await fetchStudies();
+    });
     
-    // Show loading spinner when fetching studies
-    loading: {
-      type: Boolean,
-      default: false
-    },
+    // Watch for changes in the selected study
+    watch(selectedStudyId, (newId) => {
+      if (newId) {
+        emit('study-selected', newId);
+      }
+    });
     
-    // Display error message under the select
-    errorMessage: {
-      type: String,
-      default: ''
-    },
-    
-    // Disable interaction with the component
-    disabled: {
-      type: Boolean,
-      default: false
-    }
-  },
-  computed: {
-    // Process studies data for the dropdown
-    studyOptions() {
-      return this.studies.map(study => ({
+    // Computed property to format studies for the dropdown
+    const studyOptions = computed(() => {
+      return analyticsStore.getStudies.map(study => ({
         id: study.id,
         name: study.name,
         description: study.description,
         status: study.status || 'Active',
         stats: study.stats || null
       }));
-    }
-  },
-  methods: {
-    // Trigger parent component to refresh studies
-    refreshStudies() {
-      this.$emit('refresh');
-    }
+    });
+    
+    // Method to fetch studies from the API
+    const fetchStudies = async () => {
+      loading.value = true;
+      errorMessage.value = '';
+      
+      try {
+        await analyticsStore.fetchStudies();
+        loading.value = false;
+      } catch (error) {
+        console.error('Failed to fetch studies:', error);
+        errorMessage.value = 'Failed to load studies';
+        loading.value = false;
+      }
+    };
+    
+    // Method to refresh studies list
+    const refreshStudies = () => {
+      fetchStudies();
+    };
+    
+    return {
+      selectedStudyId,
+      studyOptions,
+      loading,
+      errorMessage,
+      disabled,
+      refreshStudies
+    };
   }
 };
 </script>
@@ -122,19 +134,5 @@ export default {
   display: flex;
   align-items: center;
   min-width: 250px;
-}
-
-.study-selection {
-  display: flex;
-  flex-direction: column;
-}
-
-.study-name {
-  font-weight: 500;
-}
-
-.study-stats {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
 }
 </style>

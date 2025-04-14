@@ -1,22 +1,16 @@
 import MetricStrategy from './MetricStrategy';
 
-/**
- * Strategy for calculating time per task metrics
- */
+// Tracks how long tasks take to complete
 export default class TimePerTaskMetric extends MetricStrategy {
   constructor(options = {}) {
     super();
     this.options = {
-      aggregation: 'mean', // 'mean', 'median', 'min', 'max'
+      aggregation: 'mean', // Options: mean, median, min, max
       ...options
     };
   }
   
-  /**
-   * Calculate average time per task from task result data
-   * @param {Array} taskResults - Array of task results with completion times
-   * @returns {Object} Metrics by task and overall
-   */
+  // Calculate time metrics from task result data
   calculate(taskResults) {
     if (!Array.isArray(taskResults) || taskResults.length === 0) {
       return { overall: 0, byTask: {} };
@@ -55,11 +49,7 @@ export default class TimePerTaskMetric extends MetricStrategy {
     return { overall, byTask };
   }
   
-  /**
-   * Aggregate values based on the specified aggregation method
-   * @param {Array<number>} values - Array of values to aggregate
-   * @returns {number} The aggregated value
-   */
+  // Helper to calculate stats based on chosen method
   aggregateValues(values) {
     if (values.length === 0) return 0;
     
@@ -85,10 +75,7 @@ export default class TimePerTaskMetric extends MetricStrategy {
     }
   }
   
-  /**
-   * Get metadata about this metric
-   * @returns {Object} Metadata including name, description, and unit
-   */
+  // Get info about this metric
   getMetadata() {
     const aggName = this.options.aggregation.charAt(0).toUpperCase() + 
                    this.options.aggregation.slice(1);

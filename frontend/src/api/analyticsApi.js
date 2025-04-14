@@ -3,7 +3,12 @@ import axios from 'axios';
 // Always use the proxy for analytics API
 const API_BASE_URL = '/api';
 
-// Create a function to get the API client with the correct baseURL
+// Cache configuration
+const CACHE_TTL = 60000; // 1 minute cache lifetime in milliseconds
+const cache = new Map();
+
+// Get API client with the right baseURL
+// baseUrl - URL for API requests
 function getApiClient(baseUrl = API_BASE_URL) {
   return axios.create({
     baseURL: baseUrl,
@@ -14,6 +19,35 @@ function getApiClient(baseUrl = API_BASE_URL) {
     }
   });
 }
+
+// Handle API errors
+// error - The error that occurred
+// operation - What failed
+const handleApiError = (error, operation) => {
+  const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
+  console.error(`Analytics API error (${operation}): ${errorMessage}`, error);
+  throw error;
+};
+
+// Get cached data or fetch fresh data
+// key - Cache key
+// fetchFn - Function to get fresh data
+const getCachedData = async (key, fetchFn) => {
+  const now = Date.now();
+  const cachedItem = cache.get(key);
+  
+  // Return cached data if valid
+  if (cachedItem && now - cachedItem.timestamp < CACHE_TTL) {
+    return cachedItem.data;
+  }
+  
+  // Fetch fresh data
+  const data = await fetchFn();
+  
+  // Cache the result
+  cache.set(key, { data, timestamp: now });
+  return data;
+};
 
 // Default client using the proxy
 const apiClient = getApiClient();
@@ -47,34 +81,37 @@ let customBackendUrl = null;
 const setBackendUrl = (url) => {
   customBackendUrl = url;
   console.log('Analytics API using custom backend URL:', customBackendUrl);
+  
+  // Clear cache when URL changes
+  cache.clear();
 };
 
 const analyticsApi = {
-  // Allow setting the backend URL from components
+  // Configuration
   setBackendUrl,
   
-  // Fetch all the studies 
+  // Study related endpoints
   async getStudies() {
-    try {
-      let client = apiClient;
-      let endpoint = '/analytics/studies';
-      
-      // Use custom backend URL if set
-      if (customBackendUrl) {
-        client = getApiClient(customBackendUrl);
-        endpoint = '/api/analytics/studies';
+    return getCachedData('studies', async () => {
+      try {
+        let client = apiClient;
+        let endpoint = '/analytics/studies';
+        
+        // Use custom backend URL if set
+        if (customBackendUrl) {
+          client = getApiClient(customBackendUrl);
+          endpoint = '/api/analytics/studies';
+        }
+        
+        const response = await client.get(endpoint);
+        return response.data;
+      } catch (error) {
+        handleApiError(error, 'getStudies');
       }
-      
-      const response = await client.get(endpoint);
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch studies:', error);
-      throw error;
-    }
+    });
   },
 
-  // Get summary data for a specific study
-  // studyId is the unique identifier for the study
+  // Summary metrics endpoint
   async getSummaryMetrics(studyId) {
     try {
       let client = apiClient;
@@ -89,51 +126,70 @@ const analyticsApi = {
       const response = await client.get(endpoint);
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch summary metrics for study ${studyId}:`, error);
-      throw error;
+      handleApiError(error, `getSummaryMetrics(${studyId})`);
     }
   },
 
-  
-  // Get learning curve info for a study
-  // studyId is the ID of the study you're interested in
+  // Learning curve data endpoint
   async getLearningCurveData(studyId) {
     try {
-      const response = await apiClient.get(`/analytics/${studyId}/learning-curve`);
+      let client = apiClient;
+      let endpoint = `/analytics/${studyId}/learning-curve`;
+      
+      // Use custom backend URL if set
+      if (customBackendUrl) {
+        client = getApiClient(customBackendUrl);
+        endpoint = `/api/analytics/${studyId}/learning-curve`;
+      }
+      
+      const response = await client.get(endpoint);
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch learning curve data for study ${studyId}:`, error);
-      throw error;
+      handleApiError(error, `getLearningCurveData(${studyId})`);
     }
   },
 
-  
-  // Get task performance data for a study
-  // studyId again is needed here
+  // Task performance endpoint
   async getTaskPerformanceData(studyId) {
     try {
-      const response = await apiClient.get(`/analytics/${studyId}/task-performance`);
+      let client = apiClient;
+      let endpoint = `/analytics/${studyId}/task-performance`;
+      
+      // Use custom backend URL if set
+      if (customBackendUrl) {
+        client = getApiClient(customBackendUrl);
+        endpoint = `/api/analytics/${studyId}/task-performance`;
+      }
+      
+      const response = await client.get(endpoint);
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch task performance data for study ${studyId}:`, error);
-      throw error;
+      handleApiError(error, `getTaskPerformanceData(${studyId})`);
     }
   },
 
-  
-  // Get participant data for a specific study
-  // This includes all participants involved in the study
-  async getParticipantData(studyId) {
+  // Participant data endpoint
+  async getParticipantData(studyId, page = 1, pageSize = 20) {
     try {
-      const response = await apiClient.get(`/analytics/${studyId}/participants`);
+      let client = apiClient;
+      let endpoint = `/analytics/${studyId}/participants`;
+      
+      // Use custom backend URL if set
+      if (customBackendUrl) {
+        client = getApiClient(customBackendUrl);
+        endpoint = `/api/analytics/${studyId}/participants`;
+      }
+      
+      const response = await client.get(endpoint, {
+        params: { page, pageSize }
+      });
       return response.data;
     } catch (error) {
-      console.error(`Failed to fetch participant data for study ${studyId}:`, error);
-      throw error;
+      handleApiError(error, `getParticipantData(${studyId})`);
     }
   },
 
-  // Health check endpoint for testing connectivity
+  // Health check endpoint
   async healthCheck() {
     try {
       let client = apiClient;
@@ -148,23 +204,36 @@ const analyticsApi = {
       const response = await client.get(endpoint);
       return response.data;
     } catch (error) {
-      console.error('Health check failed:', error);
-      throw error;
+      handleApiError(error, 'healthCheck');
     }
   },
 
-  
-  // Export study data to the format you want (csv, json)
-  // Default is csv, but you can choose json too
+  // Data export endpoint
   async exportStudyData(studyId, format = 'csv') {
-    const response = await axios.get(
-      `${API_BASE_URL}/analytics/${studyId}/export`,
-      {
-        params: { format },
-        responseType: 'blob' // Important for file exports
+    try {
+      // Validate format
+      if (!['csv', 'json', 'xlsx'].includes(format)) {
+        throw new Error(`Unsupported export format: ${format}. Must be csv, json, or xlsx.`);
       }
-    );
-    return response.data;
+      
+      let baseUrl = API_BASE_URL;
+      
+      // Use custom backend URL if set
+      if (customBackendUrl) {
+        baseUrl = customBackendUrl;
+      }
+      
+      const response = await axios.get(
+        `${baseUrl}/analytics/${studyId}/export`,
+        {
+          params: { format },
+          responseType: 'blob' // Important for file exports
+        }
+      );
+      return response.data;
+    } catch (error) {
+      handleApiError(error, `exportStudyData(${studyId}, ${format})`);
+    }
   }
 };
 

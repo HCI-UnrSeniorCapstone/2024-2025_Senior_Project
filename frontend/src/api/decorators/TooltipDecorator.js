@@ -1,8 +1,6 @@
 import ChartDecorator from './ChartDecorator';
 
-/**
- * Decorator that adds tooltip functionality to a chart
- */
+// Adds tooltips to charts
 export default class TooltipDecorator extends ChartDecorator {
   constructor(chart, tooltipOptions = {}) {
     super(chart);

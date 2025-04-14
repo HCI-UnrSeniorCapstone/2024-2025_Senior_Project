@@ -1,14 +1,8 @@
 import MetricStrategy from './MetricStrategy';
 
-/**
- * Strategy for calculating task completion rate metrics
- */
+// Calculates task completion rates
 export default class CompletionRateMetric extends MetricStrategy {
-  /**
-   * Calculate completion rate from task result data
-   * @param {Array} taskResults - Array of task results with status
-   * @returns {Object} Metrics by task and overall
-   */
+  // Takes task results and calculates completion percentages
   calculate(taskResults) {
     if (!Array.isArray(taskResults) || taskResults.length === 0) {
       return { overall: 0, byTask: {} };
@@ -48,10 +42,7 @@ export default class CompletionRateMetric extends MetricStrategy {
     return { overall, byTask };
   }
   
-  /**
-   * Get metadata about this metric
-   * @returns {Object} Metadata including name, description, and unit
-   */
+  // Returns info about this metric
   getMetadata() {
     return {
       name: 'Task Completion Rate',

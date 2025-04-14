@@ -1,9 +1,7 @@
 import ChartBase from './ChartBase';
 import * as d3 from 'd3';
 
-/**
- * Bubble chart implementation using D3
- */
+// Bubble chart using D3.js
 export default class BubbleChart extends ChartBase {
   initialize() {
     // Create SVG element

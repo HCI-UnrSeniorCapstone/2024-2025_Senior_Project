@@ -25,94 +25,184 @@ analytics_bp = Blueprint('analytics', __name__, url_prefix='/api/analytics')
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def handle_route_error(e, operation, study_id=None):
+    # Handle errors consistently across routes
+    # e: Exception that occurred
+    # operation: What failed
+    # study_id: Optional related study ID
+    # Returns: (response, status_code)
+    # Log the error with full traceback
+    logger.error(f"Error in {operation}" + (f" for study {study_id}" if study_id else "") + f": {str(e)}")
+    logger.error(traceback.format_exc())
+    
+    # Determine error type and appropriate status code
+    if isinstance(e, ValueError):
+        # Input validation errors
+        return jsonify({
+            "error": str(e),
+            "error_type": "validation_error",
+            "operation": operation
+        }), 400
+        
+    elif "database" in str(e).lower() or "sql" in str(e).lower():
+        # Database errors
+        return jsonify({
+            "error": "A database error occurred",
+            "error_type": "database_error",
+            "operation": operation,
+            "details": str(e) if current_app.config.get('DEBUG', False) else None
+        }), 500
+        
+    else:
+        # Other server errors
+        return jsonify({
+            "error": "An unexpected error occurred",
+            "error_type": "server_error",
+            "operation": operation,
+            "details": str(e) if current_app.config.get('DEBUG', False) else None
+        }), 500
+
 @analytics_bp.route('/<study_id>/summary', methods=['GET'])
 def get_study_summary_route(study_id):
-    """Get summary metrics for a study"""
+    # Get key metrics for a study
     try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+            
         conn = get_db_connection()
         summary = get_study_summary(conn, study_id)
         conn.close()
         return jsonify(summary)
     except Exception as e:
-        logger.error(f"Unexpected error in summary stats for study {study_id}: {e}")
-        logger.error(traceback.format_exc())
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_study_summary", study_id)
 
 @analytics_bp.route('/summary', methods=['GET'])
 def get_summary_stats_by_param():
-    """Get summary metrics for dashboard cards using query parameter"""
-    study_id = request.args.get('study_id', type=int)
+    # Same as summary route but using query param instead of URL param
     try:
+        study_id = request.args.get('study_id', type=int)
+        if not study_id:
+            raise ValueError("Missing required 'study_id' parameter")
+            
         return get_study_summary_route(study_id)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_summary_stats_by_param")
 
 @analytics_bp.route('/<study_id>/learning-curve', methods=['GET'])
 def get_learning_curve_route(study_id):
-    """Get learning curve data for a study"""
+    # Get data showing improvement over time
     try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+            
         conn = get_db_connection()
         data = get_learning_curve_data(conn, study_id)
         conn.close()
         return jsonify(data)
     except Exception as e:
-        logger.error(f"Error getting learning curve data: {e}")
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_learning_curve_data", study_id)
 
 @analytics_bp.route('/learning-curve', methods=['GET'])
 def get_learning_curve_by_param():
-    """Get learning curve data using query parameter"""
-    study_id = request.args.get('study_id', type=int)
+    # Same as learning curve route but using query param
     try:
+        study_id = request.args.get('study_id', type=int)
+        if not study_id:
+            raise ValueError("Missing required 'study_id' parameter")
+            
         return get_learning_curve_route(study_id)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_learning_curve_by_param")
 
 @analytics_bp.route('/<study_id>/task-performance', methods=['GET'])
 def get_task_performance_route(study_id):
-    """Get task performance data for a study"""
+    # Get how well users are completing each task
     try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+            
         conn = get_db_connection()
         data = get_task_performance_data(conn, study_id)
         conn.close()
         return jsonify(data)
     except Exception as e:
-        logger.error(f"Error getting task performance data: {e}")
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_task_performance_data", study_id)
 
 @analytics_bp.route('/task-comparison', methods=['GET'])
 def get_task_comparison():
-    """Get data for the task performance comparison chart using query parameter"""
-    study_id = request.args.get('study_id', type=int)
+    # Compare performance across different tasks
     try:
+        study_id = request.args.get('study_id', type=int)
+        if not study_id:
+            raise ValueError("Missing required 'study_id' parameter")
+            
         return get_task_performance_route(study_id)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_task_comparison")
 
 @analytics_bp.route('/<study_id>/participants', methods=['GET'])
 def get_participants_route(study_id):
-    """Get participant data for a study"""
+    # Get data about each participant
     try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+        
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        
+        # Validate pagination parameters
+        if page < 1:
+            raise ValueError("Page number must be at least 1")
+        if per_page < 1 or per_page > 100:
+            raise ValueError("Items per page must be between 1 and 100")
+            
         conn = get_db_connection()
-        data = get_participant_data(conn, study_id)
+        data = get_participant_data(conn, study_id, page, per_page)
         conn.close()
         return jsonify(data)
     except Exception as e:
-        logger.error(f"Error getting participant data: {e}")
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "get_participants_data", study_id)
 
 @analytics_bp.route('/<study_id>/export', methods=['GET'])
 def export_data_route(study_id):
-    """Export study data in specified format"""
+    # Export study data as CSV, JSON, etc.
     try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+            
+        # Get and validate export format
         export_format = request.args.get('format', 'csv')
+        if export_format not in ['csv', 'json', 'xlsx']:
+            return jsonify({
+                "error": f"Unsupported export format: {export_format}",
+                "error_type": "validation_error",
+                "supported_formats": ['csv', 'json', 'xlsx']
+            }), 400
         
         conn = get_db_connection()
         
         # Get all the necessary data
         summary = get_study_summary(conn, study_id)
         task_performance = get_task_performance_data(conn, study_id)
-        participants = get_participant_data(conn, study_id)
+        # For export, get all participants without pagination
+        participants_result = get_participant_data(conn, study_id, 1, 1000) 
+        participants = participants_result.get('data', [])
         
         conn.close()
         
@@ -146,13 +236,15 @@ def export_data_route(study_id):
             
             # Write participant data
             writer.writerow(['Participant Data'])
-            writer.writerow(['Participant ID', 'Completion Time', 'Success Rate', 'Error Count'])
+            writer.writerow(['Participant ID', 'Completion Time', 'Success Rate', 'Error Count', 'First Session', 'Last Session'])
             for participant in participants:
                 writer.writerow([
                     participant['participantId'],
                     participant['completionTime'],
                     participant['successRate'],
-                    participant['errorCount']
+                    participant['errorCount'],
+                    participant.get('firstSession', ''),
+                    participant.get('lastSession', '')
                 ])
             
             output.seek(0)
@@ -168,7 +260,11 @@ def export_data_route(study_id):
             export_data = {
                 'summary': summary,
                 'taskPerformance': task_performance,
-                'participants': participants
+                'participants': participants,
+                'metadata': {
+                    'exported_at': datetime.now().isoformat(),
+                    'study_id': study_id
+                }
             }
             
             return send_file(
@@ -178,16 +274,21 @@ def export_data_route(study_id):
                 download_name=f"{filename}.json"
             )
             
-        else:
-            return jsonify({"error": f"Unsupported export format: {export_format}"}), 400
+        elif export_format == 'xlsx':
+            # For XLSX format, would need additional libraries (openpyxl, pandas)
+            # Since this is a example placeholder, we'll return an error
+            return jsonify({
+                "error": "XLSX export is not implemented yet",
+                "error_type": "not_implemented",
+            }), 501
             
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return handle_route_error(e, "export_data", study_id)
 
 # Routes for retrieving supplementary data for analytics 
 @analytics_bp.route('/studies', methods=['GET'])
 def get_studies():
-    """Get list of available studies for the selector dropdown"""
+    # Get studies for the dropdown selector
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -240,7 +341,7 @@ def get_studies():
 
 @analytics_bp.route('/participants', methods=['GET'])
 def get_participants():
-    """Get list of participant IDs for a study"""
+    # Get list of participant IDs for filters
     study_id = request.args.get('study_id', type=int)
     
     try:
@@ -264,7 +365,7 @@ def get_participants():
 
 @analytics_bp.route('/tasks', methods=['GET'])
 def get_tasks():
-    """Get list of tasks for a study"""
+    # Get tasks list for a study
     study_id = request.args.get('study_id', type=int)
     
     try:
@@ -294,7 +395,7 @@ def get_tasks():
 
 @analytics_bp.route('/performance', methods=['GET'])
 def get_performance():
-    """Get performance data for a specific participant or task"""
+    # Get detailed performance data for filtering
     participant_id = request.args.get('participant_id')
     task_id = request.args.get('task_id', type=int)
     
@@ -341,7 +442,7 @@ def get_performance():
 
 @analytics_bp.route('/<study_id>/visualizations/task-completion', methods=['GET'])
 def get_task_completion_chart(study_id):
-    """Generate task completion chart for a study"""
+    # Create chart showing task completion rates
     try:
         conn = get_db_connection()
         task_data = get_task_performance_data(conn, study_id)
@@ -361,7 +462,7 @@ def get_task_completion_chart(study_id):
 
 @analytics_bp.route('/<study_id>/visualizations/error-rate', methods=['GET'])
 def get_error_rate_chart(study_id):
-    """Generate error rate chart for a study"""
+    # Create chart showing error rates by task
     try:
         conn = get_db_connection()
         task_data = get_task_performance_data(conn, study_id)
@@ -381,7 +482,7 @@ def get_error_rate_chart(study_id):
 
 @analytics_bp.route('/<study_id>/visualizations/learning-curve', methods=['GET'])
 def get_learning_curve_chart(study_id):
-    """Generate learning curve chart for a study"""
+    # Create chart showing improvement over time
     try:
         conn = get_db_connection()
         learning_data = get_learning_curve_data(conn, study_id)
@@ -417,7 +518,7 @@ def get_learning_curve_chart(study_id):
 
 @analytics_bp.route('/health', methods=['GET'])
 def health_check():
-    """API health check endpoint for monitoring"""
+    # Check if API is working properly
     try:
         conn = get_db_connection()
         cursor = conn.cursor()

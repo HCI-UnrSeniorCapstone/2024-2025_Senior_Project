@@ -1,9 +1,7 @@
 import ChartBase from './ChartBase';
 import * as d3 from 'd3';
 
-/**
- * Line chart implementation using D3
- */
+// Line chart using D3.js
 export default class LineChart extends ChartBase {
   initialize() {
     // Create SVG element

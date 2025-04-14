@@ -1,6 +1,4 @@
-/**
- * Base class for chart implementations
- */
+// Base class for all chart types
 export default class ChartBase {
   constructor(container, data, options = {}) {
     if (this.constructor === ChartBase) {
@@ -19,33 +17,23 @@ export default class ChartBase {
     this.initialize();
   }
   
-  /**
-   * Initialize the chart (to be implemented by subclasses)
-   */
+  // Must be implemented by child classes
   initialize() {
     throw new Error('Method initialize() must be implemented by subclass');
   }
   
-  /**
-   * Render the chart (to be implemented by subclasses)
-   */
+  // Must be implemented by child classes
   render() {
     throw new Error('Method render() must be implemented by subclass');
   }
   
-  /**
-   * Update the chart with new data
-   * @param {Array} newData - New data for the chart
-   */
+  // Updates chart data and rerenders
   updateData(newData) {
     this.data = newData;
     this.render();
   }
   
-  /**
-   * Update chart options
-   * @param {Object} newOptions - New options to apply to the chart
-   */
+  // Updates chart config options and rerenders
   updateOptions(newOptions) {
     this.options = {
       ...this.options,
@@ -54,11 +42,8 @@ export default class ChartBase {
     this.render();
   }
   
-  /**
-   * Cleanup method to be called when chart is no longer needed
-   */
+  // Cleanup resources - override in subclasses as needed
   destroy() {
-    // Default implementation - can be overridden by subclasses
-    // to provide proper cleanup logic
+    // Default empty implementation
   }
 }
