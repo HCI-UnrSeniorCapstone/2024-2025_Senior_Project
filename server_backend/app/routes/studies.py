@@ -263,7 +263,7 @@ def change_user_access_type():
         SET study_user_role_type_id = %s
         WHERE study_id = %s AND user_id = %s
         """
-        cur.execute(edit_user_access, (study_id, user_id_result))
+        cur.execute(edit_user_access, (role_type_result[0], study_id, user_id_result))
         conn.commit()
         return jsonify({"message": "User access edited successfully"}), 200
 
