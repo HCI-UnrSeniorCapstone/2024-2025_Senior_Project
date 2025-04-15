@@ -56,6 +56,40 @@ def update_user_profile():
         return jsonify({"error": str(e)}), 500
 
 
+# Used for user searching emails to add user to study
+@bp.route("/api/check_user_exists", methods=["POST"])
+@auth_required()
+def check_user_exists():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if not submission_data or "desiredUserEmail" not in submission_data:
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    desired_user_email = submission_data["desiredUserEmail"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_exists = """
+        SELECT user_id
+        FROM user
+        WHERE user.user_email = %s
+        """
+
+        cur.execute(user_exists, (desired_user_email,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify(False), 200
+
+        return jsonify(True), 200
+
+    except Exception as e:
+        # Error message
+        return jsonify({"error": str(e)}), 500
+
+
 # This is the ping to check for auth, vue will use this to handle redirects
 @bp.route("/api/accounts/get_user_profile_info", methods=["GET"])
 @auth_required()
