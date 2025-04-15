@@ -159,7 +159,7 @@ def remove_user_study_access():
             get_user_id = """
             SELECT user_id
             FROM user
-            WHERE user_email = %s
+            WHERE email = %s
             """
             cur.execute(get_user_id, (removed_user_email,))
             result = cur.fetchone()[0]
@@ -175,6 +175,7 @@ def remove_user_study_access():
                     result,
                 ),
             )
+            conn.commit()
             return jsonify({"message": "User access removed successfully"}), 200
         # Not Owner
         else:
@@ -219,7 +220,7 @@ def change_user_access_type():
         get_user_id = """
         SELECT user_id
         FROM user
-        WHERE user_email = %s
+        WHERE email = %s
         """
         cur.execute(get_user_id, (edit_user_email,))
         user_id_result = cur.fetchone()[0]
@@ -245,7 +246,7 @@ def change_user_access_type():
             )
 
         access_type_id = """
-        SELECT surt.study_user_access_type_id
+        SELECT surt.study_user_role_type_id
         FROM study_user_role_type AS surt
         WHERE surt.study_user_role_description = %s
         """
@@ -259,11 +260,11 @@ def change_user_access_type():
 
         edit_user_access = """
         UPDATE study_user_role
-        SET study_user_access_type_id = %s
+        SET study_user_role_type_id = %s
         WHERE study_id = %s AND user_id = %s
         """
         cur.execute(edit_user_access, (study_id, user_id_result))
-
+        conn.commit()
         return jsonify({"message": "User access edited successfully"}), 200
 
     except Exception as e:
@@ -305,7 +306,7 @@ def add_user_study_access():
         get_user_id = """
         SELECT user_id
         FROM user
-        WHERE user_email = %s
+        WHERE email = %s
         """
         cur.execute(get_user_id, (add_user_email,))
         user_id_result = cur.fetchone()[0]
@@ -317,7 +318,7 @@ def add_user_study_access():
             return jsonify({"message": "Requested user already has access"}), 409
 
         access_type_id = """
-        SELECT surt.study_user_access_type_id
+        SELECT surt.study_user_role_type_id
         FROM study_user_role_type AS surt
         WHERE surt.study_user_role_description = %s
         """
@@ -330,15 +331,15 @@ def add_user_study_access():
             return jsonify({"error": "Internal server error getting role type"}), 500
 
         add_user_access = """
-        INSERT INTO study_user_role (study_id, user_id, study_user_access_type_id)
+        INSERT INTO study_user_role (study_id, user_id, study_user_role_type_id)
         VALUES (%s, %s, %s)
         """
         cur.execute(
             add_user_access,
             (study_id, user_id_result, role_type_result[0]),
         )
-
-        return jsonify({"message": "User access removed successfully"}), 200
+        conn.commit()
+        return jsonify({"message": "User access added successfully"}), 200
 
     except Exception as e:
         # Error message
