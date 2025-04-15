@@ -63,6 +63,7 @@
                 >
                   mdi-download
                 </v-icon>
+
                 <v-icon
                   v-tooltip="'Open'"
                   class="me-2"
@@ -71,7 +72,10 @@
                 >
                   mdi-arrow-expand
                 </v-icon>
+
+                <!-- Only Owner and Editor can Share -->
                 <v-icon
+                  v-if="['Owner', 'Editor', 'Viewer'].includes(item.role)"
                   v-tooltip="'Share'"
                   class="me-2"
                   size="small"
@@ -80,8 +84,9 @@
                   mdi-share-variant
                 </v-icon>
 
+                <!-- Only Owner and Editor can Edit -->
                 <v-icon
-                  v-if="item.canEdit"
+                  v-if="['Owner', 'Editor'].includes(item.role)"
                   v-tooltip="'Edit'"
                   class="me-2"
                   size="small"
@@ -89,6 +94,7 @@
                 >
                   mdi-pencil
                 </v-icon>
+
                 <v-icon
                   v-tooltip="'Duplicate'"
                   class="me-2"
@@ -97,7 +103,10 @@
                 >
                   mdi-content-copy
                 </v-icon>
+
+                <!-- Only Owner can Delete -->
                 <v-icon
+                  v-if="item.role === 'Owner'"
                   v-tooltip="'Delete'"
                   size="small"
                   @click="
@@ -147,8 +156,11 @@
                 <span class="share-title">Share "{{ sharingStudyName }}"</span>
               </v-card-title>
               <v-card-text>
-                <!-- Email + Role Row -->
-                <div class="d-flex align-center mb-4">
+                <!-- Only show add user form if user has permission -->
+                <div
+                  class="d-flex align-center mb-4"
+                  v-if="['Owner', 'Editor'].includes(requestingUserRole)"
+                >
                   <v-text-field
                     v-model="newShareEmail"
                     label="Add people, groups, or emails"
@@ -200,17 +212,15 @@
 
                       <!-- Role -->
                       <v-select
-                        v-if="
-                          requestingUserRole === 'Owner' &&
-                          user.role !== 'Owner'
-                        "
+                        v-if="canChangeRole(user)"
                         v-model="user.role"
                         :items="['Viewer', 'Editor']"
                         dense
                         hide-details
                         class="role-select"
-                        @change="changeUserAccess(index, user.role)"
+                        @update:modelValue="val => changeUserAccess(user, val)"
                       />
+
                       <span v-else class="user-role ml-4">
                         {{ user.role }}
                       </span>
@@ -348,6 +358,17 @@ export default {
   },
 
   methods: {
+    canChangeRole(user) {
+      if (this.requestingUserRole === 'Owner') {
+        return user.role !== 'Owner'
+      }
+
+      if (this.requestingUserRole === 'Editor') {
+        return user.role === 'Viewer'
+      }
+
+      return false
+    },
     async handleEnter() {
       this.errorMessage = ''
       this.successMessage = ''
@@ -365,7 +386,6 @@ export default {
         const res = await api.post('/check_user_exists', {
           desiredUserEmail: this.newShareEmail,
         })
-        console.log(res.data)
         if (res.data.exists == 'false') {
           this.errorMessage = 'User does not exist.'
           return
@@ -406,13 +426,19 @@ export default {
           this.showRoleSelector = false
           this.openShareDialog(this.currentStudyForSharing) // Refresh
         } else {
-          this.errorMessage = 'Failed to add user.'
+          // Catch unexpected non-200 responses
+          const msg =
+            res.data?.message || res.data?.error || typeof res.data === 'string'
+              ? res.data
+              : 'Failed to add user.'
+          this.errorMessage = msg
         }
       } catch (err) {
+        const data = err?.response?.data
         const msg =
-          err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          'Error adding user.'
+          data?.message ||
+          data?.error ||
+          (typeof data === 'string' ? data : 'Error adding user.')
         this.errorMessage = msg
       }
     },
@@ -471,21 +497,16 @@ export default {
         this.errorMessage = 'Error removing user.'
       }
     },
-    async changeUserAccess(index, newRole) {
+    async changeUserAccess(user, newRole) {
       this.successMessage = ''
       this.errorMessage = ''
 
-      if (this.requestingUserRole !== 'Owner') {
-        this.errorMessage = 'Only owners can change access roles.'
-        return
-      }
-
-      const userEmail = this.sharedUsers[index].email
+      console.log('Changing:', user.email)
 
       try {
         const res = await api.post('/change_user_access_type', {
           studyID: this.currentStudyForSharing.studyID,
-          desiredUserEmail: userEmail,
+          desiredUserEmail: user.email,
           roleType: newRole,
         })
 
