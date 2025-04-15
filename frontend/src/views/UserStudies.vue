@@ -387,29 +387,43 @@ export default {
     },
     // Called when role is selected
     async confirmAddUser() {
+      this.successMessage = ''
+      this.errorMessage = ''
+
       if (!this.newShareEmail || !this.newUserRole) return
 
-      const res = await api.post('/add_user_study_access', {
-        studyID: this.currentStudyForSharing.studyID,
-        desiredUserEmail: this.newShareEmail,
-        roleType: this.newUserRole,
-      })
+      try {
+        const res = await api.post('/add_user_study_access', {
+          studyID: this.currentStudyForSharing.studyID,
+          desiredUserEmail: this.newShareEmail,
+          roleType: this.newUserRole,
+        })
 
-      if (res.status === 200) {
-        this.$toast.success('User added successfully.')
-        this.newShareEmail = ''
-        this.newUserRole = ''
-        this.showRoleSelector = false
-        this.openShareDialog(this.currentStudyForSharing) // Refresh
-      } else {
-        this.$toast.error('Failed to add user.')
+        if (res.status === 200) {
+          this.successMessage = 'User added successfully.'
+          this.newShareEmail = ''
+          this.newUserRole = ''
+          this.showRoleSelector = false
+          this.openShareDialog(this.currentStudyForSharing) // Refresh
+        } else {
+          this.errorMessage = 'Failed to add user.'
+        }
+      } catch (err) {
+        const msg =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          'Error adding user.'
+        this.errorMessage = msg
       }
     },
     async openShareDialog(study) {
+      this.successMessage = ''
+      this.errorMessage = ''
+
       this.currentStudyForSharing = study
       this.shareDialog = true
       this.sharedUsers = []
-      this.requestingUserRole = study.role // Use this to manage permissions
+      this.requestingUserRole = study.role
 
       try {
         const res = await api.post('/get_all_user_access_for_study', {
@@ -427,13 +441,17 @@ export default {
         }
       } catch (error) {
         console.error('Error fetching sharing data:', error)
+        this.errorMessage = 'Could not fetch sharing info.'
       }
     },
     async removeSharedUser(index) {
+      this.successMessage = ''
+      this.errorMessage = ''
+
       const userEmail = this.sharedUsers[index].email
 
       if (this.requestingUserRole !== 'Owner') {
-        this.$toast.error('Only owners can remove users.')
+        this.errorMessage = 'Only owners can remove users.'
         return
       }
 
@@ -444,18 +462,21 @@ export default {
         })
 
         if (res.status === 200) {
-          this.$toast.success('User removed.')
-          this.openShareDialog(this.currentStudyForSharing) // Refresh
+          this.successMessage = 'User removed.'
+          this.openShareDialog(this.currentStudyForSharing)
         } else {
-          this.$toast.error('Failed to remove user.')
+          this.errorMessage = 'Failed to remove user.'
         }
       } catch (err) {
-        this.$toast.error('Error removing user.')
+        this.errorMessage = 'Error removing user.'
       }
     },
     async changeUserAccess(index, newRole) {
+      this.successMessage = ''
+      this.errorMessage = ''
+
       if (this.requestingUserRole !== 'Owner') {
-        this.$toast.error('Only owners can change access roles.')
+        this.errorMessage = 'Only owners can change access roles.'
         return
       }
 
@@ -469,17 +490,16 @@ export default {
         })
 
         if (res.status === 200) {
-          this.$toast.success('Role updated.')
-          this.openShareDialog(this.currentStudyForSharing) // Refresh
+          this.successMessage = 'Role updated.'
+          this.openShareDialog(this.currentStudyForSharing)
         } else {
-          this.$toast.error('Failed to update role.')
+          this.errorMessage = 'Failed to update role.'
         }
       } catch (err) {
-        const msg = err.response?.data?.message || 'Error updating role.'
-        this.$toast.error(msg)
+        const msg = err?.response?.data?.message || 'Error updating role.'
+        this.errorMessage = msg
       }
     },
-
     async populateStudies() {
       try {
         const response = await api.get('/get_study_data')
