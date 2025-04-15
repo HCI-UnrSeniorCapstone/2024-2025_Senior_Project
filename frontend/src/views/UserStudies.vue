@@ -209,7 +209,7 @@
                         dense
                         hide-details
                         class="role-select"
-                        @change="changeUserAccess(index, user.role)"
+                        @update:modelValue="val => changeUserAccess(index, val)"
                       />
                       <span v-else class="user-role ml-4">
                         {{ user.role }}
@@ -365,7 +365,6 @@ export default {
         const res = await api.post('/check_user_exists', {
           desiredUserEmail: this.newShareEmail,
         })
-        console.log(res.data)
         if (res.data.exists == 'false') {
           this.errorMessage = 'User does not exist.'
           return
