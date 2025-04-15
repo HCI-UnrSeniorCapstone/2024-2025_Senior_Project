@@ -231,6 +231,23 @@
                     </v-btn>
                   </div>
                 </v-list>
+                <v-alert
+                  v-if="errorMessage"
+                  type="error"
+                  class="mt-4 text-center"
+                  variant="outlined"
+                >
+                  {{ errorMessage }}
+                </v-alert>
+
+                <v-alert
+                  v-if="successMessage"
+                  type="success"
+                  class="mt-4 text-center"
+                  variant="outlined"
+                >
+                  {{ successMessage }}
+                </v-alert>
 
                 <!-- Done Button -->
                 <v-row justify="end" class="mt-4">
@@ -252,7 +269,6 @@ import StudyPanel from '@/components/StudyPanel.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import api from '@/axiosInstance'
 import { useStudyStore } from '@/stores/study'
-import { consoleError } from 'vuetify/lib/util'
 export default {
   components: { StudyPanel, SearchBar },
   setup() {
@@ -261,6 +277,8 @@ export default {
   },
   data() {
     return {
+      errorMessage: '',
+      successMessage: '',
       showRoleSelector: false,
       currentUserEmail: '',
       shareDialog: false,
@@ -331,14 +349,15 @@ export default {
 
   methods: {
     async handleEnter() {
-      // console.log(this.currentStudyForSharing.studyID)
+      this.errorMessage = ''
+      this.successMessage = ''
       if (!['Owner', 'Editor'].includes(this.requestingUserRole)) {
-        this.$toast.error("You don't have permission to add users.")
+        this.errorMessage = "You don't have permission to add users."
         return
       }
 
       if (!this.currentStudyForSharing) {
-        this.$toast.error('No study selected to share.')
+        this.errorMessage = 'No study selected to share.'
         return
       }
 
@@ -346,9 +365,9 @@ export default {
         const res = await api.post('/check_user_exists', {
           desiredUserEmail: this.newShareEmail,
         })
-
-        if (!res.data?.exists) {
-          this.$toast.error('User does not exist.')
+        console.log(res.data)
+        if (res.data.exists == 'false') {
+          this.errorMessage = 'User does not exist.'
           return
         }
 
@@ -357,44 +376,33 @@ export default {
       } catch (err) {
         console.error('Error checking user:', err)
 
-        let msg = 'Something went wrong checking the user.'
+        const data = err?.response?.data
+        const msg =
+          typeof data === 'object'
+            ? data.message || data.error || 'Something went wrong.'
+            : 'Something went wrong.'
 
-        try {
-          const data = err?.response?.data
-          if (data && typeof data === 'object') {
-            msg = data.message || data.error || msg
-          }
-        } catch (e) {
-          // Do nothing, use default message
-        }
-
-        this.$toast.error(msg)
+        this.errorMessage = msg
       }
     },
     // Called when role is selected
     async confirmAddUser() {
       if (!this.newShareEmail || !this.newUserRole) return
 
-      try {
-        const res = await api.post('/add_user_study_access', {
-          studyID: this.currentStudyForSharing.studyID,
-          desiredUserEmail: this.newShareEmail,
-          roleType: this.newUserRole,
-        })
+      const res = await api.post('/add_user_study_access', {
+        studyID: this.currentStudyForSharing.studyID,
+        desiredUserEmail: this.newShareEmail,
+        roleType: this.newUserRole,
+      })
 
-        if (res.status === 200) {
-          this.$toast.success('User added successfully.')
-          this.newShareEmail = ''
-          this.newUserRole = ''
-          this.showRoleSelector = false
-          this.openShareDialog(this.currentStudyForSharing) // Refresh
-        } else {
-          this.$toast.error('Failed to add user.')
-        }
-      } catch (err) {
-        console.error('Error adding user:', err)
-        const msg = err?.response?.data?.message || 'Error adding user.'
-        this.$toast.error(msg)
+      if (res.status === 200) {
+        this.$toast.success('User added successfully.')
+        this.newShareEmail = ''
+        this.newUserRole = ''
+        this.showRoleSelector = false
+        this.openShareDialog(this.currentStudyForSharing) // Refresh
+      } else {
+        this.$toast.error('Failed to add user.')
       }
     },
     async openShareDialog(study) {
