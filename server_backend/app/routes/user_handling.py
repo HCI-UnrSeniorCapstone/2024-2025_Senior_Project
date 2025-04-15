@@ -74,16 +74,16 @@ def check_user_exists():
         user_exists = """
         SELECT user_id
         FROM user
-        WHERE user.user_email = %s
+        WHERE user.email = %s
         """
 
         cur.execute(user_exists, (desired_user_email,))
         result = cur.fetchone()
 
         if result is None:
-            return jsonify(False), 200
+            return jsonify({"exists": "false"}), 200
 
-        return jsonify(True), 200
+        return jsonify({"exists": "true"}), 200
 
     except Exception as e:
         # Error message
