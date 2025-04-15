@@ -176,14 +176,21 @@ def create_app(testing=False):
     from app.routes.testing_reset_db import bp as testing_reset_db_bp
     from app.routes.user_handling import bp as user_handling
     from app.routes.trials import bp as trials_bp
+    
+    # Import analytics blueprint and init functions
     from app.routes.analytics import analytics_bp
-
+    
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
     app.register_blueprint(sessions_bp)
     app.register_blueprint(testing_reset_db_bp)
     app.register_blueprint(user_handling)
     app.register_blueprint(trials_bp)
+    
+    # Register analytics blueprint last so initialization has already happened
     app.register_blueprint(analytics_bp)
+    
+    # Log that analytics blueprint was registered
+    app.logger.info("Analytics API routes registered")
 
     return app
