@@ -214,8 +214,8 @@ def change_user_access_type():
         user_access_type = check_user_study_access(cur, study_id, current_user.id)
 
         # Not Owner
-        if user_access_type != 1:
-            return jsonify({"message": "User lacks owner access"}), 403
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User lacks owner / editor access"}), 403
 
         get_user_id = """
         SELECT user_id
@@ -223,8 +223,11 @@ def change_user_access_type():
         WHERE email = %s
         """
         cur.execute(get_user_id, (edit_user_email,))
-        user_id_result = cur.fetchone()[0]
-
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "User not found"}), 404
+        user_id_result = row[0]
+        print(user_id_result)
         # Check requested user's access type
         edit_user_current_access = check_user_study_access(
             cur, study_id, user_id_result
@@ -300,8 +303,8 @@ def add_user_study_access():
         user_access_type = check_user_study_access(cur, study_id, current_user.id)
 
         # Not Owner
-        if user_access_type != 1:
-            return jsonify({"message": "User lacks owner access"}), 403
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User cannot add others"}), 403
 
         get_user_id = """
         SELECT user_id
