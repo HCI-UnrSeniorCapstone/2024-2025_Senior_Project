@@ -2,7 +2,7 @@ import TimePerTaskMetric from './TimePerTaskMetric';
 import CompletionRateMetric from './CompletionRateMetric';
 import PValueMetric from './PValueMetric';
 
-// Registry that manages all available metrics (singleton)
+// Singleton registry for metrics
 export default class MetricRegistry {
   constructor() {
     if (MetricRegistry.instance) {
@@ -15,36 +15,36 @@ export default class MetricRegistry {
     MetricRegistry.instance = this;
   }
   
-  // Sets up the built-in metrics
+  // Register built-in metrics
   registerDefaultMetrics() {
-    // Register time metrics with different aggregations
+    // Time metrics with different aggregations
     this.register('meanTimePerTask', new TimePerTaskMetric({ aggregation: 'mean' }));
     this.register('medianTimePerTask', new TimePerTaskMetric({ aggregation: 'median' }));
     this.register('minTimePerTask', new TimePerTaskMetric({ aggregation: 'min' }));
     this.register('maxTimePerTask', new TimePerTaskMetric({ aggregation: 'max' }));
     
-    // Register other default metrics
+    // Other metrics
     this.register('completionRate', new CompletionRateMetric());
     this.register('pValue', new PValueMetric());
   }
   
-  // Add a new metric to the registry
+  // Add metric to registry
   register(key, metric) {
     this.metrics.set(key, metric);
   }
   
-  // Look up a metric by its key
+  // Get metric by key
   getMetric(key) {
     return this.metrics.has(key) ? this.metrics.get(key) : null;
   }
   
-  // Run calculation for the specified metric
+  // Calculate metric value
   calculate(key, data) {
     const metric = this.getMetric(key);
     return metric ? metric.calculate(data) : null;
   }
   
-  // Get list of all registered metrics
+  // Get all available metrics
   getAvailableMetrics() {
     const result = [];
     this.metrics.forEach((metric, key) => {

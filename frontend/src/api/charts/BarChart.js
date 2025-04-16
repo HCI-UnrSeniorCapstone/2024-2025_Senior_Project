@@ -1,10 +1,10 @@
 import ChartBase from './ChartBase';
 import * as d3 from 'd3';
 
-// Bar chart using D3.js
+// D3 bar chart implementation
 export default class BarChart extends ChartBase {
   initialize() {
-    // Create SVG element
+    // Create SVG
     this.svg = d3.select(this.container)
       .append('svg')
       .attr('width', this.options.width)
@@ -12,11 +12,11 @@ export default class BarChart extends ChartBase {
       .append('g')
       .attr('transform', `translate(${this.options.margin.left},${this.options.margin.top})`);
     
-    // Set chart dimensions
+    // Set dimensions
     this.width = this.options.width - this.options.margin.left - this.options.margin.right;
     this.height = this.options.height - this.options.margin.top - this.options.margin.bottom;
     
-    // Initialize scales
+    // Setup scales
     this.xScale = d3.scaleBand()
       .range([0, this.width])
       .padding(0.2);
@@ -24,11 +24,11 @@ export default class BarChart extends ChartBase {
     this.yScale = d3.scaleLinear()
       .range([this.height, 0]);
     
-    // Initialize axes
+    // Setup axes
     this.xAxis = d3.axisBottom(this.xScale);
     this.yAxis = d3.axisLeft(this.yScale);
     
-    // Create axes elements
+    // Create axes
     this.xAxisElement = this.svg.append('g')
       .attr('class', 'x-axis')
       .attr('transform', `translate(0,${this.height})`);
@@ -36,7 +36,7 @@ export default class BarChart extends ChartBase {
     this.yAxisElement = this.svg.append('g')
       .attr('class', 'y-axis');
     
-    // Add axis labels if provided
+    // Add labels if provided
     if (this.options.xAxisLabel) {
       this.svg.append('text')
         .attr('class', 'x-axis-label')
@@ -56,14 +56,13 @@ export default class BarChart extends ChartBase {
         .text(this.options.yAxisLabel);
     }
     
-    // Render the chart
     this.render();
   }
   
   render() {
     if (!this.data || this.data.length === 0) return;
     
-    // Update scales domains based on data
+    // Update domains
     this.xScale.domain(this.data.map(d => d.label));
     this.yScale.domain([0, d3.max(this.data, d => d.value) * 1.1]);
     
@@ -74,7 +73,7 @@ export default class BarChart extends ChartBase {
     // Remove existing bars
     this.svg.selectAll('.bar').remove();
     
-    // Add bars
+    // Draw bars
     this.svg.selectAll('.bar')
       .data(this.data)
       .enter()
@@ -92,7 +91,7 @@ export default class BarChart extends ChartBase {
         d3.select(this).attr('fill', this.options?.barColor || '#4682b4');
       });
     
-    // Add value labels if enabled
+    // Add value labels
     if (this.options.showValues) {
       this.svg.selectAll('.bar-label').remove();
       
@@ -109,7 +108,7 @@ export default class BarChart extends ChartBase {
   }
   
   destroy() {
-    // Remove the SVG element
+    // Clean up
     d3.select(this.container).select('svg').remove();
   }
 }

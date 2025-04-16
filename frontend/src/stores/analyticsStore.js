@@ -3,9 +3,7 @@ import analyticsApi from '@/api/analyticsApi';
 import MetricRegistry from '@/api/metrics/MetricRegistry';
 import CustomFormulaMetric from '@/api/metrics/CustomFormulaMetric';
 
-/**
- * Analytics store for managing data related to analytics features
- */
+// Analytics store for managing data related to analytics features
 export const useAnalyticsStore = defineStore('analytics', {
   state: () => ({
     // Data states
@@ -80,10 +78,7 @@ export const useAnalyticsStore = defineStore('analytics', {
   },
   
   actions: {
-    /**
-     * Fetch all available studies
-     * @returns {Promise<Array>} Study data
-     */
+    // Fetch all available studies
     async fetchStudies() {
       this.loading.studies = true;
       this.errors.studies = null;
@@ -110,11 +105,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Fetch summary metrics for a study
-     * @param {number|string} studyId - Study identifier
-     * @returns {Promise<Object>} Summary metrics
-     */
+    // Fetch summary metrics for a study
     async fetchSummaryMetrics(studyId) {
       this.loading.summaryMetrics = true;
       this.errors.summaryMetrics = null;
@@ -132,11 +123,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Fetch learning curve data for a study
-     * @param {number|string} studyId - Study identifier
-     * @returns {Promise<Array>} Learning curve data
-     */
+    // Fetch learning curve data for a study
     async fetchLearningCurve(studyId) {
       this.loading.learningCurve = true;
       this.errors.learningCurve = null;
@@ -154,11 +141,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Fetch task performance data for a study
-     * @param {number|string} studyId - Study identifier
-     * @returns {Promise<Array>} Task performance data
-     */
+    // Fetch task performance data for a study
     async fetchTaskPerformance(studyId) {
       this.loading.taskPerformance = true;
       this.errors.taskPerformance = null;
@@ -176,13 +159,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Fetch participant data for a study
-     * @param {number|string} studyId - Study identifier
-     * @param {number} [page=1] - Page number for pagination
-     * @param {number} [pageSize=20] - Number of items per page
-     * @returns {Promise<Object>} Participant data with pagination info
-     */
+    // Fetch participant data for a study (with pagination)
     async fetchParticipants(studyId, page = 1, pageSize = 20) {
       this.loading.participants = true;
       this.errors.participants = null;
@@ -200,11 +177,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Fetch all data for a study in parallel
-     * @param {number|string} studyId - Study identifier
-     * @returns {Promise<boolean>} Success indicator
-     */
+    // Fetch all data for a study in parallel
     async fetchAllStudyData(studyId) {
       this.loading.all = true;
       this.errors.all = null;
@@ -226,11 +199,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
-    /**
-     * Register a custom metric
-     * @param {string} key - Unique identifier for the metric
-     * @param {CustomFormulaMetric} metric - The metric instance
-     */
+    // Register a custom metric
     registerCustomMetric(key, metric) {
       this.metricRegistry.register(key, metric);
       this.customMetrics[key] = {
@@ -240,12 +209,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       };
     },
     
-    /**
-     * Calculate a custom metric with current data
-     * @param {string} metricKey - Key of the registered metric
-     * @param {number|string} studyId - Study ID to calculate for
-     * @returns {Object} Metric result
-     */
+    // Calculate a custom metric with current data
     calculateCustomMetric(metricKey, studyId) {
       // Get the requested metric from registry
       const metric = this.metricRegistry.getMetric(metricKey);
@@ -280,9 +244,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       return result;
     },
     
-    /**
-     * Reset all store data
-     */
+    // Reset all store data
     resetStore() {
       this.studies = [];
       this.summaryMetrics = {};

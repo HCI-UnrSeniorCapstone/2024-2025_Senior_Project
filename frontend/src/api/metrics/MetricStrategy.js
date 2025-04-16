@@ -1,4 +1,4 @@
-// Abstract base class for metrics calculations
+// Base metric calculation strategy
 export default class MetricStrategy {
   constructor() {
     if (this.constructor === MetricStrategy) {
@@ -6,12 +6,12 @@ export default class MetricStrategy {
     }
   }
   
-  // Calculate metric value from data (implement in subclasses)
+  // Abstract method for calculation
   calculate(data) {
     throw new Error('Method calculate() must be implemented by subclass');
   }
   
-  // Get info about this metric
+  // Metadata getter
   getMetadata() {
     return {
       name: 'Abstract Metric',
