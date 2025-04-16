@@ -3,9 +3,9 @@
     <v-card-title>
       <span class="chart-title">Task Performance Comparison</span>
       <!-- Tooltip for chart explanation -->
-      <v-tooltip bottom>
-        <template v-slot:activator="{ on, attrs }">
-          <v-icon small class="ml-2" v-bind="attrs" v-on="on">
+      <v-tooltip location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-icon small class="ml-2" v-bind="props">
             mdi-information-outline
           </v-icon>
         </template>
@@ -18,10 +18,6 @@
           <v-icon x-small left>mdi-clock-outline</v-icon>
           Time
         </v-btn>
-        <v-btn small value="success" class="px-2">
-          <v-icon x-small left>mdi-check-circle-outline</v-icon>
-          Success
-        </v-btn>
         <v-btn small value="pValue" class="px-2">
           <v-icon x-small left>mdi-function-variant</v-icon>
           P-Value
@@ -31,6 +27,18 @@
     
     <v-card-text>
       <div class="chart-container">
+        <!-- Filter message when participants are selected -->
+        <div v-if="selectedParticipantIds && selectedParticipantIds.length > 0" class="filter-message">
+          <v-chip
+            color="primary"
+            outlined
+            size="small"
+            class="mb-2"
+          >
+            {{ filterMessage }}
+          </v-chip>
+        </div>
+        
         <!-- Loading state -->
         <div v-if="loading" class="status-container">
           <v-progress-circular indeterminate color="primary" />
@@ -72,6 +80,14 @@ export default {
     error: {
       type: String,
       default: null
+    },
+    selectedParticipantIds: {
+      type: Array,
+      default: () => []
+    },
+    participantTaskData: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -90,15 +106,82 @@ export default {
       return this.data && this.data.length > 0;
     },
     
+    // Filter and process the data based on selected participants
+    filteredData() {
+      if (!this.hasData) return [];
+      
+      // If no participants are selected, use all data
+      if (!this.selectedParticipantIds || this.selectedParticipantIds.length === 0) {
+        return this.data;
+      }
+      
+      // Directly filter the data by participant ID if available
+      const directFilteredData = this.data.filter(item => 
+        item.participantId && this.selectedParticipantIds.includes(item.participantId)
+      );
+      
+      // If we have directly filtered data, use it
+      if (directFilteredData.length > 0) {
+        return directFilteredData;
+      }
+      
+      // Fallback to the old complex calculation for backward compatibility
+      // This is needed for data formats that don't include participantId directly
+      const taskMap = new Map();
+      
+      // Initialize tasks from the full data set
+      this.data.forEach(task => {
+        taskMap.set(task.taskId, {
+          ...task,
+          totalTime: 0,
+          successCount: 0,
+          totalTrials: 0,
+          participantCount: 0
+        });
+      });
+      
+      // Update with participant-specific metrics
+      if (this.participantTaskData && this.participantTaskData.length > 0) {
+        this.participantTaskData
+          .filter(item => this.selectedParticipantIds.includes(item.participantId))
+          .forEach(item => {
+            const task = taskMap.get(item.taskId);
+            if (task) {
+              task.totalTime += item.completionTime || 0;
+              task.successCount += item.isCompleted ? 1 : 0;
+              task.totalTrials += 1;
+              task.participantCount = new Set([
+                ...(task.participants || []),
+                item.participantId
+              ]).size;
+            }
+          });
+        
+        // Calculate new averages for selected participants
+        return Array.from(taskMap.values()).map(task => {
+          if (task.participantCount > 0) {
+            return {
+              ...task,
+              avgCompletionTime: task.totalTime / task.totalTrials || task.avgCompletionTime
+            };
+          }
+          return task;
+        });
+      }
+      
+      // If we don't have participantTaskData, return empty array
+      return [];
+    },
+    
     // Get the appropriate label based on selected metric
     metricLabel() {
       switch (this.selectedMetric) {
         case 'time':
           return 'Avg Time (s)';
-        case 'success':
-          return 'Success Rate (%)';
         case 'pValue':
           return 'P-Value';
+        default:
+          return 'Avg Time (s)';
       }
     },
     
@@ -107,11 +190,19 @@ export default {
       switch (this.selectedMetric) {
         case 'time':
           return '#1976D2';  // Blue
-        case 'success':
-          return '#4CAF50';  // Green
         case 'pValue':
           return '#9C27B0';  // Purple
+        default:
+          return '#1976D2';  // Blue
       }
+    },
+    
+    // Display special message when filtering by participants
+    filterMessage() {
+      if (this.selectedParticipantIds && this.selectedParticipantIds.length > 0) {
+        return `Showing data for ${this.selectedParticipantIds.length} selected participant(s)`;
+      }
+      return '';
     }
   },
   watch: {
@@ -121,6 +212,17 @@ export default {
     },
     // Update chart when metric changes
     selectedMetric() {
+      this.updateChart();
+    },
+    // Watch for changes in selected participants
+    selectedParticipantIds: {
+      handler() {
+        this.updateChart();
+      },
+      deep: true
+    },
+    // Watch for changes in filtered data
+    filteredData() {
       this.updateChart();
     }
   },
@@ -141,27 +243,34 @@ export default {
       switch (this.selectedMetric) {
         case 'time':
           return task.avgCompletionTime;
-        case 'success':
-          return task.successRate;
         case 'pValue':
           return task.pValue || 0.5;
+        default:
+          return task.avgCompletionTime; // Default to completion time
       }
       return 0;
     },
     
     // Format the value for display based on metric type
     formatValue(value) {
+      // Ensure the value is a valid number
+      if (value === undefined || value === null || isNaN(value)) {
+        return 'N/A';
+      }
+      
+      // Convert to number if it's a string
+      const numValue = typeof value === 'string' ? parseFloat(value) : value;
+      
       switch (this.selectedMetric) {
         case 'time':
-          return `${value.toFixed(1)}s`;
-        case 'success':
-          return `${value.toFixed(1)}%`;
+          return `${numValue.toFixed(1)}s`;
         case 'pValue':
           // Format p-value as percentage with significance indicator
-          const pct = (1 - value) * 100;
-          return `${pct.toFixed(1)}% ${value < 0.05 ? '★' : ''}`;
+          const pct = (1 - numValue) * 100;
+          return `${pct.toFixed(1)}% ${numValue < 0.05 ? '★' : ''}`;
+        default:
+          return typeof numValue === 'number' ? numValue.toFixed(1) : numValue;
       }
-      return value;
     },
     
     // Set up initial chart structure and containers
@@ -209,8 +318,11 @@ export default {
     updateChart() {
       if (!this.chart || !this.hasData || !this.$refs.chartContainer) return;
       
+      // Use filtered data if available, otherwise use all data
+      const sourceData = this.filteredData && this.filteredData.length > 0 ? this.filteredData : this.data;
+      
       // Sort data by the selected metric
-      const data = [...this.data].sort((a, b) => this.getMetricValue(a) - this.getMetricValue(b));
+      const data = [...sourceData].sort((a, b) => this.getMetricValue(a) - this.getMetricValue(b));
       
       // Set up x-scale for bar chart
       const x = d3.scaleBand()

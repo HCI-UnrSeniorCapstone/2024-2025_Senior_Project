@@ -23,13 +23,22 @@ function initChart() {
   
   const ctx = bubbleCanvas.value.getContext('2d');
   
-  // Format data for bubble chart
-  const bubbleData = props.participantData.map(participant => ({
-    x: participant.averageCompletionTime,
-    y: participant.pValue || 0.05, // Use p-value instead of error rate
-    r: Math.max(5, participant.completionTime / 10), // Size based on completion time
-    participantId: participant.participantId
-  }));
+  // Format data for bubble chart, adapting to backend data structure
+  const bubbleData = props.participantData.map(participant => {
+    // Calculate a size value that ensures bubbles are visible
+    const size = participant.completionTime 
+      ? Math.max(5, Math.min(30, participant.completionTime / 10)) 
+      : 10;
+      
+    return {
+      x: participant.completionTime || 0,  // X-axis: completion time 
+      y: 0.5,  // Y-axis: fixed value for simplicity
+      r: size, // Size based on completion time, with min/max bounds
+      participantId: participant.participantId,
+      // Add more data for tooltips - only include what we have
+      sessionCount: participant.sessionCount || 1
+    };
+  });
 
   if (bubbleChart) {
     bubbleChart.destroy();
@@ -57,8 +66,7 @@ function initChart() {
               return [
                 `Participant: ${data.participantId}`,
                 `Avg. Completion Time: ${data.x.toFixed(1)}s`,
-                `P-Value: ${data.y.toFixed(3)}`,
-                `Time: ${data.r * 10}s`
+                `P-Value: ${data.y.toFixed(3)}`
               ];
             }
           }
@@ -71,13 +79,13 @@ function initChart() {
         x: {
           title: {
             display: true,
-            text: 'Average Completion Time (seconds)'
+            text: 'Completion Time (seconds)'
           }
         },
         y: {
           title: {
             display: true,
-            text: 'P-Value (significance)'
+            text: 'Distribution'
           }
         }
       }

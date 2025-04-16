@@ -49,7 +49,10 @@
       <!-- Summary cards -->
       <v-row>
         <v-col cols="12">
-          <DashboardSummaryCard :study-id="selectedStudy" />
+          <DashboardSummaryCard 
+            :study-id="selectedStudy" 
+            :selected-participant-ids="selectedParticipantIds"
+          />
         </v-col>
       </v-row>
 
@@ -64,7 +67,13 @@
             </v-card-title>
             <v-divider></v-divider>
             <v-card-text>
-              <LearningCurveChart :study-id="selectedStudy" />
+              <LearningCurveChart 
+                :study-id="selectedStudy" 
+                :data="learningCurveData" 
+                :loading="loadingLearningCurve"
+                :error="learningCurveError"
+                :selected-participant-ids="selectedParticipantIds"
+              />
             </v-card-text>
           </v-card>
         </v-col>
@@ -88,7 +97,13 @@
             </v-card-title>
             <v-divider></v-divider>
             <v-card-text>
-              <TaskPerformanceComparison :study-id="selectedStudy" />
+              <TaskPerformanceComparison 
+                :study-id="selectedStudy" 
+                :data="taskPerformanceData"
+                :loading="loadingTaskPerformance"
+                :error="taskPerformanceError"
+                :selected-participant-ids="selectedParticipantIds"
+              />
             </v-card-text>
           </v-card>
         </v-col>
@@ -104,7 +119,14 @@
             </v-card-title>
             <v-divider></v-divider>
             <v-card-text>
-              <ParticipantTable :study-id="selectedStudy" />
+              <ParticipantTable 
+                :study-id="selectedStudy"
+                :participants="participantData"
+                :loading="loadingParticipants"
+                :error="participantsError"
+                @selection-change="onParticipantSelectionChange"
+                @participants-selected="onParticipantsSelected"
+              />
             </v-card-text>
           </v-card>
         </v-col>
@@ -117,7 +139,10 @@
             </v-card-title>
             <v-divider></v-divider>
             <v-card-text>
-              <ParticipantBubbleChart :study-id="selectedStudy" />
+              <ParticipantBubbleChart 
+                :study-id="selectedStudy"
+                :participantData="selectedParticipants.length > 0 ? selectedParticipants : participantData"
+              />
             </v-card-text>
           </v-card>
         </v-col>
@@ -168,7 +193,8 @@ export default {
     LearningCurveChart,
     TaskPerformanceComparison,
     ParticipantTable,
-    ParticipantBubbleChart
+    ParticipantBubbleChart,
+    CustomFormulaInput
   },
   
   setup() {
@@ -178,8 +204,24 @@ export default {
     const error = ref(false);
     const errorMessage = ref('');
     const customMetricResults = ref([]);
+    const selectedParticipantIds = ref([]);
+    const selectedParticipants = ref([]);
+    
+    // Computed properties for accessing store data
+    const learningCurveData = computed(() => analyticsStore.getLearningCurveData || []);
+    const loadingLearningCurve = computed(() => analyticsStore.isLoadingLearningCurve);
+    const learningCurveError = computed(() => analyticsStore.getLearningCurveError);
+    
+    const taskPerformanceData = computed(() => analyticsStore.getTaskPerformanceData || []);
+    const loadingTaskPerformance = computed(() => analyticsStore.isLoadingTaskPerformance);
+    const taskPerformanceError = computed(() => analyticsStore.getTaskPerformanceError);
+    
+    const participantData = computed(() => analyticsStore.getParticipantData?.data || []);
+    const loadingParticipants = computed(() => analyticsStore.isLoadingParticipants);
+    const participantsError = computed(() => analyticsStore.getParticipantsError);
     
     const onStudySelected = async (studyId) => {
+      console.log('Study selected:', studyId);
       selectedStudy.value = studyId;
       if (studyId) {
         await loadStudyData(studyId);
@@ -247,16 +289,55 @@ export default {
       }
     };
     
+    // Handle participant selection changes
+    const onParticipantSelectionChange = (selectedIds) => {
+      console.log('DataAnalytics: Selected participant IDs:', selectedIds);
+      
+      // Ensure we're working with numbers for IDs
+      selectedParticipantIds.value = selectedIds.map(id => 
+        typeof id === 'string' ? parseInt(id, 10) : id
+      );
+      
+      console.log('DataAnalytics: Updated selectedParticipantIds:', selectedParticipantIds.value);
+    };
+    
+    // Handle participants selected with full data
+    const onParticipantsSelected = (participants) => {
+      console.log('DataAnalytics: Selected participants data:', 
+        participants.map(p => ({id: p.participantId, time: p.completionTime})));
+      
+      selectedParticipants.value = participants;
+      
+      // Force a refresh of the computed properties that depend on selected participants
+      // by making a shallow copy of the array
+      selectedParticipantIds.value = [...selectedParticipantIds.value];
+    };
+    
     return {
+      analyticsStore,
       selectedStudy,
       loading,
       error,
       errorMessage,
       customMetricResults,
+      selectedParticipantIds,
+      selectedParticipants,
       onStudySelected,
       onFormulaApplied,
       retryLoading,
-      exportData
+      exportData,
+      onParticipantSelectionChange,
+      onParticipantsSelected,
+      // Expose computed properties
+      learningCurveData,
+      loadingLearningCurve,
+      learningCurveError,
+      taskPerformanceData,
+      loadingTaskPerformance,
+      taskPerformanceError,
+      participantData,
+      loadingParticipants,
+      participantsError
     };
   }
 };

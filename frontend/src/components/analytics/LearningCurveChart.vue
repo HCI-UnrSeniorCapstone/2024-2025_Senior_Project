@@ -3,9 +3,9 @@
     <v-card-title>
       <span class="chart-title">Learning Curve</span>
       <!-- Simple tooltip to explain the chart -->
-      <v-tooltip bottom>
-        <template v-slot:activator="{ on, attrs }">
-          <v-icon small class="ml-2" v-bind="attrs" v-on="on">
+      <v-tooltip location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-icon small class="ml-2" v-bind="props">
             mdi-information-outline
           </v-icon>
         </template>
@@ -68,6 +68,10 @@ export default {
     error: {
       type: String,
       default: null
+    },
+    selectedParticipantIds: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -86,15 +90,33 @@ export default {
       return this.data && this.data.length > 0;
     },
     
+    // Filter data based on selected participants if any
+    filteredData() {
+      if (!this.hasData) return [];
+      
+      // If no participants are selected, use all data
+      if (!this.selectedParticipantIds || this.selectedParticipantIds.length === 0) {
+        return this.data;
+      }
+      
+      // Filter data to include only selected participants
+      return this.data.filter(item => 
+        this.selectedParticipantIds.includes(item.participantId)
+      );
+    },
+    
     // Process the data based on selected view
     processedData() {
       if (!this.hasData) return [];
+      
+      // Use filtered data instead of all data
+      const dataToProcess = this.filteredData.length > 0 ? this.filteredData : this.data;
       
       if (this.selectedView === 'all') {
         // For all tasks view: average completion times across attempts
         const attemptMap = new Map();
         
-        this.data.forEach(item => {
+        dataToProcess.forEach(item => {
           if (!attemptMap.has(item.attempt)) {
             attemptMap.set(item.attempt, {
               attempt: item.attempt,
@@ -105,7 +127,7 @@ export default {
           
           const entry = attemptMap.get(item.attempt);
           entry.times.push(item.completionTime);
-          entry.errors.push(item.errorCount);
+          entry.errors.push(item.errorCount || 0);
         });
         
         return Array.from(attemptMap.values())
@@ -119,7 +141,7 @@ export default {
         // For individual tasks view: group by task
         const taskMap = new Map();
         
-        this.data.forEach(item => {
+        dataToProcess.forEach(item => {
           if (!taskMap.has(item.taskId)) {
             taskMap.set(item.taskId, []);
           }
@@ -130,12 +152,16 @@ export default {
         const result = [];
         
         taskMap.forEach((items, taskId) => {
-          const taskData = items.sort((a, b) => a.attempt - b.attempt);
-          result.push({
-            taskId,
-            taskName: taskData[0].taskName,
-            data: taskData
-          });
+          // Make sure we have items with this task ID 
+          // (filtering by participant might result in empty arrays)
+          if (items.length > 0) {
+            const taskData = items.sort((a, b) => a.attempt - b.attempt);
+            result.push({
+              taskId,
+              taskName: taskData[0].taskName,
+              data: taskData
+            });
+          }
         });
         
         return result;
@@ -152,6 +178,13 @@ export default {
     },
     data() {
       this.updateChart();
+    },
+    // Watch for changes in selected participants
+    selectedParticipantIds: {
+      handler() {
+        this.updateChart();
+      },
+      deep: true
     }
   },
   mounted() {

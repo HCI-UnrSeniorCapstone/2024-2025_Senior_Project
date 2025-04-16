@@ -89,11 +89,20 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.errors.studies = null;
       
       try {
+        console.log('Store: Fetching studies...');
         const studies = await analyticsApi.getStudies();
+        
+        // Reset studies array to ensure no duplicates
+        this.studies = [];
+        
+        // Add the new studies
         this.studies = studies;
+        console.log('Store: Studies updated with ', studies.length, 'items');
+        
         this.lastUpdated.studies = new Date().toISOString();
         return studies;
       } catch (error) {
+        console.error('Store: Error fetching studies:', error);
         this.errors.studies = error.message || 'Error fetching studies';
         throw error;
       } finally {

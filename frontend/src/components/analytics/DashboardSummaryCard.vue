@@ -47,6 +47,10 @@ export default {
     studyId: {
       type: [Number, String],
       required: true
+    },
+    selectedParticipantIds: {
+      type: Array,
+      default: () => []
     }
   },
   
@@ -55,13 +59,7 @@ export default {
     const loading = ref(false);
     const error = ref(false);
     
-    // Load data when component mounts or studyId changes
-    watch(() => props.studyId, (newId) => {
-      if (newId) {
-        loadData(newId);
-      }
-    }, { immediate: true });
-    
+    // Define loadData function first before using it
     const loadData = async (studyId) => {
       loading.value = true;
       error.value = false;
@@ -76,21 +74,166 @@ export default {
       }
     };
     
+    // After defining loadData, set up the watcher
+    watch(() => props.studyId, (newId) => {
+      if (newId) {
+        loadData(newId);
+      }
+    }, { immediate: true });
+    
     // Get metrics from store
     const metrics = computed(() => {
       const summaryData = analyticsStore.getSummaryMetrics;
-      return summaryData.metrics || [];
+      
+      // If no participant filtering is applied, return the original metrics
+      if (!props.selectedParticipantIds || props.selectedParticipantIds.length === 0) {
+        console.log('DashboardSummaryCard: No participant filtering applied');
+        return summaryData.metrics || [];
+      }
+      
+      console.log('DashboardSummaryCard: Filtering by participants:', props.selectedParticipantIds);
+      
+      // Get participant data to filter metrics
+      const participantData = analyticsStore.getParticipantData?.data || [];
+      
+      // If no participant data available, return original metrics
+      if (!participantData.length) {
+        console.log('DashboardSummaryCard: No participant data available');
+        return summaryData.metrics || [];
+      }
+      
+      console.log('DashboardSummaryCard: Available participants:', 
+        participantData.map(p => ({id: p.participantId, time: p.completionTime})));
+      
+      // Filter participants by selected IDs
+      const filteredParticipants = participantData.filter(p => 
+        props.selectedParticipantIds.includes(p.participantId)
+      );
+      
+      console.log('DashboardSummaryCard: Filtered participants (detailed):', 
+        filteredParticipants.map(p => ({
+          id: p.participantId, 
+          time: p.completionTime,
+          timeType: typeof p.completionTime,
+          timeValue: Number(p.completionTime)
+        })));
+      
+      // If no filtered participants, return original metrics
+      if (!filteredParticipants.length) {
+        return summaryData.metrics || [];
+      }
+      
+      // Create filtered metrics based on selected participants
+      const metricsArray = [...(summaryData.metrics || [])];
+      
+      // Calculate new average values - handle missing or invalid values with detailed logging
+      const validCompletionTimes = [];
+      
+      filteredParticipants.forEach(p => {
+        // Convert to number and validate
+        let time = null;
+        if (typeof p.completionTime === 'string') {
+          time = parseFloat(p.completionTime);
+        } else if (typeof p.completionTime === 'number') {
+          time = p.completionTime;
+        }
+        
+        console.log(`Participant ${p.participantId}: Raw time=${p.completionTime}, Parsed time=${time}`);
+        
+        if (time !== null && !isNaN(time)) {
+          validCompletionTimes.push(time);
+        }
+      });
+      
+      console.log('DashboardSummaryCard: Valid completion times:', validCompletionTimes);
+      
+      // Default to 0 if no valid times
+      let avgCompletionTime = 0;
+      
+      // Only calculate average if we have valid time values
+      if (validCompletionTimes.length > 0) {
+        try {
+          // Convert all values to numbers and sum them
+          const sum = validCompletionTimes.reduce((total, time) => {
+            // Convert to number if it's a string
+            const numTime = typeof time === 'string' ? parseFloat(time) : time;
+            console.log(`Adding time: ${time} (${typeof time}) -> ${numTime}`);
+            
+            // Only add if it's a valid number
+            return !isNaN(numTime) ? total + numTime : total;
+          }, 0);
+          
+          // Calculate average only if sum is valid
+          if (!isNaN(sum) && validCompletionTimes.length > 0) {
+            avgCompletionTime = sum / validCompletionTimes.length;
+            console.log(`Sum=${sum}, Count=${validCompletionTimes.length}, Avg=${avgCompletionTime}`);
+          } else {
+            console.error('Invalid sum or count when calculating average time');
+          }
+        } catch (error) {
+          console.error('Error calculating average time:', error);
+        }
+      }
+      
+      // Update the metrics
+      // Create updated metrics
+      return metricsArray.map(metric => {
+        if (metric.title === 'Participants') {
+          return { 
+            ...metric, 
+            value: filteredParticipants.length
+          };
+        } else if (metric.title === 'Avg Completion Time') {
+          // Ensure the value is a valid number
+          const timeValue = isNaN(avgCompletionTime) ? 0 : avgCompletionTime;
+          console.log(`Setting Avg Completion Time to: ${timeValue}`);
+          
+          return { 
+            ...metric, 
+            value: timeValue
+          };
+        }
+        return metric;
+      });
     });
     
     // Format the value based on metric title
     const formatValue = (value, title) => {
       if (value === undefined || value === null) return '–';
+      console.log(`Formatting value for ${title}:`, value, typeof value);
       
-      if (title === 'Success Rate') {
-        return typeof value === 'string' ? value : `${value.toFixed(1)}%`;
-      } else if (title === 'Avg Completion Time') {
-        return typeof value === 'string' ? value : `${value.toFixed(2)}s`;
-      } else {
+      // Handle 'Avg Completion Time' specially
+      if (title === 'Avg Completion Time') {
+        // Convert to number, handle strings and NaN
+        let numValue = value;
+        if (typeof value === 'string') {
+          numValue = parseFloat(value);
+        }
+        
+        // Check if valid number
+        if (numValue === undefined || numValue === null || isNaN(numValue)) {
+          console.log('Invalid time value:', value);
+          return 'N/A';
+        }
+        
+        console.log('Formatting time value:', numValue);
+        
+        // Format seconds nicely
+        if (numValue < 60) {
+          return `${numValue.toFixed(1)} sec`;
+        } else {
+          const minutes = Math.floor(numValue / 60);
+          const seconds = Math.round(numValue % 60);
+          return `${minutes}:${seconds.toString().padStart(2, '0')} min`;
+        }
+      } 
+      // Handle P-Value
+      else if (title === 'P-Value') {
+        const numValue = typeof value === 'string' ? parseFloat(value) : value;
+        return isNaN(numValue) ? 'N/A' : `${numValue.toFixed(3)}`;
+      } 
+      // Default formatting
+      else {
         return value;
       }
     };
@@ -126,8 +269,7 @@ export default {
       const icons = {
         'Participants': 'mdi-account-group',
         'Avg Completion Time': 'mdi-clock-outline',
-        'Success Rate': 'mdi-check-circle-outline',
-        'Avg Error Count': 'mdi-alert-circle-outline'
+        'P-Value': 'mdi-function-variant'
       };
       return icons[title] || 'mdi-chart-box';
     };
@@ -137,8 +279,7 @@ export default {
       switch (title) {
         case 'Participants': return 'card-participants';
         case 'Avg Completion Time': return 'card-time';
-        case 'Success Rate': return 'card-success';
-        case 'Avg Error Count': return 'card-error';
+        case 'P-Value': return 'card-pvalue';
         default: return '';
       }
     };
@@ -148,8 +289,7 @@ export default {
       switch (title) {
         case 'Participants': return 'icon-participants';
         case 'Avg Completion Time': return 'icon-time';
-        case 'Success Rate': return 'icon-success';
-        case 'Avg Error Count': return 'icon-error';
+        case 'P-Value': return 'icon-pvalue';
         default: return '';
       }
     };
@@ -159,8 +299,7 @@ export default {
       switch (title) {
         case 'Participants': return 'value-participants';
         case 'Avg Completion Time': return 'value-time';
-        case 'Success Rate': return 'value-success';
-        case 'Avg Error Count': return 'value-error';
+        case 'P-Value': return 'value-pvalue';
         default: return '';
       }
     };
@@ -215,12 +354,8 @@ export default {
   border-top: 3px solid #4CAF50;
 }
 
-.card-success {
-  border-top: 3px solid #2196F3;
-}
-
-.card-error {
-  border-top: 3px solid #F44336;
+.card-pvalue {
+  border-top: 3px solid #9C27B0; /* Purple for P-Value */
 }
 
 /* Icon theme colors */
@@ -234,14 +369,9 @@ export default {
   color: #4CAF50;
 }
 
-.icon-success {
-  background-color: rgba(33, 150, 243, 0.15);
-  color: #2196F3;
-}
-
-.icon-error {
-  background-color: rgba(244, 67, 54, 0.15);
-  color: #F44336;
+.icon-pvalue {
+  background-color: rgba(156, 39, 176, 0.15);
+  color: #9C27B0;
 }
 
 /* Value theme colors */
@@ -253,11 +383,7 @@ export default {
   color: #4CAF50;
 }
 
-.value-success {
-  color: #2196F3;
-}
-
-.value-error {
-  color: #F44336;
+.value-pvalue {
+  color: #9C27B0;
 }
 </style>

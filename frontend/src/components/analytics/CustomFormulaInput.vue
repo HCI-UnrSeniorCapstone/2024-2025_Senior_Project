@@ -3,9 +3,9 @@
     <v-card-title class="d-flex align-center">
       <v-icon icon="mdi-function-variant" class="me-2"></v-icon>
       Custom Formula
-      <v-tooltip bottom>
-        <template v-slot:activator="{ on, attrs }">
-          <v-icon small class="ml-2" v-bind="attrs" v-on="on">
+      <v-tooltip location="bottom">
+        <template v-slot:activator="{ props }">
+          <v-icon small class="ml-2" v-bind="props">
             mdi-information-outline
           </v-icon>
         </template>

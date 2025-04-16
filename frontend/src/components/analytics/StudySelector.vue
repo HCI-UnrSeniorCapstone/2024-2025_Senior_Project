@@ -88,6 +88,8 @@ export default {
     
     // Computed property to format studies for the dropdown
     const studyOptions = computed(() => {
+      console.log('Building study options list with', analyticsStore.getStudies.length, 'studies');
+      // Map studies from store to dropdown options
       return analyticsStore.getStudies.map(study => ({
         id: study.id,
         name: study.name,
