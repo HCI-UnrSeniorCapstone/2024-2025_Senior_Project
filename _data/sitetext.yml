@@ -58,19 +58,19 @@ en: &DEFAULT_EN
             icon: fab fa-linkedin-in
       - name: "Brandon Rowell"
         role: "Undergraduate"
-        image: assets/img/team/brandon.jpeg
+        image: /images/view at your own leisure.jpg
       - name: "Heather Zechter"
         role: "Undergraduate"
-        image: assets/img/team/500x500.jpg
+        image: /images/view at your own leisure.jpg
       - name: "Vinh Le"
         role: "Advisor (UNR)"
-        image: assets/img/team/500x500.jpg
+        image: /images/view at your own leisure.jpg
         social:
           - url: https://www.linkedin.com/in/vdacle/
             icon: fab fa-linkedin-in
       - name: "Levi Scully"
         role: "Advisor (UNR)"
-        image: assets/img/team/500x500.jpg
+        image: /images/view at your own leisure.jpg
         social:
           - url: https://www.linkedin.com/in/levi-scully/
             icon: fab fa-linkedin-in
