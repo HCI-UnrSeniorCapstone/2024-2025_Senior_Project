@@ -2,7 +2,7 @@ en: &DEFAULT_EN
   header:
     title: Welcome to our Site!
     text: It's Nice To Meet You
-    button: Learn more about Fulcrum
+    button: Learn more about Fulcrum, a UNR CS 426 Senior Project in Computer Science for Spring 2025 under the CSE Department
     buttonlink: "#services"
 
   services:
