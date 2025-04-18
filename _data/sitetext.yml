@@ -37,17 +37,17 @@ This resource provides an overview of Human-Computer Interaction (HCI), a multid
       - title: "Intro to HCI"
         year: ""
         desc: "[Interaction Design Foundation](https://www.interaction-design.org/literature/topics/human-computer-interaction) provides a foundational overview of human-computer interaction concepts."
-        image: "assets/img/timeline/1.jpg"
+        image: "assets/img/timeline/hci intro.png"
         alt: "Interaction Design"
       - title: "Between vs. Within"
         year: ""
         desc: "This [Nielsen Norman Group article](https://www.nngroup.com/articles/between-within-subjects/) explains the differences between between-subjects and within-subjects study designs in research."
-        image: "assets/img/timeline/2.jpg"
+        image: "assets/img/timeline/between vs within.jpg"
         alt: "Study Design Comparison"
       - title: "Current HCI Studies"
         year: ""
         desc: '[Browse the latest journal articles](https://www.tandfonline.com/toc/hihc20/current) in the *International Journal of Human–Computer Interaction*.'
-        image: "assets/img/timeline/3.jpg"
+        image: "assets/img/timeline/latest journal.png"
         alt: "Academic Journal"
 
 
