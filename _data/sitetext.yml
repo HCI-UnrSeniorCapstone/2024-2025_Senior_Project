@@ -1,14 +1,3 @@
-#
-# Work based on https://github.com/mmistakes/minimal-mistakes/blob/master/_data/ui-text.yml
-#
-# Configuration: Add to _config.yml
-# locale: "en-US"  [YOUR PREFERRED LOCALE]
-#
-# How to use:
-# {{ site.data.ui-text[site.locale].<var_name> | default: 'text' }}
-
-# English (default)
-# -----------------
 en: &DEFAULT_EN
   header:
     title: Welcome to our Site!
@@ -23,7 +12,7 @@ en: &DEFAULT_EN
     list:
       - title: "Study Creation"
         desc: "Simplified setup of HCI studies, including tasks, factors, descriptions, limits, etc."
-        icon: fas fa-clipboard-list #find more at https://fontawesome.com/icons
+        icon: fas fa-clipboard-list
       - title: "Session Tracking"
         desc: "Participant session execution through mouse and keyboard tracking."
         icon: fas fa-laptop
@@ -31,74 +20,29 @@ en: &DEFAULT_EN
         desc: "Visual breakdowns of study session data"
         icon: fas fa-chart-bar
 
-  # portfolio:
-  #   title: "Portfolio"
-  #   text: "Lorem ipsum dolor sit amet consectetur."
-  #   section: portfolio
-  #   closebutton: "Close Project"
-
   timeline:
     title: "Project Related Resources"
     text: "Learn more about HCI research!"
     body: "**Between-Subjects vs. Within-Subjects Designs**  
   [NNGroup: Between-Subjects vs. Within-Subjects](https://www.nngroup.com/articles/between-within-subjects/)  
-  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.\n\n**Human-Computer Interaction (HCI)**  
+  This article from the Nielsen Norman Group explains the differences between between-subjects and within-subjects experimental designs, their advantages, disadvantages, and how to choose the right approach for usability testing and research.
+
+**Human-Computer Interaction (HCI)**  
   [Interaction Design Foundation: Human-Computer Interaction (HCI)](https://www.interaction-design.org/literature/topics/human-computer-interaction)  
-  This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."  
-
-
+  This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."
     section: resources
-  #   # left is the default
-  #   #start_align: "left"
-  #   events:
-  #     - title: "Our Humble Beginnings"
-  #       year: "2009-2011"
-  #       desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sunt ut voluptatum eius sapiente, totam reiciendis temporibus qui quibusdam, recusandae sit vero unde, sed, incidunt et ea quo dolore laudantium consectetur!"
-  #       image: assets/img/timeline/1.jpg
-  #       alt:
-  #     - title: "An Agency is Born"
-  #       year: "March 2011"
-  #       desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sunt ut voluptatum eius sapiente, totam reiciendis temporibus qui quibusdam, recusandae sit vero unde, sed, incidunt et ea quo dolore laudantium consectetur!"
-  #       image: assets/img/timeline/2.jpg
-  #       alt:
-  #     - title: "Jekyll Theme is created"
-  #       year: "2019"
-  #       desc: "Ravi Riley converted Agency, a Bootstrap-based theme, into a Jekyll theme. The Jekyll theme can be installed as a Ruby gem, or remotely. For more information, visit the documentation."
-  #       image: assets/img/timeline/3.jpg
-  #       alt: image alt text
-  #     - title: "Title"
-  #       year: "2009-2011"
-  #       desc: "Your description here, **Markdown** is fully supported."
-  #       image: assets/img/timeline/4.jpg
-  #       alt:
-  #       # you can enforce the alignment
-  #       align: right
-  #   end: "Be Part <br> of Our <br> Story!"
 
   about:
     title: "About Us"
     text: "Our story"
-    body: "Nicholas Jarvis and Brandon Rowell are students at the **University of Nevada, Reno** developing Fulcrum for their CS 426 Senior Project in Computer Science, Spring 2025 of the UNR CSE Department. Vinh Le and Levi Scully are UNR students serving as project advisors. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23.
-    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis and Brandon Rowell make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator. \n\nThe project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies. "
-    section: about
+    body: "Nicholas Jarvis, Brandon Rowell, and Heather Zecther are students at the **University of Nevada, Reno** developing Fulcrum for their CS 426 Senior Project in Computer Science, Spring 2025 of the UNR CSE Department. Vinh Le and Levi Scully are UNR students serving as project advisors. Dave Feil-Seifer, Sara Davis, and Vinh Le are course instructors. The team identifies themselves by the project name, Fulcrum, and as Team 23.  
+    Fulcrum is a web-based platform for performing HCI research studies, primarily by UNR graduate students. Nicholas Jarvis and Brandon Rowell make up the development team. Vinh Le serves as the project advisor/sponsor with Levi Scully working as a collaborator.  
+  
+    The project’s tech stack consists of: Vue3 for frontend, Flask for middleware, Python for backend, and MySQL for the database. A University linux VM operates as the server backend and database. Fulcrum offers users tools for study creation, session execution, data collection through various tracking mechanisms, and analytics. Offering customization and streamlining researcher workflows are the main focal points of the project, providing users a standardized solution/toolbox for conducting HCI studies."
 
-  # clients:
-  #   section: clients
-  #   max-height: 100px
-  #   horizontal-scrolling: "" #"yes/no"
-  #   list:
-  #     - title: "envato"
-  #       url: https://github.com/raviriley/agency-jekyll-theme
-  #       logo: assets/img/clients/envato.jpg
-  #     - title: "designmodo"
-  #       url: https://github.com/raviriley/agency-jekyll-theme
-  #       logo: assets/img/clients/designmodo.jpg
-  #     - title: "themeforest"
-  #       url: https://github.com/raviriley/agency-jekyll-theme
-  #       logo: assets/img/clients/themeforest.jpg
-  #     - title: "Creative Market"
-  #       url: https://github.com/raviriley/agency-jekyll-theme
-  #       logo: assets/img/clients/creative-market.jpg
+    short: "Fulcrum solves a key problem in human-computer interaction (HCI) research — the need to master and coordinate multiple tools throughout the research process. This platform emerged from observing researchers struggle to integrate disparate systems across their studies. The proposed solution combines study design, participant sessions, data collection, and analysis in a single web-based platform. Researchers maintain full control over study customization while establishing consistent processes that improve study quality. A minimal dashboard presents study results through clear visualizations that highlight patterns in learning, task performance, and user behavior. By bringing everything together, research teams spend more time on research and less time managing technology. Built with current web technologies, Fulcrum adapts to different research approaches rather than forcing researchers to change their methods. The system supports both today's needs and tomorrow's analytical possibilities. The booth demonstration shows Fulcrum in action within actual research settings, illustrating how this unified approach makes HCI studies more efficient and effective."
+
+    section: about
 
   team:
     title: "OUR AMAZING TEAM"
@@ -115,15 +59,9 @@ en: &DEFAULT_EN
       - name: "Brandon Rowell"
         role: "Undergraduate"
         image: assets/img/team/brandon.jpeg
-        # social:
-        #   - url: https://linkedin.com
-        #     icon: fab fa-linkedin-in
-      - name: "Heather Z."
+      - name: "Heather Zechter"
         role: "Undergraduate"
         image: assets/img/team/500x500.jpg
-        # social:
-        #   - url: https://linkedin.com
-        #     icon: fab fa-linkedin-in
       - name: "Vinh Le"
         role: "Advisor (UNR)"
         image: assets/img/team/500x500.jpg
@@ -137,34 +75,9 @@ en: &DEFAULT_EN
           - url: https://www.linkedin.com/in/levi-scully/
             icon: fab fa-linkedin-in
 
-  contact:
-    title: "Contact Us"
-    text: "Ask us questions about Fulcrum!"
-    section: contact
-    name: "Name*"
-    name-validation: "Please enter your name."
-    email: "Email*"
-    email-validation: "Please enter your email address."
-    phone: "Phone Number"
-    phone-validation: "Please enter your phone number."
-    message: "Message*"
-    message-validation: "Please enter a message."
-    subject: "Contact Form Submission"
-    submit: "Send Message"
-
   footer:
     legal: "Privacy Policy"
-    # social:
-    #   - url: https://twitter.com
-    #     icon: "fab fa-twitter"
-    #   - url: https://facebook.com
-    #     icon: "fab fa-facebook-f"
-    #   - url: https://linkedin.com
-    #     icon: "fab fa-linkedin-in"
-    #   - url: https://github.com/raviriley/agency-jekyll-theme
-    #     icon: "fab fa-github"
-    #   - url: https://instagram.com
-    #     icon: "fab fa-instagram"
+
 en-US:
   <<: *DEFAULT_EN
 en-CA:
@@ -173,158 +86,3 @@ en-GB:
   <<: *DEFAULT_EN
 en-AU:
   <<: *DEFAULT_EN
-
-# Spanish
-# -------
-# es: &DEFAULT_ES
-#   header:
-#     title: ¡Bienvenido a nuestro Estudio!
-#     text: Es un placer conocerle
-#     button: Ver más
-#     buttonlink: "#servicios"
-
-#   services:
-#     title: "Servicios"
-#     text: "Lorem ipsum"
-#     section: servicios
-#     list:
-#       - title: "Comercio Electrónico"
-#         desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minima maxime quam architecto quo inventore harum ex magni, dicta impedit."
-#         icon: fas fa-shopping-cart #find more at https://fontawesome.com/icons
-#       - title: "Diseño Responsivo"
-#         desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minima maxime quam architecto quo inventore harum ex magni, dicta impedit."
-#         icon: fas fa-laptop
-#       - title: "[Markdown](https://en.wikipedia.org/wiki/Markdown)"
-#         desc: "Su descripción aquí, soporte completo de **Markdown**"
-#         icon: fab fa-markdown
-
-#   portfolio:
-#     title: "Portafolio"
-#     text: "Lorem ipsum dolor sit amet consectetur."
-#     section: portafolio
-#     closebutton: "Cerrar Proyecto"
-
-#   timeline:
-#     title: "Cronología"
-#     text: "Lorem ipsum timeline"
-#     section: cronologia
-#     # left is the default
-#     #start_align: "left"
-#     events:
-#       - title: "Nuestro Humilde Comienzo"
-#         year: "2009-2011"
-#         desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sunt ut voluptatum eius sapiente, totam reiciendis temporibus qui quibusdam, recusandae sit vero unde, sed, incidunt et ea quo dolore laudantium consectetur!"
-#         image: assets/img/timeline/1.jpg
-#         alt:
-#       - title: "Una Agencia nace"
-#         year: "March 2011"
-#         desc: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Sunt ut voluptatum eius sapiente, totam reiciendis temporibus qui quibusdam, recusandae sit vero unde, sed, incidunt et ea quo dolore laudantium consectetur!"
-#         image: assets/img/timeline/2.jpg
-#         alt:
-#       - title: "La plantilla Jekyll es creada"
-#         year: "2019"
-#         desc: "Ravi Riley convirtió Agency, una plantilla basada en Bootstrap, en una plantilla de Jekyll. La plantilla Jekyll puede ser instalada commo una gema de Ruby (Ruby gem) o remotamente. Para más información, visite la documentación."
-#         image: assets/img/timeline/3.jpg
-#         alt: image alt text
-#       - title: "Título"
-#         year: "2009-2011"
-#         desc: "Su descripción aquí, **Markdown** es soportado completamente."
-#         image: assets/img/timeline/4.jpg
-#         alt:
-#         # you can enforce the alignment
-#         align: right
-#     end: "¡Se parte <br> de Nuestra <br> Historia!"
-
-#   about:
-#     title: "Sobre nosotros"
-#     text: "nuestra historia"
-#     body: "Lorem ipsum dolor sit amet, consectetur adipisicing elit. Aut eaque, laboriosam veritatis, quos non quis ad perspiciatis, totam corporis ea, alias ut unde. **Markdown** supported."
-#     section: nosotros
-
-#   clients:
-#     section: clientes
-#     max-height: 100px
-#     horizontal-scrolling: "" #"yes/no"
-#     list:
-#       - title: "envato"
-#         url: https://github.com/raviriley/agency-jekyll-theme
-#         logo: assets/img/clients/envato.jpg
-#       - title: "designmodo"
-#         url: https://github.com/raviriley/agency-jekyll-theme
-#         logo: assets/img/clients/designmodo.jpg
-#       - title: "themeforest"
-#         url: https://github.com/raviriley/agency-jekyll-theme
-#         logo: assets/img/clients/themeforest.jpg
-#       - title: "Creative Market"
-#         url: https://github.com/raviriley/agency-jekyll-theme
-#         logo: assets/img/clients/creative-market.jpg
-
-#   team:
-#     title: "NUESTRO INCREÍBLE EQUIPO"
-#     text: "Lorem ipsum dolor sit amet consectetur."
-#     subtext: Lorem ipsum dolor sit amet, consectetur adipisicing elit. Aut eaque, laboriosam veritatis, quos non quis ad perspiciatis, totam corporis ea, alias ut unde. **Markdown** supported.
-#     section: equipo
-#     people:
-#       - name: "Kay Garland"
-#         role: "Lead Designer"
-#         image: assets/img/team/500x500.jpg
-#         social:
-#           - url: https://twitter.com
-#             icon: fab fa-twitter
-#           - url: https://facebook.com
-#             icon: fab fa-facebook-f
-#           - url: https://linkedin.com
-#             icon: fab fa-linkedin-in
-#       - name: "Larry Parker"
-#         role: "Lead Marketer"
-#         image: assets/img/team/2.jpg
-#         social:
-#           - url: https://twitter.com
-#             icon: fab fa-twitter
-#           - url: https://facebook.com
-#             icon: fab fa-facebook-f
-#           - url: https://linkedin.com
-#             icon: fab fa-linkedin-in
-#       - name: "Diana Perterson"
-#         role: "Lead Developer"
-#         image: assets/img/team/500x500.jpg
-#         social:
-#           - url: https://twitter.com
-#             icon: fab fa-twitter
-#           - url: https://facebook.com
-#             icon: fab fa-facebook-f
-#           - url: https://linkedin.com
-#             icon: fab fa-linkedin-in
-
-#   contact:
-#     title: "Contáctenos"
-#     text: "Lorem ipsum or call 123456789"
-#     section: contacto
-#     name: "Nombre*"
-#     name-validation: "Por favor ingrese su nombre."
-#     email: "Correo Electrónico*"
-#     email-validation: "Por favor ingrese su correo electrónico."
-#     phone: "Número Telefónico*"
-#     phone-validation: "Por favor ingrese su número telefónico."
-#     message: "Mensaje*"
-#     message-validation: "Por favor escriba un mensaje."
-#     subject: "Envío del formulario de contacto"
-#     submit: "Enviar Mensaje"
-
-#   footer:
-#     legal: "Política de Privacidad"
-#     social:
-#       - url: https://twitter.com
-#         icon: "fab fa-twitter"
-#       - url: https://facebook.com
-#         icon: "fab fa-facebook-f"
-#       - url: https://linkedin.com
-#         icon: "fab fa-linkedin-in"
-#       - url: https://github.com/raviriley/agency-jekyll-theme
-#         icon: "fab fa-github"
-#       - url: https://instagram.com
-#         icon: "fab fa-instagram"
-# es-ES:
-#   <<: *DEFAULT_ES
-# es-CO:
-#   <<: *DEFAULT_ES
