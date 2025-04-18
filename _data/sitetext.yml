@@ -54,7 +54,7 @@ This resource provides an overview of Human-Computer Interaction (HCI), a multid
 
   about:
     title: "About Us"
-    text: "Team 23 | Our story"
+    text: "Team 23 | Our story "
     body: "Fulcrum is a web-based platform designed to solve a key challenge in human-computer interaction (HCI) research: the need to coordinate multiple tools throughout the research process. This project emerged from observing researchers struggle to integrate fragmented systems for study design, data collection, session execution, and analysis. Fulcrum addresses this gap by offering a unified environment that allows researchers to build custom studies, manage participant sessions, and view results through clear visualizations — all from a single, centralized dashboard.
 
 The system emphasizes researcher flexibility and control. Rather than forcing users to conform to a rigid workflow, Fulcrum adapts to various HCI methodologies and research approaches. Built using modern web technologies, the platform supports both current academic needs and future analytical capabilities. Its goal is to reduce the technical overhead of research so that teams can spend more time focusing on insights, not infrastructure.
