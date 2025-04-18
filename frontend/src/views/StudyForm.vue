@@ -120,17 +120,25 @@
               >
             </div>
 
-            <!-- Forms/Uploads Component -->
+            <!-- Forms/Uploads Section -->
             <h3 class="text-h6 font-weight-bold mb-2">Forms / Uploads</h3>
             <div class="text-medium-emphasis">
               (All file uploads below are optional)
             </div>
             <v-card class="pa-4 mb-6">
-              <FormsUploads
-                v-model:consentForm="consentForm"
-                v-model:preSurveyFile="preSurveyFile"
-                v-model:postSurveyFile="postSurveyFile"
+              <ConsentUpload
+                v-model:consentUpload="consentUpload"
                 v-model:showConsentPreview="showConsentPreview"
+              />
+              <SurveyUploads
+                v-model:preSurveyUpload="preSurveyUpload"
+                v-model:postSurveyUpload="postSurveyUpload"
+                @update:parsedPreSurveyJson="parsedPreSurveyJson = $event"
+                @update:parsedPostSurveyJson="parsedPostSurveyJson = $event"
+                @update:surveyValidationError="surveyValidationError = $event"
+                @update:surveyValidationErrorMsg="
+                  surveyValidationErrorMsg = $event
+                "
               />
             </v-card>
 
@@ -146,60 +154,7 @@
               Download Template Questionnaire
             </v-btn>
 
-            <!-- Pre-survey Questions Upload -->
-            <FileUploadAndPreview
-              v-model="preSurveyUpload"
-              label="Pre-survey Questionnaire (JSON)"
-              accept=".json"
-              :preview-disabled="!preSurveyUploadValid"
-              @preview="showPreSurveyPreview = true"
-            ></FileUploadAndPreview>
-
-            <!-- Pre-survey Questions Preview Dialog -->
-            <v-dialog v-model="showPreSurveyPreview" class="survey-dialog">
-              <v-card title="Pre-survey Questionnaire Preview">
-                <v-card-text>
-                  <Questionnaire
-                    :surveyJson="parsedPreSurveyJson"
-                    :readOnly="false"
-                  />
-                </v-card-text>
-                <v-card-actions>
-                  <v-btn
-                    text="Close"
-                    @click="showPreSurveyPreview = false"
-                  ></v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-dialog>
-
-            <!-- Post-survey Questions Upload -->
-            <FileUploadAndPreview
-              v-model="postSurveyUpload"
-              label="Post-survey Questionnaire (JSON)"
-              accept=".json"
-              :preview-disabled="!postSurveyUploadValid"
-              @preview="showPostSurveyPreview = true"
-            ></FileUploadAndPreview>
-
-            <!-- Post-survey Questions Preview Dialog -->
-            <v-dialog v-model="showPostSurveyPreview" class="survey-dialog">
-              <v-card title="Post-survey Questionnaire Preview">
-                <v-card-text>
-                  <Questionnaire
-                    :surveyJson="parsedPostSurveyJson"
-                    :readOnly="false"
-                  />
-                </v-card-text>
-                <v-card-actions>
-                  <v-btn
-                    text="Close"
-                    @click="showPostSurveyPreview = false"
-                  ></v-btn>
-                </v-card-actions>
-              </v-card>
-            </v-dialog>
-
+            <!-- Save & Exit Buttons -->
             <v-row class="btn-row mt-8" justify="center">
               <v-btn
                 class="me-4 save-exit-btn"
@@ -223,7 +178,7 @@
         </v-col>
       </v-row>
 
-      <!-- Dialog -->
+      <!-- Confirmation Dialog Pop-ups -->
       <div class="text-center pa-4">
         <v-dialog v-model="dialog" max-width="400" persistent>
           <v-card
@@ -245,6 +200,7 @@
         {{ alertMessage }}
       </v-alert>
     </v-container>
+  </v-main>
 
   <v-snackbar v-model="collapseError" :timeout="2000" color="red">
     {{ collapseErrorMsg }}
@@ -262,15 +218,18 @@ import api from '@/axiosInstance'
 
 import Task from '../components/Task.vue'
 import Factor from '../components/Factor.vue'
-import StudyDetails from '../components/StudyDetails.vue'
-import FormsUploads from '../components/FormsUploads.vue'
+import StudyDetails from '@/components/StudyDetails.vue'
+import ConsentUpload from '@/components/ConsentUpload.vue'
+import SurveyUploads from '@/components/SurveyUploads.vue'
 import { useStudyStore } from '@/stores/study'
+
 export default {
   components: {
     Task,
     Factor,
     StudyDetails,
-    FormsUploads,
+    ConsentUpload,
+    SurveyUploads,
   },
 
   setup() {
@@ -309,6 +268,7 @@ export default {
       parsedPostSurveyJson: null,
       postSurveyUploadValid: false,
       showPostSurveyPreview: false,
+      // Both surveys
       surveyValidationError: false,
       surveyValidationErrorMsg: '',
 
@@ -336,25 +296,6 @@ export default {
       userID: null,
       editMode: false,
     }
-  },
-
-  watch: {
-    // Start validation as soon as survey files are uploaded (pre/post)
-    preSurveyUpload(newFile) {
-      if (newFile) {
-        this.validateSurveyUpload(newFile, 'pre')
-      } else {
-        this.preSurveyUploadValid = false
-        this.parsedPreSurveyJson = null
-      }
-    },
-    postSurveyUpload(newFile) {
-      if (newFile) {
-        this.validateSurveyUpload(newFile, 'post')
-      }
-      this.postSurveyUploadValid = false
-      this.parsedPostSurveyJson = null
-    },
   },
 
   computed: {
@@ -499,49 +440,6 @@ export default {
       setTimeout(() => (this.saveStatus = false), 1500)
     },
 
-    // Try to validate survey JSON uploads
-    async validateSurveyUpload(surveyFile, type) {
-      const formData = new FormData()
-      formData.append('survey_file', surveyFile)
-
-      try {
-        const backendUrl = this.$backendUrl
-        let path = `${backendUrl}/validate_survey_upload`
-        const validatedJson = await axios.post(path, formData)
-
-        if (type == 'pre') {
-          this.preSurveyUploadValid = true
-          this.parsedPreSurveyJson = validatedJson.data
-        } else if (type == 'post') {
-          this.postSurveyUploadValid = true
-          this.parsedPostSurveyJson = validatedJson.data
-        }
-        this.surveyValidationError = false
-        this.surveyValidationErrorMsg = ''
-      } catch (err) {
-        let error_msg = 'Error occured during survey validation'
-        if (err.response?.data?.error_message) {
-          const data = err.response.data
-          error_msg = `${data.error_type}: ${data.error_message}`
-
-          if (data.location?.length) {
-            error_msg += ` at ${data.location.join('.')}`
-          }
-        }
-        this.surveyValidationErrorMsg = error_msg
-        this.surveyValidationError = true
-
-        // Reset values accordingly
-        if (type == 'pre') {
-          this.preSurveyUploadValid = false
-          this.parsedPreSurveyJson = null
-        } else if (type == 'post') {
-          this.postSurveyUploadValid = false
-          this.parsedPostSurveyJson = null
-        }
-      }
-    },
-
     // Retrieve study details if we are editing an existing study
     async fetchStudyDetails(studyID) {
       try {
@@ -565,27 +463,57 @@ export default {
         })
 
         // Consent form
-        try {
-          const consentResponse = await api.post(
-            '/get_study_consent_form',
-            { study_id: studyID },
-            { responseType: 'blob' },
-          )
-          if (consentResponse.status === 200) {
-            const fileName =
-              consentResponse.headers['x-original-filename'] ||
-              'consent_form.pdf'
-            this.consentForm = new File([consentResponse.data], fileName, {
-              type: 'application/pdf',
-            })
-          }
-        } catch (err) {
-          if (err.response.status !== 204) {
-            console.warn('Consent form retrieval failed:', err)
-          }
-        }
+        await this.fetchConsentForm(studyID)
+        //Pre Survey form
+        await this.fetchSurveyForm(studyID, 'pre')
+        //Post Survey form
+        await this.fetchSurveyForm(studyID, 'post')
       } catch (error) {
         console.error('Failed to fetch study details:', error)
+      }
+    },
+
+    async fetchConsentForm(studyID) {
+      try {
+        const consentResponse = await api.post(
+          '/get_study_consent_form',
+          { study_id: studyID },
+          { responseType: 'blob' },
+        )
+        if (consentResponse.status === 200) {
+          const fileName =
+            consentResponse.headers['x-original-filename'] || 'consent_form.pdf'
+          this.consentUpload = new File([consentResponse.data], fileName, {
+            type: 'application/pdf',
+          })
+        }
+      } catch (err) {
+        if (err.response.status !== 204) {
+          console.warn('Consent form retrieval failed:', err)
+        }
+      }
+    },
+
+    async fetchSurveyForm(studyID, type) {
+      try {
+        const response = await api.post(
+          '/get_study_survey_form',
+          { study_id: studyID, survey_type: type },
+          { responseType: 'blob' },
+        )
+        if (response.status === 200) {
+          const fileName =
+            response.headers['x-original-filename'] ||
+            `${type}_survey_questionnaire.json`
+          const file = new File([response.data], fileName, {
+            type: 'application/json',
+          })
+          this[`${type}SurveyUpload`] = file
+        }
+      } catch (err) {
+        if (err.response.status !== 204) {
+          console.warn(`${type} survey form retrieval failed:`, err)
+        }
       }
     },
 
@@ -600,9 +528,19 @@ export default {
         studyID: this.studyID,
       }
 
-      // Handle base64 encoding of consent form
-      if (this.consentForm) {
-        payload.consentFile = await this.convertFileToBase64(this.consentForm)
+      // Handle base64 encoding of all forms currently uploaded
+      if (this.consentUpload) {
+        payload.consentFile = await this.convertFileToBase64(this.consentUpload)
+      }
+      if (this.preSurveyUpload) {
+        payload.preSurveyFile = await this.convertFileToBase64(
+          this.preSurveyUpload,
+        )
+      }
+      if (this.postSurveyUpload) {
+        payload.postSurveyFile = await this.convertFileToBase64(
+          this.postSurveyUpload,
+        )
       }
 
       try {
@@ -655,10 +593,5 @@ export default {
   z-index: 2000;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-.survey-dialog {
-  width: 60vw;
-  max-width: 1500px;
-  max-height: none;
 }
 </style>

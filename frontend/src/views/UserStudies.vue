@@ -178,6 +178,7 @@ export default {
 
   async mounted() {
     const studyStore = useStudyStore()
+    studyStore.clearSessionJson() // Incase we quit during a session, we reset this
     if (studyStore.drawerStudyID) {
       this.openDrawer(studyStore.drawerStudyID)
     }

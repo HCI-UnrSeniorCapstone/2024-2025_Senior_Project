@@ -246,3 +246,25 @@ CREATE TABLE consent_ack (
     FOREIGN KEY (consent_form_id) REFERENCES consent_form(consent_form_id),
     FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id)
 );
+-- Template survey form saved at the study level
+CREATE TABLE survey_form (
+    survey_form_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    study_id INT NOT NULL,
+    form_type ENUM('pre', 'post') NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    original_filename VARCHAR(255),
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    FOREIGN KEY (study_id) REFERENCES study(study_id),
+    UNIQUE (study_id, form_type)
+);
+-- Results stored for each session 
+CREATE TABLE survey_results (
+    survey_results_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    survey_form_id INT NOT NULL,
+    participant_session_id INT NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    UNIQUE (survey_form_id, participant_session_id),
+    FOREIGN KEY (survey_form_id) REFERENCES survey_form(survey_form_id),
+    FOREIGN KEY (participant_session_id) REFERENCES participant_session(participant_session_id)
+);
