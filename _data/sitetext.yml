@@ -34,17 +34,23 @@ This article from the Nielsen Norman Group explains the differences between betw
 This resource provides an overview of Human-Computer Interaction (HCI), a multidisciplinary field focusing on designing and improving the interaction between people and computers, incorporating principles from psychology, design, and engineering."
     section: resources
     events:
-      - title: "Between vs. Within"
-        year: "Read"
-        desc: "An overview of two common study designs in HCI research."
-        image: "assets/img/timeline/1.jpg"
-        alt: "Design Comparison"
       - title: "Intro to HCI"
-        year: "Explore"
+        year: "1"
         desc: "Foundational concepts in HCI provided by the Interaction Design Foundation."
-        image: "assets/img/timeline/2.jpg"
+        image: "assets/img/timeline/1.jpg"
         alt: "Interaction Design"
+      - title: "Between vs. Within"
+        year: "2"
+        desc: "An overview of two common study designs in HCI research."
+        image: "assets/img/timeline/2.jpg"
+        alt: "Design Comparison"
+      - title: "Current HCI Studies"
+        year: "3"
+        desc: '[Browse the latest HCI journal articles](https://www.tandfonline.com/toc/hihc20/current) from the *International Journal of Human–Computer Interaction*.'
+        image: "assets/img/timeline/3.jpg"
+        alt: "Academic Journal"
     end: "Explore <br> More <br> Resources"
+
 
   about:
     title: "About Us"
