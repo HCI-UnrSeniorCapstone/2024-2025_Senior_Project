@@ -118,6 +118,12 @@ en: &DEFAULT_EN
         # social:
         #   - url: https://linkedin.com
         #     icon: fab fa-linkedin-in
+      - name: "Heather Z."
+        role: "Undergraduate"
+        image: assets/img/team/500x500.jpg
+        # social:
+        #   - url: https://linkedin.com
+        #     icon: fab fa-linkedin-in
       - name: "Vinh Le"
         role: "Advisor (UNR)"
         image: assets/img/team/500x500.jpg
