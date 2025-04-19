@@ -86,7 +86,7 @@
 
                 <!-- Only Owner and Editor can Edit -->
                 <v-icon
-                  v-if="['Owner', 'Editor'].includes(item.role)"
+                  v-if="['Owner', 'Editor'].includes(item.role) && item.canEdit"
                   v-tooltip="'Edit'"
                   class="me-2"
                   size="small"
