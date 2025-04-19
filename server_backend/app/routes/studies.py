@@ -8,6 +8,7 @@ import json
 from jsonschema import validate, ValidationError
 import pandas as pd
 from app.utility.studies import (
+    check_user_study_access,
     create_study_data,
     create_study_details,
     create_study_task_factor_details,
@@ -20,7 +21,6 @@ from app.utility.studies import (
     copy_survey_form,
 )
 from app.utility.db_connection import get_db_connection
-from app import create_app
 from flask_security import auth_required
 from flask_login import current_user
 
@@ -71,6 +71,300 @@ def create_study():
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
+@bp.route("/api/get_all_user_access_for_study", methods=["POST"])
+@auth_required()
+def get_all_user_access_for_study():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if not submission_data or "studyID" not in submission_data:
+        return jsonify({"error": "Missing studyID in request body"}), 400
+
+    study_id = submission_data["studyID"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # No access
+        if user_access_type == 0:
+            return jsonify({"message": "User lacks access"}), 403
+
+        get_all_access = """
+        SELECT us.email, study_user_role_description AS role
+        FROM study_user_role as sur
+        INNER JOIN user AS us
+        ON us.user_id = sur.user_id
+        INNER JOIN study_user_role_type AS surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
+        WHERE sur.study_id = %s
+        """
+
+        cur.execute(get_all_access, (study_id,))
+
+        get_all_access_results = cur.fetchall()
+
+        access_map = {1: "Owner", 2: "Editor", 3: "Viewer"}
+
+        get_study_name = """
+        SELECT study_name
+        FROM study
+        WHERE study_id = %s
+        """
+        cur.execute(get_study_name, (study_id,))
+        study_name = cur.fetchone()[0]
+
+        get_requesting_user_email = """
+        SELECT email
+        FROM user
+        WHERE user_id = %s
+        """
+        cur.execute(get_requesting_user_email, (current_user.id,))
+        requesting_user_email = cur.fetchone()[0]
+        return (
+            jsonify(
+                {
+                    "requesting user's role": access_map.get(
+                        user_access_type, "Unknown access level"
+                    ),
+                    "requesting user's email": requesting_user_email,
+                    "data": get_all_access_results,
+                    "study_name": study_name,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/remove_user_study_access", methods=["POST"])
+@auth_required()
+def remove_user_study_access():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    removed_user_email = submission_data["desiredUserEmail"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Owner
+        if user_access_type == 1:
+            get_user_id = """
+            SELECT user_id
+            FROM user
+            WHERE email = %s
+            """
+            cur.execute(get_user_id, (removed_user_email,))
+            result = cur.fetchone()[0]
+
+            delete_user_access = """
+            DELETE FROM study_user_role
+            WHERE study_id = %s AND user_id = %s
+            """
+            cur.execute(
+                delete_user_access,
+                (
+                    study_id,
+                    result,
+                ),
+            )
+            conn.commit()
+            return jsonify({"message": "User access removed successfully"}), 200
+        # Not Owner
+        else:
+            return jsonify({"message": "User lacks owner access"}), 403
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/change_user_access_type", methods=["POST"])
+@auth_required()
+def change_user_access_type():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+        or "roleType" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    edit_user_email = submission_data["desiredUserEmail"]
+    role_type = submission_data["roleType"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Not Owner
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User lacks owner / editor access"}), 403
+
+        get_user_id = """
+        SELECT user_id
+        FROM user
+        WHERE email = %s
+        """
+        cur.execute(get_user_id, (edit_user_email,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "User not found"}), 404
+        user_id_result = row[0]
+        print(user_id_result)
+        # Check requested user's access type
+        edit_user_current_access = check_user_study_access(
+            cur, study_id, user_id_result
+        )
+
+        if edit_user_current_access == 0:
+            return (
+                jsonify(
+                    {
+                        "message": "Cannot edit access for a user that lacks access. Create access first"
+                    }
+                ),
+                409,
+            )
+        elif edit_user_current_access == 1:
+            return (
+                jsonify({"error": "Cannot edit access for the owner"}),
+                409,
+            )
+
+        access_type_id = """
+        SELECT surt.study_user_role_type_id
+        FROM study_user_role_type AS surt
+        WHERE surt.study_user_role_description = %s
+        """
+
+        cur.execute(access_type_id, (role_type,))
+
+        role_type_result = cur.fetchone()
+
+        if role_type_result is None:
+            return jsonify({"error": "Internal server error getting role type"}), 500
+
+        edit_user_access = """
+        UPDATE study_user_role
+        SET study_user_role_type_id = %s
+        WHERE study_id = %s AND user_id = %s
+        """
+        cur.execute(edit_user_access, (role_type_result[0], study_id, user_id_result))
+        conn.commit()
+        return jsonify({"message": "User access edited successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/add_user_study_access", methods=["POST"])
+@auth_required()
+def add_user_study_access():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+        or "roleType" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    add_user_email = submission_data["desiredUserEmail"]
+    role_type = submission_data["roleType"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Not Owner
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User cannot add others"}), 403
+
+        get_user_id = """
+        SELECT user_id
+        FROM user
+        WHERE email = %s
+        """
+        cur.execute(get_user_id, (add_user_email,))
+        user_id_result = cur.fetchone()[0]
+
+        # Check if access already exists
+        add_user_current_access = check_user_study_access(cur, study_id, user_id_result)
+
+        if add_user_current_access != 0:
+            return jsonify({"message": "Requested user already has access"}), 409
+
+        access_type_id = """
+        SELECT surt.study_user_role_type_id
+        FROM study_user_role_type AS surt
+        WHERE surt.study_user_role_description = %s
+        """
+
+        cur.execute(access_type_id, (role_type,))
+
+        role_type_result = cur.fetchone()
+
+        if role_type_result is None:
+            return jsonify({"error": "Internal server error getting role type"}), 500
+
+        add_user_access = """
+        INSERT INTO study_user_role (study_id, user_id, study_user_role_type_id)
+        VALUES (%s, %s, %s)
+        """
+        cur.execute(
+            add_user_access,
+            (study_id, user_id_result, role_type_result[0]),
+        )
+        conn.commit()
+        return jsonify({"message": "User access added successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
 @bp.route("/api/is_overwrite_study_allowed", methods=["POST"])
 @auth_required()
 def is_overwrite_study_allowed():
@@ -84,45 +378,13 @@ def is_overwrite_study_allowed():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
 
-        # Check if the user exists
-        check_user_query = """
-        SELECT COUNT(*) 
-        FROM user 
-        WHERE user_id = %s
-        """
-        cur.execute(check_user_query, (current_user.id,))
-        user_exists = cur.fetchone()[0]
-
-        # Error Message
-        if user_exists == 0:
-            return jsonify({"error": "User not found"}), 404
-
-        # Check if user has access
-        check_user_query = """
-        SELECT study_user_role_description 
-        FROM study_user_role sur
-        INNER JOIN study_user_role_type surt
-        ON surt.study_user_role_type_id = sur.study_user_role_type_id
-        WHERE user_id = %s AND study_id = %s
-        """
-        cur.execute(
-            check_user_query,
-            (
-                current_user.id,
-                study_id,
-            ),
-        )
-        user_access_exists = cur.fetchone()
-
-        # Error Message
-        if user_access_exists is None:
+        # No access / Viewer
+        if user_access_type == 0 or user_access_type == 3:
             return jsonify(False), 200
-        # Error Message
-        if user_access_exists[0] == "Viewer":
-            return jsonify(False), 200
-
-        if user_access_exists[0] == "Owner" or user_access_exists[0] == "Editor":
+        # Owner / Editor
+        elif user_access_type == 1 or user_access_type == 2:
             # If sessions exist, info can't be overwritten
             check_sessions_query = """
             SELECT participant_session_id

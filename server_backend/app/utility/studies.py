@@ -24,6 +24,40 @@ def set_available_features(task_measurments):
     return default_tasks
 
 
+# 0 no access, 1 is owner, 2 is editor, 3 is viewer
+def check_user_study_access(cur, study_id, user_id):
+    try:
+        # Check if user has access
+        check_user_query = """
+        SELECT study_user_role_description 
+        FROM study_user_role sur
+        INNER JOIN study_user_role_type surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
+        WHERE user_id = %s AND study_id = %s
+        """
+        cur.execute(
+            check_user_query,
+            (
+                user_id,
+                study_id,
+            ),
+        )
+        user_access_exists = cur.fetchone()
+
+        if user_access_exists is None:
+            return 0
+        elif user_access_exists[0] == "Owner":
+            return 1
+        elif user_access_exists[0] == "Editor":
+            return 2
+        elif user_access_exists[0] == "Viewer":
+            return 3
+
+    except Exception as e:
+        # Raise the error to be handled by the calling function
+        raise Exception(f"Error creating study: {str(e)}")
+
+
 def create_study_data(study_data, user_id, cur):
     try:
         # Insert study details
