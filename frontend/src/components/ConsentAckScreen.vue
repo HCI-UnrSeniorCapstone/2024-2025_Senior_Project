@@ -28,7 +28,7 @@
           <v-btn
             text="Continue"
             :disabled="!acknowledgeVal"
-            @click="saveConsent"
+            @click="onAcknowledge"
           ></v-btn>
         </v-card-actions>
       </v-card>
@@ -37,7 +37,9 @@
 </template>
 <script>
 import PdfApp from 'vue3-pdf-app'
+
 export default {
+  name: 'ConsentAckScreen',
   components: {
     PdfApp,
   },
@@ -47,6 +49,19 @@ export default {
       type: [File, null],
       required: true,
       default: null,
+    },
+    // Only need the fields below for live sessions (not when displaying preview versions)
+    participantSessId: {
+      type: Number,
+      required: false,
+    },
+    studyId: {
+      type: Number,
+      required: false,
+    },
+    liveSession: {
+      type: Boolean,
+      default: false,
     },
   },
   data() {
@@ -79,10 +94,9 @@ export default {
     },
   },
   methods: {
-    saveConsent() {
-      this.acknowledgeVal = false
-      this.$emit('acknowledged')
-      this.$emit('update:display', false) // Close dialog
+    onAcknowledge() {
+      this.$emit('submit')
+      this.$emit('update:display', false)
     },
   },
 }

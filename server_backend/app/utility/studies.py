@@ -1,6 +1,7 @@
 import base64
 import pandas as pd
 import os
+import shutil
 from app.utility.db_connection import get_db_connection
 from flask import current_app
 from werkzeug.utils import secure_filename
@@ -367,3 +368,174 @@ def remove_study_consent_form(study_id, cur):
     WHERE study_id = %s
     """
     cur.execute(delete_consent_tbl_entry, (study_id,))
+
+
+# Stores survey forms in the study-level dir in the filesystem
+def save_study_survey_form(study_id, file, cur, base_dir, survey_type):
+    original_filename = secure_filename(file.get("filename"))
+
+    # Check if the file is a JSON
+    if not original_filename.lower().endswith(".json"):
+        raise ValueError("Invalid survey file type. JSON file needed.")
+
+    # Decode base64 content
+    content = file.get("content")
+    if not content:
+        raise ValueError("Missing survey file content.")
+
+    # Construct path
+    full_path = os.path.join(base_dir, f"{study_id}_study_id")
+    os.makedirs(full_path, exist_ok=True)
+
+    survey_name = None
+    if survey_type not in ["pre", "post"]:
+        raise ValueError("Invalid survey type received.")
+    survey_name = f"{survey_type}_survey_form.json"
+
+    file_path = os.path.join(full_path, survey_name)
+
+    # Save decoded bytes to file
+    with open(file_path, "wb") as f:
+        f.write(base64.b64decode(content))
+
+    # Insert or update the survey form in the database
+    insert_survey_form = """
+    INSERT INTO survey_form(study_id, form_type, file_path, original_filename)
+    VALUES (%s, %s, %s, %s)
+    ON DUPLICATE KEY UPDATE
+        file_path = VALUES(file_path),
+        original_filename = VALUES(original_filename),
+        uploaded_at = CURRENT_TIMESTAMP;
+    """
+    cur.execute(
+        insert_survey_form, (study_id, survey_type, file_path, original_filename)
+    )
+
+
+# Remove survey forms
+def remove_study_survey_form(study_id, cur, survey_type):
+    if survey_type not in ["pre", "post"]:
+        raise ValueError("Invalid survey type received.")
+
+    # Get file path if one exists
+    look_path = """
+    SELECT file_path
+    FROM survey_form
+    WHERE study_id = %s AND form_type = %s
+    """
+    cur.execute(look_path, (study_id, survey_type))
+    result = cur.fetchone()
+
+    if not result:
+        return
+
+    file_path = result[0]
+
+    if file_path and os.path.isfile(file_path):
+        try:
+            os.remove(file_path)
+        except Exception as err:
+            print(f"Failed removing file at {file_path}: {err}")
+
+    # Updating survey form tbl to reflect deletion
+    delete_survey_tbl_entry = """
+    DELETE
+    FROM survey_form
+    WHERE study_id = %s AND form_type = %s
+    """
+    cur.execute(delete_survey_tbl_entry, (study_id, survey_type))
+
+
+# Duplicating consent form (if it exists)
+def copy_consent_form(old_study_id, new_study_id, cur, base_dir):
+    # Get file path if one exists
+    look_file_to_duplicate = """
+    SELECT file_path, original_filename
+    FROM consent_form
+    WHERE study_id = %s
+    """
+    cur.execute(look_file_to_duplicate, (old_study_id,))
+    result = cur.fetchone()
+
+    if not result:
+        return "skipped"  # No consent form for this study to duplicate
+
+    src_file_path, original_filename = result
+
+    if not (src_file_path and os.path.isfile(src_file_path)):
+        return "failure"  # File supposed to exist according to db but failed to find it in filesystem
+
+    try:
+        dst_dir = os.path.join(base_dir, f"{new_study_id}_study_id")
+        os.makedirs(dst_dir, exist_ok=True)
+
+        dst_file_path = os.path.join(dst_dir, "consent_form.pdf")
+        shutil.copy2(src_file_path, dst_file_path)
+
+        # Insert or update the consent form in the database
+        insert_consent_form = """
+        INSERT INTO consent_form(study_id, file_path, original_filename)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            file_path = VALUES(file_path),
+            original_filename = VALUES(original_filename),
+            uploaded_at = CURRENT_TIMESTAMP;
+        """
+        cur.execute(
+            insert_consent_form, (new_study_id, dst_file_path, original_filename)
+        )
+
+        return "success"
+
+    except Exception as err:
+        print(f"Failed duplicate file at {src_file_path} into {dst_file_path}: {err}")
+        return "failure"
+
+
+# Duplicating survey form (if it exists)
+def copy_survey_form(old_study_id, new_study_id, cur, base_dir, survey_type):
+    # Get file path if one exists
+    look_file_to_duplicate = """
+    SELECT file_path, original_filename
+    FROM survey_form
+    WHERE study_id = %s AND form_type = %s
+    """
+    cur.execute(look_file_to_duplicate, (old_study_id, survey_type))
+    result = cur.fetchone()
+
+    if not result:
+        return "skipped"  # No survey form for this study to duplicate
+
+    src_file_path, original_filename = result
+
+    if not (src_file_path and os.path.isfile(src_file_path)):
+        return "failure"  # File supposed to exist according to db but failed to find it in filesystem
+
+    try:
+        dst_dir = os.path.join(base_dir, f"{new_study_id}_study_id")
+        os.makedirs(dst_dir, exist_ok=True)
+
+        dst_file_path = os.path.join(dst_dir, f"{survey_type}_survey_form.json")
+        shutil.copy2(src_file_path, dst_file_path)
+
+        # Insert or update the survey form in the database
+        insert_survey_form = """
+        INSERT INTO survey_form(study_id, form_type, file_path, original_filename)
+        VALUES (%s, %s, %s, %s)
+        ON DUPLICATE KEY UPDATE
+            file_path = VALUES(file_path),
+            original_filename = VALUES(original_filename),
+            uploaded_at = CURRENT_TIMESTAMP;
+        """
+        cur.execute(
+            insert_survey_form,
+            (new_study_id, survey_type, dst_file_path, original_filename),
+        )
+
+        return "success"
+
+    except Exception as err:
+        print(
+            f"Failed duplicate {survey_type} survey file at {src_file_path} into {dst_file_path}: {err}"
+        )
+        return "failure"

@@ -301,7 +301,7 @@ export default {
       try {
         const path = `/get_all_session_data_instance_from_participant_session_zip`
 
-        const response = await api.get(
+        const response = await api.post(
           path,
           { participant_session_id: sessionID },
           {
