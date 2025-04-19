@@ -758,6 +758,7 @@ def save_participant_consent():
         # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
+
 @bp.route(
     "/api/save_facilitator_session_notes",
     methods=["POST"],
@@ -775,7 +776,7 @@ def save_facilitator_session_notes():
         participant_session_id = data["participant_session_id"]
         is_valid = data["is_valid"]
         comments = data.get("comments", "")
-        
+
         # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()
@@ -786,7 +787,10 @@ def save_facilitator_session_notes():
         SET ended_at=CURRENT_TIMESTAMP, comments=%s, is_valid=%s
         WHERE participant_session_id=%s;
         """
-        cur.execute(update_participant_session_query, (comments, is_valid, participant_session_id))
+        cur.execute(
+            update_participant_session_query,
+            (comments, is_valid, participant_session_id),
+        )
 
         # Commit changes to the database
         conn.commit()
@@ -803,6 +807,7 @@ def save_facilitator_session_notes():
         # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
+
 # Stores the participant's survey results
 @bp.route(
     "/api/save_survey_results",
@@ -814,20 +819,27 @@ def save_survey_results():
         data = request.get_json()
 
         # Check if needed params for proper placement and saving are present
-        if not data or "participant_session_id" not in data or "survey_type" not in data or "results" not in data:
+        if (
+            not data
+            or "participant_session_id" not in data
+            or "survey_type" not in data
+            or "results" not in data
+        ):
             return (
-                jsonify({"error": "Missing necessary parameters for saving survey results"}),
+                jsonify(
+                    {"error": "Missing necessary parameters for saving survey results"}
+                ),
                 400,
             )
         participant_session_id = data["participant_session_id"]
         survey_type = data["survey_type"]
         resultsJson = data["results"]
-        
+
         # Establish DB connection
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Need to find the study_id first 
+        # Need to find the study_id first
         study_id_query = """
         SELECT study_id
         FROM participant_session
@@ -835,11 +847,11 @@ def save_survey_results():
         """
         cur.execute(study_id_query, (participant_session_id,))
         result = cur.fetchone()
-        
+
         if result is None:
             return jsonify({"error": "Failed finding associated study id"}), 400
         study_id = result[0]
-        
+
         # Get survey form id
         survey_form_id_query = """
         SELECT survey_form_id
@@ -857,20 +869,23 @@ def save_survey_results():
         # Insert JSON results into filesystem
         base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
         study_dir_path = os.path.join(base_dir, f"{study_id}_study_id")
-        session_dir_path = os.path.join(study_dir_path, f"{participant_session_id}_participant_session_id")
+        session_dir_path = os.path.join(
+            study_dir_path, f"{participant_session_id}_participant_session_id"
+        )
         os.makedirs(session_dir_path, exist_ok=True)
-        
+
         file_path = os.path.join(session_dir_path, f"{survey_type}_survey_results.json")
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(resultsJson, f, ensure_ascii=False, indent=2)
-        
+
         # Update survey results tbl
         insert_survey_results_query = """
         INSERT IGNORE INTO survey_results (survey_form_id, participant_session_id, file_path)
         VALUES (%s, %s, %s)
         """
         cur.execute(
-            insert_survey_results_query, (survey_form_id, participant_session_id, file_path)
+            insert_survey_results_query,
+            (survey_form_id, participant_session_id, file_path),
         )
 
         # Commit changes to the database

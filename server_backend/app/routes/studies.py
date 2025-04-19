@@ -5,7 +5,7 @@ import os
 import requests
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
-from jsonschema import validate, ValidationError 
+from jsonschema import validate, ValidationError
 import pandas as pd
 from app.utility.studies import (
     create_study_data,
@@ -55,7 +55,7 @@ def create_study():
         if "postSurveyFile" in submission_data:
             post_file = submission_data["postSurveyFile"]
             save_study_survey_form(study_id, post_file, cur, base_dir, "post")
-            
+
         conn.commit()
         return (
             jsonify({"message": "Study created successfully", "study_id": study_id}),
@@ -248,7 +248,7 @@ def overwrite_study():
         else:
             # No file present → remove existing file
             remove_study_consent_form(study_id, cur)
-        
+
         # Handle pre survey file (optional)
         if "preSurveyFile" in submission_data:
             pre_file = submission_data["preSurveyFile"]
@@ -256,7 +256,7 @@ def overwrite_study():
         else:
             # Attempt to remove existing file
             remove_study_survey_form(study_id, cur, "pre")
-        
+
         # Handle post survey file (optional)
         if "postSurveyFile" in submission_data:
             post_file = submission_data["postSurveyFile"]
@@ -401,16 +401,18 @@ def copy_study():
 
         # Call the helper function to create the new study in the database
         new_study_id = create_study_data(study_data, current_user.id, cur)
-        
+
         base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
-        
+
         consent_copy_status = copy_consent_form(study_id, new_study_id, cur, base_dir)
-        if consent_copy_status == 'failure':
+        if consent_copy_status == "failure":
             raise RuntimeError("Failed to copy consent form")
-        
-        for survey_type in ['pre', 'post']:
-            survey_copy_status = copy_survey_form(study_id, new_study_id, cur, base_dir, survey_type)
-            if survey_copy_status == 'failure':
+
+        for survey_type in ["pre", "post"]:
+            survey_copy_status = copy_survey_form(
+                study_id, new_study_id, cur, base_dir, survey_type
+            )
+            if survey_copy_status == "failure":
                 raise RuntimeError(f"Failed to {survey_type} survey form")
 
         conn.commit()
@@ -572,6 +574,7 @@ def get_study_consent_form():
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
+
 @bp.route("/api/get_study_survey_form", methods=["POST"])
 @auth_required()
 def get_study_survey_form():
@@ -580,14 +583,17 @@ def get_study_survey_form():
 
         # Check if study_id is provided
         if not data or "study_id" not in data or "survey_type" not in data:
-            return jsonify({"error": "Missing request parameters for survey retrieval"}), 400
+            return (
+                jsonify({"error": "Missing request parameters for survey retrieval"}),
+                400,
+            )
 
         study_id = data["study_id"]
         survey_type = data["survey_type"]
-        
+
         if survey_type not in ["pre", "post"]:
             return jsonify({"error": "Invalid survey type received"}), 400
-        
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -610,9 +616,14 @@ def get_study_survey_form():
 
         # Db suggest a survey file should exist but could not retrieve one
         if not os.path.isfile(file_path):
-            return jsonify({"error": f"{survey_type} survey form retrieval failed."}), 404
+            return (
+                jsonify({"error": f"{survey_type} survey form retrieval failed."}),
+                404,
+            )
 
-        response = send_file(file_path, mimetype="application/json", as_attachment=False)
+        response = send_file(
+            file_path, mimetype="application/json", as_attachment=False
+        )
         response.headers["X-Original-Filename"] = (
             origin_filename  # Need to rename file from filesystem convention to original
         )
@@ -621,7 +632,8 @@ def get_study_survey_form():
 
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
-    
+
+
 # Validate survey uploads before allowing to save
 @bp.route("/api/validate_survey_upload", methods=["POST"])
 @auth_required()
@@ -629,21 +641,20 @@ def validate_survey_upload():
     try:
         survey_json = request.get_json()
         if not survey_json:
-            return jsonify({"error_type": "FileError", "error_message": "No JSON received."}), 400
+            return (
+                jsonify(
+                    {"error_type": "FileError", "error_message": "No JSON received."}
+                ),
+                400,
+            )
 
         # High-level validation schema - Ref: https://builtin.com/software-engineering-perspectives/python-json-schema
         survey_schema = {
             "type": "object",
             "required": ["elements", "title", "description"],
             "properties": {
-                "title": {
-                    "type": "string",
-                    "minLength": 1    
-                },
-                "description": {
-                    "type": "string",
-                    "minLength": 1
-                },
+                "title": {"type": "string", "minLength": 1},
+                "description": {"type": "string", "minLength": 1},
                 "elements": {
                     "type": "array",
                     "items": {
@@ -652,24 +663,26 @@ def validate_survey_upload():
                         "properties": {
                             "type": {
                                 "type": "string",
-                                "enum": ["text", "comment", "dropdown", "tagbox", "boolean", "checkbox", "rating"]
+                                "enum": [
+                                    "text",
+                                    "comment",
+                                    "dropdown",
+                                    "tagbox",
+                                    "boolean",
+                                    "checkbox",
+                                    "rating",
+                                ],
                             },
-                            "name": {
-                                "type": "string",
-                                "minLength": 1
-                            },
-                            "title": {
-                                "type": "string",
-                                "minLength": 1
-                            }
-                        }
-                    }
-                }
-            }
+                            "name": {"type": "string", "minLength": 1},
+                            "title": {"type": "string", "minLength": 1},
+                        },
+                    },
+                },
+            },
         }
-        
+
         validate(instance=survey_json, schema=survey_schema)
-        
+
         # Ensure no name duplicates since these are unique identifiers later
         used_names = set()
         for i, element in enumerate(survey_json["elements"]):
@@ -677,14 +690,23 @@ def validate_survey_upload():
             if name in used_names:
                 raise ValueError(f"Duplicate name found for question #{i+1}")
             used_names.add(name)
-        
-        return jsonify( survey_json), 200
+
+        return jsonify(survey_json), 200
 
     except ValidationError as ve:
-        return jsonify({"error_type": "ValidationError", "error_message": ve.message, "location": list(ve.path)}), 400
-    
+        return (
+            jsonify(
+                {
+                    "error_type": "ValidationError",
+                    "error_message": ve.message,
+                    "location": list(ve.path),
+                }
+            ),
+            400,
+        )
+
     except ValueError as ve:
         return jsonify({"error_type": "ValueError", "error_message": str(ve)}), 400
-    
+
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 400
