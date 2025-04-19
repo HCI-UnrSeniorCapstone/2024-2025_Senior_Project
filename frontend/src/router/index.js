@@ -7,7 +7,7 @@ import SessionReporting from '../views/SessionReporting.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
-import SessionForm from '../views/SessionForm.vue'
+import SessionRunner from '../views/SessionRunner.vue'
 import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
@@ -93,14 +93,9 @@ const router = createRouter({
           component: SessionSetup,
         },
         {
-          path: '/SessionForm',
-          name: 'SessionForm',
-          component: SessionForm,
-          props: route => ({
-            formattedStudy: route.query.formattedStudy
-              ? JSON.parse(route.query.formattedStudy)
-              : null,
-          }),
+          path: '/SessionRunner',
+          name: 'SessionRunner',
+          component: SessionRunner,
         },
       ],
     },
