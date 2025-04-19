@@ -369,6 +369,7 @@ def remove_study_consent_form(study_id, cur):
     """
     cur.execute(delete_consent_tbl_entry, (study_id,))
 
+
 # Stores survey forms in the study-level dir in the filesystem
 def save_study_survey_form(study_id, file, cur, base_dir, survey_type):
     original_filename = secure_filename(file.get("filename"))
@@ -387,10 +388,10 @@ def save_study_survey_form(study_id, file, cur, base_dir, survey_type):
     os.makedirs(full_path, exist_ok=True)
 
     survey_name = None
-    if survey_type not in ['pre', 'post']:
+    if survey_type not in ["pre", "post"]:
         raise ValueError("Invalid survey type received.")
     survey_name = f"{survey_type}_survey_form.json"
-        
+
     file_path = os.path.join(full_path, survey_name)
 
     # Save decoded bytes to file
@@ -406,13 +407,16 @@ def save_study_survey_form(study_id, file, cur, base_dir, survey_type):
         original_filename = VALUES(original_filename),
         uploaded_at = CURRENT_TIMESTAMP;
     """
-    cur.execute(insert_survey_form, (study_id, survey_type, file_path, original_filename))
+    cur.execute(
+        insert_survey_form, (study_id, survey_type, file_path, original_filename)
+    )
+
 
 # Remove survey forms
 def remove_study_survey_form(study_id, cur, survey_type):
-    if survey_type not in ['pre', 'post']:
+    if survey_type not in ["pre", "post"]:
         raise ValueError("Invalid survey type received.")
-    
+
     # Get file path if one exists
     look_path = """
     SELECT file_path
@@ -441,6 +445,7 @@ def remove_study_survey_form(study_id, cur, survey_type):
     """
     cur.execute(delete_survey_tbl_entry, (study_id, survey_type))
 
+
 # Duplicating consent form (if it exists)
 def copy_consent_form(old_study_id, new_study_id, cur, base_dir):
     # Get file path if one exists
@@ -453,20 +458,20 @@ def copy_consent_form(old_study_id, new_study_id, cur, base_dir):
     result = cur.fetchone()
 
     if not result:
-        return 'skipped' # No consent form for this study to duplicate
+        return "skipped"  # No consent form for this study to duplicate
 
     src_file_path, original_filename = result
 
     if not (src_file_path and os.path.isfile(src_file_path)):
-        return 'failure' # File supposed to exist according to db but failed to find it in filesystem
-    
+        return "failure"  # File supposed to exist according to db but failed to find it in filesystem
+
     try:
         dst_dir = os.path.join(base_dir, f"{new_study_id}_study_id")
         os.makedirs(dst_dir, exist_ok=True)
-        
+
         dst_file_path = os.path.join(dst_dir, "consent_form.pdf")
-        shutil.copy2(src_file_path,dst_file_path)
-        
+        shutil.copy2(src_file_path, dst_file_path)
+
         # Insert or update the consent form in the database
         insert_consent_form = """
         INSERT INTO consent_form(study_id, file_path, original_filename)
@@ -476,13 +481,16 @@ def copy_consent_form(old_study_id, new_study_id, cur, base_dir):
             original_filename = VALUES(original_filename),
             uploaded_at = CURRENT_TIMESTAMP;
         """
-        cur.execute(insert_consent_form, (new_study_id, dst_file_path, original_filename))
-        
-        return 'success'
-    
+        cur.execute(
+            insert_consent_form, (new_study_id, dst_file_path, original_filename)
+        )
+
+        return "success"
+
     except Exception as err:
         print(f"Failed duplicate file at {src_file_path} into {dst_file_path}: {err}")
-        return 'failure'
+        return "failure"
+
 
 # Duplicating survey form (if it exists)
 def copy_survey_form(old_study_id, new_study_id, cur, base_dir, survey_type):
@@ -496,20 +504,20 @@ def copy_survey_form(old_study_id, new_study_id, cur, base_dir, survey_type):
     result = cur.fetchone()
 
     if not result:
-        return 'skipped' # No survey form for this study to duplicate
+        return "skipped"  # No survey form for this study to duplicate
 
     src_file_path, original_filename = result
 
     if not (src_file_path and os.path.isfile(src_file_path)):
-        return 'failure' # File supposed to exist according to db but failed to find it in filesystem
-    
+        return "failure"  # File supposed to exist according to db but failed to find it in filesystem
+
     try:
         dst_dir = os.path.join(base_dir, f"{new_study_id}_study_id")
         os.makedirs(dst_dir, exist_ok=True)
-        
+
         dst_file_path = os.path.join(dst_dir, f"{survey_type}_survey_form.json")
-        shutil.copy2(src_file_path,dst_file_path)
-        
+        shutil.copy2(src_file_path, dst_file_path)
+
         # Insert or update the survey form in the database
         insert_survey_form = """
         INSERT INTO survey_form(study_id, form_type, file_path, original_filename)
@@ -519,10 +527,15 @@ def copy_survey_form(old_study_id, new_study_id, cur, base_dir, survey_type):
             original_filename = VALUES(original_filename),
             uploaded_at = CURRENT_TIMESTAMP;
         """
-        cur.execute(insert_survey_form, (new_study_id, survey_type, dst_file_path, original_filename))
-        
-        return 'success'
-    
+        cur.execute(
+            insert_survey_form,
+            (new_study_id, survey_type, dst_file_path, original_filename),
+        )
+
+        return "success"
+
     except Exception as err:
-        print(f"Failed duplicate {survey_type} survey file at {src_file_path} into {dst_file_path}: {err}")
-        return 'failure'
+        print(
+            f"Failed duplicate {survey_type} survey file at {src_file_path} into {dst_file_path}: {err}"
+        )
+        return "failure"
