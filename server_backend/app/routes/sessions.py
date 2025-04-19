@@ -703,6 +703,7 @@ def get_all_session_info():
     "/api/save_participant_consent",
     methods=["POST"],
 )
+@auth_required()
 def save_participant_consent():
     try:
         data = request.get_json()
@@ -761,6 +762,7 @@ def save_participant_consent():
     "/api/save_facilitator_session_notes",
     methods=["POST"],
 )
+@auth_required()
 def save_facilitator_session_notes():
     try:
         data = request.get_json()
@@ -806,6 +808,7 @@ def save_facilitator_session_notes():
     "/api/save_survey_results",
     methods=["POST"],
 )
+@auth_required()
 def save_survey_results():
     try:
         data = request.get_json()

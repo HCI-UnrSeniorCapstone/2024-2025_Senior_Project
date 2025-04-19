@@ -528,6 +528,7 @@ def delete_study():
 
 
 @bp.route("/api/get_study_consent_form", methods=["POST"])
+@auth_required()
 def get_study_consent_form():
     try:
         data = request.get_json()
@@ -572,6 +573,7 @@ def get_study_consent_form():
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 @bp.route("/api/get_study_survey_form", methods=["POST"])
+@auth_required()
 def get_study_survey_form():
     try:
         data = request.get_json()
