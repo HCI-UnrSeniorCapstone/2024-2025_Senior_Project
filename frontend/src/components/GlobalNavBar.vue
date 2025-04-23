@@ -3,9 +3,9 @@
   <v-navigation-drawer v-if="auth.isAuthenticated" expand-on-hover rail>
     <v-list density="compact" nav>
       <v-list-item
-        to="/Dashboard"
+        to="/UserStudies"
         prepend-icon="mdi-view-dashboard-outline"
-        title="Dashboard"
+        title="UserStudies"
       ></v-list-item>
       <v-list-item
         @click="handleCreateNewStudy"

@@ -120,7 +120,7 @@ export default {
             }
           }
           setTimeout(() => {
-            this.$router.push({ name: 'Dashboard' })
+            this.$router.push({ name: 'UserStudies' })
           }, 500)
         } else {
           this.error = 'Login failed. Unexpected response.'
@@ -144,7 +144,7 @@ export default {
         // This prevents users from loading in login on their own
         // Now even if they did, there are protections to handle tokens
         // But this is a way to control the UI
-        this.$router.push({ name: 'Dashboard' })
+        this.$router.push({ name: 'UserStudies' })
       }
     } catch (e) {
       // Don't redirect, just let user log in manually

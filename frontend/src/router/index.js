@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import Dashboard from '../views/Dashboard.vue'
 import UserStudies from '../views/UserStudies.vue'
 import StudyForm from '../views/StudyForm.vue'
 import SessionReporting from '../views/SessionReporting.vue'
@@ -22,14 +21,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Dashboard',
+      redirect: '/UserStudies',
       component: MainLayout,
       children: [
-        {
-          path: '/Dashboard',
-          name: 'Dashboard',
-          component: Dashboard,
-        },
         {
           path: '/confirmed',
           name: 'Confirmed',
