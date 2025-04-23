@@ -57,7 +57,7 @@
               </v-col>
             </v-row>
 
-            <div class="button-row right-align">
+            <div v-if="isModified" class="button-row right-align">
               <v-btn
                 variant="outlined"
                 color="primary"
@@ -184,9 +184,18 @@ export default {
       confirmNewPassword: '',
       changingPassword: false,
       showPassword: false,
+
+      originalFirstName: '',
+      originalLastName: '',
     }
   },
   computed: {
+    isModified() {
+      return (
+        this.firstName !== this.originalFirstName ||
+        this.lastName !== this.originalLastName
+      )
+    },
     passwordsMatch() {
       return (
         this.newPassword === this.confirmNewPassword && this.newPassword !== ''
@@ -215,6 +224,8 @@ export default {
         this.email = user.email
         this.firstName = user.first_name || ''
         this.lastName = user.last_name || ''
+        this.originalFirstName = this.firstName
+        this.originalLastName = this.lastName
       } catch (err) {
         this.error = 'Failed to load user profile.'
       }
@@ -235,6 +246,9 @@ export default {
 
           auth.user.first_name = this.firstName
           auth.user.last_name = this.lastName
+
+          this.originalFirstName = this.firstName
+          this.originalLastName = this.lastName
         }
       } catch (err) {
         this.error =
@@ -383,5 +397,9 @@ export default {
   border-radius: 999px;
   padding: 10px 24px;
   font-weight: bold;
+}
+.v-alert {
+  text-align: center;
+  justify-content: center;
 }
 </style>
