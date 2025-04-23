@@ -3,11 +3,7 @@
     <v-container class="mt-5 profile-page">
       <!-- Banner and Avatar -->
       <div class="banner-container">
-        <v-img
-          src="/images/campus-ctaimage.jpg"
-          class="banner-img"
-          cover
-        ></v-img>
+        <v-img src="/images/convert.jpg" class="banner-img" cover></v-img>
 
         <div class="avatar-wrapper">
           <v-avatar class="profile-avatar" size="120">
