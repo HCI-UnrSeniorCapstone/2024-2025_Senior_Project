@@ -11,10 +11,6 @@
 
     <!-- Only show if user is authenticated -->
     <template v-if="auth.isAuthenticated">
-      <v-btn icon>
-        <v-icon>mdi-bell-outline</v-icon>
-      </v-btn>
-
       <v-menu
         v-model="menuOpen"
         offset-y
