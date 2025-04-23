@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Load specific environment variables from the .env file
-eval $(grep -E '^RESULTS_BASE_DIR_PATH=|^VUE_APP_BACKEND_PORT=|^MYSQL_DB=|^MYSQL_USER=|^MYSQL_PASSWORD=' ../.env | sed 's/\r//' | xargs -d '\n' -I {} echo export \"{}\")
+eval $(grep -E '^RESULTS_BASE_DIR_PATH=|^VITE_APP_BACKEND_PORT=|^MYSQL_DB=|^MYSQL_USER=|^MYSQL_PASSWORD=' ../.env | sed 's/\r//' | xargs -d '\n' -I {} echo export \"{}\")
 
 
 DB_NAME=$(echo $MYSQL_DB | tr -d '\r')
@@ -208,7 +208,7 @@ end_time=$(date +%s)
 elapsed_time=$((end_time - start_time))
 echo "Time taken to reach Flask section: $elapsed_time seconds." >&2
 
-FLASK_PORT=$(echo $VUE_APP_BACKEND_PORT | tr -d '\r')
+FLASK_PORT=$(echo $VITE_APP_BACKEND_PORT | tr -d '\r')
 FLASK_PID=$(lsof -t -i :$FLASK_PORT)
 [ -n "$FLASK_PID" ] && kill -9 $FLASK_PID
 

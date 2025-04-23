@@ -27,25 +27,33 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 
-def create_app(testing=False):
-    # Creating app
-    app = Flask(__name__)
-    app.config.from_object(__name__)
-
+def create_app(env="production"):
     # Load environment variables
     load_dotenv()
+
+    # Creating app
+    app = Flask(__name__)
+
+    app.config["ENV"] = env
+    app.config["DEBUG"] = env == "development"
+    app.config["TESTING"] = env == "testing"
+
+    if env == "development":
+        expected_frontend = os.getenv("EXPECTED_DEVELOPMENT_FRONTEND_DOMAIN_URL")
+    else:
+        expected_frontend = os.getenv("EXPECTED_PRODUCTION_FRONTEND_DOMAIN_URL")
 
     # MYSQL Configuration
     app.config["MYSQL_HOST"] = os.getenv("MYSQL_HOST")
     app.config["MYSQL_USER"] = os.getenv("MYSQL_USER")
     app.config["MYSQL_PASSWORD"] = os.getenv("MYSQL_PASSWORD")
-    app.config["VUE_APP_BACKEND_URL"] = os.getenv("VUE_APP_BACKEND_URL")
-    app.config["VUE_APP_BACKEND_PORT"] = os.getenv("VUE_APP_BACKEND_PORT")
-    if testing:
-        app.config["MYSQL_DB"] = "test_db"
-    else:
-        app.config["MYSQL_DB"] = os.getenv("MYSQL_DB").strip()
     mysql.init_app(app)
+
+    # Vue config
+    app.config["VITE_APP_DEVELOPMENT_BACKEND_URL"] = os.getenv(
+        "VITE_APP_DEVELOPMENT_BACKEND_URL"
+    )
+    app.config["VITE_APP_BACKEND_PORT"] = os.getenv("VITE_APP_BACKEND_PORT")
 
     # Server CSV pathway configuration
     app.config["RESULTS_BASE_DIR_PATH"] = os.getenv("RESULTS_BASE_DIR_PATH")
@@ -67,11 +75,11 @@ def create_app(testing=False):
     app.config["SECURITY_UNIFIED_SIGNIN"] = False
 
     app.config["SECURITY_POST_CONFIRM_VIEW"] = (
-        os.getenv("EXPECTED_FRONTEND_DOMAIN_URL", "http://localhost:5173")
+        os.getenv("EXPECTED_DEVELOPMENT_FRONTEND_DOMAIN_URL", "http://localhost:5173")
         + "/confirmed"
     )  # Update this when frontend deployed
     app.config["SECURITY_CONFIRM_ERROR_VIEW"] = (
-        os.getenv("EXPECTED_FRONTEND_DOMAIN_URL", "http://localhost:5173")
+        os.getenv("EXPECTED_DEVELOPMENT_FRONTEND_DOMAIN_URL", "http://localhost:5173")
         + "/confirmed"
     )  # Update this when frontend deployed
     app.config["SECURITY_RESET_VIEW"] = "/reset-password"
@@ -96,12 +104,18 @@ def create_app(testing=False):
     app.config["SESSION_COOKIE_HTTPONLY"] = (
         False  # Prevent JavaScript from accessing session cookie
     )
-    app.config["SESSION_COOKIE_SECURE"] = (
-        False  # Requires HTTPS, change to False for local dev
-    )
-    app.config["SESSION_COOKIE_SAMESITE"] = (
-        "Lax"  # Adjust if cross-origin issues occur. This is lax cuz of the vue proxy
-    )
+    if env == "production":
+        app.config["SESSION_COOKIE_SECURE"] = True
+        app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+    else:
+        app.config["SESSION_COOKIE_SECURE"] = False
+        app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    # app.config["SESSION_COOKIE_SECURE"] = (
+    #     False  # Requires HTTPS, change to False for local dev
+    # )
+    # app.config["SESSION_COOKIE_SAMESITE"] = (
+    #     "Lax"  # Adjust if cross-origin issues occur. This is lax cuz of the vue proxy
+    # )
     app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER")
     app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
     app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "false").lower() == "true"
@@ -157,7 +171,7 @@ def create_app(testing=False):
                 print(f"[DEBUG] Registered route: {rule.rule} -> {rule.endpoint}")
     CORS(
         app,
-        resources={r"/*": {"origins": {os.getenv("EXPECTED_FRONTEND_DOMAIN_URL")}}},
+        resources={r"/*": {"origins": expected_frontend}},
         expose_headers=[
             "Content-Disposition",
             "Content-Type",

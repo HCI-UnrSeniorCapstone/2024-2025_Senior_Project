@@ -1,36 +1,40 @@
 import { fileURLToPath, URL } from 'node:url'
-import fs from 'fs'
-import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-// Read the config.json file
-// NOTE: config.json is used by each developer for connecting to their own flask port on the server
-// config.json SHOULD NOT be pushed to GITHUB
-const config = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, 'src/config.json'), 'utf-8'),
-)
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd())
+  const isProd = mode === 'production'
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [vue(), vueDevTools()],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  define: {
-    'import.meta.env.VITE_BACKEND_URL': JSON.stringify(config.backendUrl),
-    'import.meta.env.VITE_BACKEND_PORT': JSON.stringify(config.backendPort),
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: `${config.backendUrl}:${config.backendPort}`,
-        changeOrigin: true,
-        secure: false,
+  const backendUrl = isProd
+    ? env.VITE_APP_PRODUCTION_BACKEND_URL || 'http://localhost'
+    : env.VITE_APP_DEVELOPMENT_BACKEND_URL || 'http://localhost'
+
+  const backendPort = isProd
+    ? env.VITE_APP_PRODUCTION_BACKEND_PORT || '8000'
+    : env.VITE_APP_DEVELOPMENT_BACKEND_PORT || '5002'
+
+  const target = `${backendUrl}:${backendPort}`
+  console.log(`[VITE] Proxying /api → ${target}`)
+
+  return {
+    plugins: [vue(), vueDevTools()],
+    resolve: {
+      alias: {
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
-  },
+    server: {
+      host: '0.0.0.0', // allows VS Code SSH port forwarding
+      port: 5173,
+      proxy: {
+        '/api': {
+          target,
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
+  }
 })
