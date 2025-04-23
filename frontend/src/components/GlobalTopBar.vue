@@ -15,7 +15,12 @@
         <v-icon>mdi-bell-outline</v-icon>
       </v-btn>
 
-      <v-menu offset-y transition="slide-y-transition">
+      <v-menu
+        v-model="menuOpen"
+        offset-y
+        transition="slide-y-transition"
+        @update:modelValue="onMenuToggle"
+      >
         <template #activator="{ props }">
           <v-btn icon v-bind="props" size="large">
             <v-avatar color="primary" size="48">
@@ -43,9 +48,9 @@
                   </v-avatar>
                 </v-col>
                 <v-col class="pl-3">
-                  <span class="text-subtitle-1 font-weight-medium">{{
-                    displayName
-                  }}</span>
+                  <span class="text-subtitle-1 font-weight-medium">
+                    {{ displayName }}
+                  </span>
                 </v-col>
               </v-row>
             </v-list-item>
@@ -92,12 +97,14 @@
 import api from '@/axiosInstance'
 import { auth } from '@/stores/auth'
 import { useStudyStore } from '@/stores/study'
+
 export default {
   name: 'GlobalTopBar',
   data() {
     return {
       displayName: 'Loading...',
       auth,
+      menuOpen: false,
     }
   },
   watch: {
@@ -106,10 +113,10 @@ export default {
         if (newUser) {
           const fullName =
             `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim()
-          this.displayName = fullName || newUser.email
+          this.displayName = fullName || newUser.email || 'Unknown User'
         }
       },
-      immediate: true, // Trigger immediately if auth.user is already set
+      immediate: true,
     },
   },
   methods: {
@@ -122,7 +129,6 @@ export default {
     async logOut() {
       try {
         const response = await api.post('/accounts/logout')
-
         if (response.status === 200) {
           auth.isAuthenticated = false
           auth.user = null
@@ -132,6 +138,21 @@ export default {
         }
       } catch (err) {
         console.error('Error logging out:', err)
+      }
+    },
+    onMenuToggle(isOpen) {
+      if (isOpen) {
+        this.fetchUserInfo()
+      }
+    },
+    async fetchUserInfo() {
+      try {
+        const res = await api.get('/accounts/get_user_profile_info')
+        if (res.data) {
+          auth.user = res.data
+        }
+      } catch (err) {
+        console.error('Failed to refresh user info:', err)
       }
     },
   },

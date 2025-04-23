@@ -236,6 +236,9 @@ export default {
         if (res.status === 200) {
           this.success = true
           this.successMessage = 'Profile updated successfully.'
+
+          auth.user.first_name = this.firstName
+          auth.user.last_name = this.lastName
         }
       } catch (err) {
         this.error =
