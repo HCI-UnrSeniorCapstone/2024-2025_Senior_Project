@@ -11,6 +11,6 @@ if __name__ == "__main__":
     print(f"Running Flask app in {env} mode")
     app.run(
         host="0.0.0.0",
-        port=int(os.getenv("VITE_APP_BACKEND_PORT", 5001)),
+        port=int(os.getenv("VITE_APP_DEVELOPMENT_BACKEND_PORT")),
         debug=(env == "development"),
     )  # DEVELOPMENT mode
