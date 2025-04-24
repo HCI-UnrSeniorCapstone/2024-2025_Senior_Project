@@ -46,107 +46,119 @@
 
     <!-- Analytics dashboard content -->
     <template v-else>
-      <!-- Summary cards -->
-      <v-row>
-        <v-col cols="12">
-          <DashboardSummaryCard 
-            :study-id="selectedStudy" 
-            :selected-participant-ids="selectedParticipantIds"
-          />
-        </v-col>
-      </v-row>
+      <!-- Summary cards with DashboardSummaryCard and CustomFormulaInput in the same row -->
+      <div class="chart-cards-container">
+        <v-row>
+          <!-- Regular metrics -->
+          <v-col cols="12" md="9">
+            <DashboardSummaryCard 
+              :study-id="selectedStudy" 
+              :selected-participant-ids="selectedParticipantIds"
+            />
+          </v-col>
+          
+          <!-- Custom Formula card -->
+          <v-col cols="12" md="3">
+            <CustomFormulaInput 
+              :study-id="selectedStudy" 
+              @formula-applied="onFormulaApplied" 
+            />
+          </v-col>
+        </v-row>
+      </div>
 
-      <!-- Charts section -->
-      <v-row>
-        <!-- Learning curve chart -->
-        <v-col cols="12" md="6">
-          <v-card>
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-chart-line" class="me-2"></v-icon>
-              Learning Curve
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text>
-              <LearningCurveChart 
-                :study-id="selectedStudy" 
-                :data="learningCurveData" 
-                :loading="loadingLearningCurve"
-                :error="learningCurveError"
-                :selected-participant-ids="selectedParticipantIds"
-              />
-            </v-card-text>
-          </v-card>
-        </v-col>
+      <!-- Charts section - Learning Curve and Task Performance in the same row -->
+      <div class="chart-cards-container">
+        <v-row class="mt-4">
+          <!-- Learning curve chart -->
+          <v-col cols="12" md="6">
+            <v-card class="h-100">
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-chart-line" class="me-2"></v-icon>
+                Learning Curve
+              </v-card-title>
+              <v-divider></v-divider>
+              <v-card-text>
+                <LearningCurveChart 
+                  :study-id="selectedStudy" 
+                  :data="learningCurveData" 
+                  :loading="loadingLearningCurve"
+                  :error="learningCurveError"
+                  :selected-participant-ids="selectedParticipantIds"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+          
+          <!-- Task Performance chart -->
+          <v-col cols="12" md="6">
+            <v-card class="h-100">
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-chart-bar" class="me-2"></v-icon>
+                Task Performance
+              </v-card-title>
+              <v-divider></v-divider>
+              <v-card-text>
+                <TaskPerformanceComparison 
+                  :study-id="selectedStudy" 
+                  :data="taskPerformanceData"
+                  :loading="loadingTaskPerformance"
+                  :error="taskPerformanceError"
+                  :selected-participant-ids="selectedParticipantIds"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
 
-        <!-- Custom Formula Input -->
-        <v-col cols="12" md="6">
-          <CustomFormulaInput 
-            :study-id="selectedStudy" 
-            @formula-applied="onFormulaApplied" 
-          />
-        </v-col>
-      </v-row>
-      
-      <!-- Task Performance Row -->
-      <v-row class="mt-4">
-        <v-col cols="12">
-          <v-card>
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-chart-bar" class="me-2"></v-icon>
-              Task Performance
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text>
-              <TaskPerformanceComparison 
-                :study-id="selectedStudy" 
-                :data="taskPerformanceData"
-                :loading="loadingTaskPerformance"
-                :error="taskPerformanceError"
-                :selected-participant-ids="selectedParticipantIds"
-              />
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+      <!-- Participant Comparison section - full width -->
+      <div class="chart-cards-container">
+        <v-row class="mt-4">
+          <v-col cols="12">
+            <v-card style="height: auto; min-height: 700px; overflow: visible;">
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-chart-bubble" class="me-2"></v-icon>
+                Participant Comparison
+              </v-card-title>
+              <v-divider></v-divider>
+              <v-card-text class="pa-1" style="height: calc(100% - 60px); overflow: visible;">
+                <ParticipantBubbleChart 
+                  :study-id="selectedStudy"
+                  :participantData="selectedParticipants.length > 0 ? selectedParticipants : participantData"
+                  :loading="loadingParticipants"
+                  :error="participantsError"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
 
       <!-- Participant data section -->
-      <v-row>
-        <v-col cols="12" md="8">
-          <v-card>
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-account-group" class="me-2"></v-icon>
-              Participant Data
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text>
-              <ParticipantTable 
-                :study-id="selectedStudy"
-                :participants="participantData"
-                :loading="loadingParticipants"
-                :error="participantsError"
-                @selection-change="onParticipantSelectionChange"
-                @participants-selected="onParticipantsSelected"
-              />
-            </v-card-text>
-          </v-card>
-        </v-col>
-
-        <v-col cols="12" md="4">
-          <v-card>
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-chart-bubble" class="me-2"></v-icon>
-              Participant Comparison
-            </v-card-title>
-            <v-divider></v-divider>
-            <v-card-text>
-              <ParticipantBubbleChart 
-                :study-id="selectedStudy"
-                :participantData="selectedParticipants.length > 0 ? selectedParticipants : participantData"
-              />
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+      <div class="chart-cards-container">
+        <v-row class="mt-4">
+          <v-col cols="12">
+            <v-card>
+              <v-card-title class="d-flex align-center">
+                <v-icon icon="mdi-account-group" class="me-2"></v-icon>
+                Participant Data
+              </v-card-title>
+              <v-divider></v-divider>
+              <v-card-text>
+                <ParticipantTable 
+                  :study-id="selectedStudy"
+                  :participants="participantData"
+                  :loading="loadingParticipants"
+                  :error="participantsError"
+                  @selection-change="onParticipantSelectionChange"
+                  @participants-selected="onParticipantsSelected"
+                />
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </div>
 
       <!-- Export options -->
       <v-row class="mt-4">
@@ -346,5 +358,11 @@ export default {
 <style scoped>
 .v-card {
   height: 100%;
+}
+
+/* Add max-width constraint to charts for better readability */
+.chart-cards-container {
+  max-width: 1600px;
+  margin: 0 auto;
 }
 </style>

@@ -359,6 +359,25 @@ const analyticsApi = {
     });
   },
   
+  // Get task details for a specific participant
+  async getParticipantTaskDetails(studyId, participantId) {
+    return getCachedData(`participant_tasks_${studyId}_${participantId}`, async () => {
+      try {
+        console.log(`Attempting to get task details for participant ${participantId} in study ${studyId}...`);
+        
+        // Try API call with fallback
+        const response = await makeApiCallWithFallback(`/analytics/${studyId}/participant-task-details`, {
+          params: { participant_id: participantId }
+        });
+        console.log('Successfully got participant task details from API');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch participant task details:', error);
+        return [];
+      }
+    });
+  },
+  
   // Get aggregated metrics from zip files for a study or participant
   async getZipDataMetrics(studyId, participantId = null) {
     const cacheKey = participantId 

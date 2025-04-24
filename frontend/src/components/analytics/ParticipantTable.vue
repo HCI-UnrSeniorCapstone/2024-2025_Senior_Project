@@ -90,6 +90,7 @@
               <th v-for="header in headers" :key="header.key" class="text-left">
                 {{ header.title }}
               </th>
+              <th class="text-center" width="60">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -108,13 +109,25 @@
               <td>{{ formatTime(item.completionTime) }}</td>
               <td>
                 <v-chip
-                  size="x-small"
-                  :color="getPValueColor(item.pValue || 0.5)"
+                  size="small"
+                  :color="getPValueColor(item.pValue)"
                   text-color="white"
                   class="px-2"
+                  variant="elevated"
                 >
-                  {{ formatPValue(item.pValue || 0.5) }}
+                  {{ formatPValue(item.pValue) }}
                 </v-chip>
+              </td>
+              <td class="text-center">
+                <v-btn
+                  icon
+                  color="purple"
+                  size="small"
+                  @click="showDetails(item)"
+                  aria-label="View participant details"
+                >
+                  <v-icon>mdi-information-outline</v-icon>
+                </v-btn>
               </td>
             </tr>
           </tbody>
@@ -154,12 +167,27 @@
       </div>
     </v-card-text>
   </v-card>
+  
+  <!-- Participant Details Modal -->
+  <ParticipantDetailsModal 
+    v-model="showModal"
+    :participant="selectedParticipant"
+  />
 </template>
 
 <script>
+import ParticipantDetailsModal from './ParticipantDetailsModal.vue';
+
 export default {
   name: 'ParticipantTable',
+  components: {
+    ParticipantDetailsModal
+  },
   props: {
+    studyId: {
+      type: [String, Number],
+      required: true
+    },
     participants: {
       type: Array,
       required: true
@@ -180,6 +208,8 @@ export default {
       selectAll: false,
       page: 1,
       itemsPerPage: 10,
+      showModal: false,
+      selectedParticipant: {},
       headers: [
         { 
           title: 'Participant ID',
@@ -190,7 +220,7 @@ export default {
         { 
           title: 'Session Count', 
           key: 'trialCount', 
-          width: '20%',
+          width: '15%',
           align: 'start'
         },
         { 
@@ -202,7 +232,7 @@ export default {
         { 
           title: 'P-Value', 
           key: 'pValue', 
-          width: '30%',
+          width: '25%',
           align: 'start'
         }
       ]
@@ -296,17 +326,39 @@ export default {
     
     // Format p-value for display
     formatPValue(pValue) {
+      // Check if valid pValue is provided
+      if (pValue === undefined || pValue === null || isNaN(parseFloat(pValue))) {
+        return 'N/A';
+      }
+      
+      // Ensure pValue is a number
+      const numPValue = typeof pValue === 'string' ? parseFloat(pValue) : pValue;
+      
       // Convert p-value to confidence percentage
-      const confidence = (1 - pValue) * 100;
-      return confidence.toFixed(1) + '% ' + (pValue < 0.05 ? '★' : '');
+      const confidence = (1 - numPValue) * 100;
+      
+      // Add stars for significance levels
+      let stars = '';
+      if (numPValue < 0.01) {
+        stars = '★★★'; // Highly significant (p < 0.01)
+      } else if (numPValue < 0.05) {
+        stars = '★★';  // Significant (p < 0.05)
+      } else if (numPValue < 0.1) {
+        stars = '★';   // Marginally significant (p < 0.1)
+      }
+      
+      return confidence.toFixed(1) + '% ' + stars;
     },
     
     // Return color based on p-value significance
     getPValueColor(pValue) {
-      if (pValue < 0.01) return 'purple darken-2';  // Very significant
-      if (pValue < 0.05) return 'blue darken-1';    // Significant
-      if (pValue < 0.1) return 'amber darken-2';    // Marginally significant
-      return 'grey';                               // Not significant
+      // Ensure pValue is a number
+      const numPValue = typeof pValue === 'string' ? parseFloat(pValue) : pValue;
+      
+      if (numPValue < 0.01) return 'purple darken-2';  // Very significant
+      if (numPValue < 0.05) return 'blue darken-1';    // Significant
+      if (numPValue < 0.1) return 'amber darken-2';    // Marginally significant
+      return 'grey darken-1';                         // Not significant (darker to be more readable)
     },
     
     // Handle selection change and emit selection event to parent
@@ -336,6 +388,16 @@ export default {
       this.selectAll = false;
       this.$emit('selection-change', []);
       this.$emit('participants-selected', []);
+    },
+    
+    // Show participant details modal
+    showDetails(participant) {
+      // Add studyId to the participant object
+      this.selectedParticipant = {
+        ...participant,
+        studyId: this.studyId
+      };
+      this.showModal = true;
     }
   }
 };

@@ -1,40 +1,42 @@
 <template>
-  <v-row>
-    <v-col v-for="(metric, index) in metrics" :key="index" cols="12" sm="6" md="3">
-      <v-card class="summary-card" :class="getCardColorClass(metric.title)">
-        <div class="d-flex align-center px-4 pt-4">
-          <div class="icon-container" :class="getIconColorClass(metric.title)">
-            <v-icon>{{ getIconForTitle(metric.title) }}</v-icon>
-          </div>
-          <div class="ms-3 flex-grow-1">
-            <div class="d-flex justify-space-between align-center">
-              <span class="text-subtitle-2 font-weight-medium">{{ metric.title }}</span>
-              <v-chip
-                v-if="metric.change !== undefined"
-                size="x-small"
-                :color="getChangeColor(metric.change, metric.title === 'Avg Error Count')"
-                variant="outlined"
-                class="ms-2"
-              >
-                <v-icon 
-                  size="x-small" 
-                  start
-                  :icon="getChangeIcon(metric.change, metric.title === 'Avg Error Count')"
-                ></v-icon>
-                {{ formatChange(metric.change) }}
-              </v-chip>
+  <div class="dashboard-summary">
+    <v-row>
+      <v-col v-for="(metric, index) in metrics" :key="index" cols="12" sm="6" md="4">
+        <v-card class="summary-card" :class="getCardColorClass(metric.title)">
+          <div class="d-flex align-center px-4 pt-4">
+            <div class="icon-container" :class="getIconColorClass(metric.title)">
+              <v-icon>{{ getIconForTitle(metric.title) }}</v-icon>
+            </div>
+            <div class="ms-3 flex-grow-1">
+              <div class="d-flex justify-space-between align-center">
+                <span class="text-subtitle-2 font-weight-medium">{{ metric.title }}</span>
+                <v-chip
+                  v-if="metric.change !== undefined"
+                  size="x-small"
+                  :color="getChangeColor(metric.change, metric.title === 'Avg Error Count')"
+                  variant="outlined"
+                  class="ms-2"
+                >
+                  <v-icon 
+                    size="x-small" 
+                    start
+                    :icon="getChangeIcon(metric.change, metric.title === 'Avg Error Count')"
+                  ></v-icon>
+                  {{ formatChange(metric.change) }}
+                </v-chip>
+              </div>
             </div>
           </div>
-        </div>
-        
-        <v-card-text>
-          <div :class="getValueColorClass(metric.title)" class="metric-value text-h4 font-weight-bold">
-            {{ formatValue(metric.value, metric.title) }}
-          </div>
-        </v-card-text>
-      </v-card>
-    </v-col>
-  </v-row>
+          
+          <v-card-text>
+            <div :class="getValueColorClass(metric.title)" class="metric-value text-h4 font-weight-bold">
+              {{ formatValue(metric.value, metric.title) }}
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </div>
 </template>
 
 <script>

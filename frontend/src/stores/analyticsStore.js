@@ -17,6 +17,7 @@ export const useAnalyticsStore = defineStore('analytics', {
     // New data states for zip analytics
     trialInteractionData: {}, // { trialId: data }
     zipDataMetrics: {}, // { studyId: data } or { studyId_participantId: data }
+    participantTaskDetails: {}, // { participantId: data }
     
     // Loading states
     loading: {
@@ -27,6 +28,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       participants: false,
       trialInteraction: false,
       zipDataMetrics: false,
+      participantTaskDetails: false,
       all: false
     },
     
@@ -39,6 +41,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       participants: null,
       trialInteraction: null,
       zipDataMetrics: null,
+      participantTaskDetails: null,
       all: null
     },
 
@@ -50,7 +53,8 @@ export const useAnalyticsStore = defineStore('analytics', {
       taskPerformance: null,
       participants: null,
       trialInteraction: null,
-      zipDataMetrics: null
+      zipDataMetrics: null,
+      participantTaskDetails: null
     },
     
     // Metric registry instance
@@ -73,6 +77,7 @@ export const useAnalyticsStore = defineStore('analytics', {
       const key = participantId ? `${studyId}_${participantId}` : `${studyId}`;
       return state.zipDataMetrics[key];
     },
+    getParticipantTaskDetails: (state) => (participantId) => state.participantTaskDetails[participantId],
     
     // Loading state getters
     isLoading: (state) => Object.values(state.loading).some(Boolean),
@@ -83,6 +88,7 @@ export const useAnalyticsStore = defineStore('analytics', {
     isLoadingParticipants: (state) => state.loading.participants,
     isLoadingTrialInteraction: (state) => state.loading.trialInteraction,
     isLoadingZipDataMetrics: (state) => state.loading.zipDataMetrics,
+    isLoadingParticipantTaskDetails: (state) => state.loading.participantTaskDetails,
     
     // Error state getters
     hasErrors: (state) => Object.values(state.errors).some(Boolean),
@@ -93,6 +99,7 @@ export const useAnalyticsStore = defineStore('analytics', {
     getParticipantsError: (state) => state.errors.participants,
     getTrialInteractionError: (state) => state.errors.trialInteraction,
     getZipDataMetricsError: (state) => state.errors.zipDataMetrics,
+    getParticipantTaskDetailsError: (state) => state.errors.participantTaskDetails,
     
     // Get data freshness
     getLastUpdated: (state) => state.lastUpdated
@@ -221,6 +228,32 @@ export const useAnalyticsStore = defineStore('analytics', {
         throw error;
       } finally {
         this.loading.trialInteraction = false;
+      }
+    },
+    
+    // Fetch task details for a specific participant
+    async fetchParticipantTaskDetails(studyId, participantId) {
+      this.loading.participantTaskDetails = true;
+      this.errors.participantTaskDetails = null;
+      
+      try {
+        console.log(`Store: Fetching task details for participant ${participantId}...`);
+        const data = await analyticsApi.getParticipantTaskDetails(studyId, participantId);
+        
+        // Store in state
+        this.participantTaskDetails = {
+          ...this.participantTaskDetails,
+          [participantId]: data
+        };
+        
+        this.lastUpdated.participantTaskDetails = new Date().toISOString();
+        return data;
+      } catch (error) {
+        console.error(`Store: Error fetching participant task details for participant ${participantId}:`, error);
+        this.errors.participantTaskDetails = error.message || `Error fetching participant task details`;
+        throw error;
+      } finally {
+        this.loading.participantTaskDetails = false;
       }
     },
     
