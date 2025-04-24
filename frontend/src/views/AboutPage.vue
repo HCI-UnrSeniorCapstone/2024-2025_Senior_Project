@@ -127,7 +127,7 @@ export default {
           avatar: '/images/Nevada-Wolf-Pack-football-logo.jpg',
         },
         {
-          name: 'Heather Zechter',
+          name: 'Heather Z.',
           avatar: '/images/Nevada-Wolf-Pack-football-logo.jpg',
         },
       ],
