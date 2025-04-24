@@ -4,6 +4,10 @@ from collections import defaultdict
 import time
 import logging
 from functools import wraps
+import os
+import io
+import zipfile
+import pandas as pd
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -93,6 +97,503 @@ def clear_cache_for_study(study_id):
         del cache[key]
         
     logger.debug(f"Cleared {len(keys_to_remove)} cache entries for study {study_id}")
+
+# New functions for zip file processing
+
+def extract_session_data_from_zip(zip_path, data_type=None):
+    """
+    Extract data from a session zip file
+    
+    Args:
+        zip_path: Path to the zip file
+        data_type: Optional filter for specific data types (e.g., "Mouse Movement", "Keyboard Inputs")
+        
+    Returns:
+        Dictionary mapping data types to DataFrames
+    """
+    if not os.path.exists(zip_path):
+        logger.error(f"Zip file not found: {zip_path}")
+        return {}
+    
+    try:
+        result_data = {}
+        
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # List all files in the zip
+            all_files = zip_ref.namelist()
+            
+            # Filter by data type if specified
+            if data_type:
+                data_files = [f for f in all_files if data_type in f]
+            else:
+                # Get all data files (CSV)
+                data_files = [f for f in all_files if f.endswith('.csv')]
+            
+            logger.debug(f"Found {len(data_files)} data files in zip")
+            
+            # Process each data file
+            for file_path in data_files:
+                try:
+                    # Extract file name to determine data type
+                    file_name = os.path.basename(file_path)
+                    
+                    # Figure out what type of data this is
+                    data_type_name = None
+                    
+                    # First, check if we have database info about this file
+                    try:
+                        # Extract session_data_instance_id from filename (assumes filename is the ID.csv)
+                        instance_id = os.path.splitext(file_name)[0]
+                        if instance_id.isdigit():
+                            # We have a potential session data instance ID, look it up
+                            logger.debug(f"Found potential session data instance ID in filename: {instance_id}")
+                            
+                            # Look for column names in the first few lines to determine data type
+                            with zip_ref.open(file_path) as f:
+                                first_line = f.readline().decode('utf-8').strip()
+                                if 'keys' in first_line.lower():
+                                    data_type_name = "Keyboard Input"
+                                    logger.debug(f"Detected Keyboard Input data from column names")
+                                elif 'x,y' in first_line.lower():
+                                    if 'clicks' in file_path.lower():
+                                        data_type_name = "Mouse Clicks"
+                                        logger.debug(f"Detected Mouse Clicks data from column names and path")
+                                    else:
+                                        data_type_name = "Mouse Movement"
+                                        logger.debug(f"Detected Mouse Movement data from column names")
+                    except Exception as e:
+                        logger.error(f"Error determining data type from file inspection: {e}")
+                    
+                    # If still not determined, try common patterns
+                    if not data_type_name:
+                        for data_type in ["Mouse Movement", "Keyboard Input", "Keyboard Inputs", "Mouse Clicks", "Mouse Scrolls"]:
+                            if data_type.lower() in file_path.lower() or data_type.lower() in file_name.lower():
+                                data_type_name = data_type
+                                logger.debug(f"Determined data type as {data_type} from path/name")
+                                break
+                    
+                    # Try to extract from parent folder name if still not found
+                    if not data_type_name:
+                        parts = file_path.split('/')
+                        if len(parts) > 1:
+                            folder_name = parts[-2]  # Parent folder
+                            for data_type in ["Mouse Movement", "Keyboard Input", "Keyboard Inputs", "Mouse Clicks", "Mouse Scrolls"]:
+                                if data_type.lower() in folder_name.lower():
+                                    data_type_name = data_type
+                                    logger.debug(f"Determined data type as {data_type} from parent folder")
+                                    break
+                    
+                    # If still can't determine, examine column headers
+                    if not data_type_name:
+                        try:
+                            with zip_ref.open(file_path) as f:
+                                headers = f.readline().decode('utf-8').strip().split(',')
+                                if 'keys' in headers:
+                                    data_type_name = "Keyboard Input"
+                                    logger.debug("Determined data type as Keyboard Input from headers")
+                                elif 'x' in headers and 'y' in headers:
+                                    data_type_name = "Mouse Movement"  # Default to movement
+                                    logger.debug("Determined data type as Mouse Movement from headers")
+                        except Exception as e:
+                            logger.error(f"Error examining headers: {e}")
+                    
+                    # Last resort - use filename without extension
+                    if not data_type_name:
+                        data_type_name = os.path.splitext(file_name)[0]
+                        logger.debug(f"Using filename as data type: {data_type_name}")
+                    
+                    # Read the CSV data
+                    with zip_ref.open(file_path) as f:
+                        df = pd.read_csv(f)
+                        
+                        # Store in result dictionary
+                        if data_type_name in result_data:
+                            # Append to existing data
+                            result_data[data_type_name] = pd.concat([result_data[data_type_name], df])
+                        else:
+                            # Create new entry
+                            result_data[data_type_name] = df
+                except Exception as e:
+                    logger.error(f"Error processing file {file_path}: {str(e)}")
+        
+        return result_data
+    except Exception as e:
+        logger.error(f"Error extracting data from zip {zip_path}: {str(e)}")
+        return {}
+
+def process_mouse_movement_data(mouse_movement_df):
+    """
+    Process mouse movement data to extract metrics
+    
+    Args:
+        mouse_movement_df: DataFrame containing mouse movement data
+        
+    Returns:
+        Dictionary of metrics
+    """
+    if mouse_movement_df is None or mouse_movement_df.empty:
+        return {}
+    
+    try:
+        # Calculate distance between consecutive points
+        x_diff = mouse_movement_df['x'].diff().fillna(0)
+        y_diff = mouse_movement_df['y'].diff().fillna(0)
+        distances = np.sqrt(x_diff**2 + y_diff**2)
+        
+        # Calculate time differences
+        # Convert running_time to numeric if needed
+        if not pd.api.types.is_numeric_dtype(mouse_movement_df['running_time']):
+            mouse_movement_df['running_time'] = pd.to_numeric(mouse_movement_df['running_time'], errors='coerce')
+            
+        time_diffs = mouse_movement_df['running_time'].diff().fillna(0)
+        
+        # Calculate speed (distance / time)
+        # Avoid division by zero
+        speeds = np.where(time_diffs > 0, distances / time_diffs, 0)
+        
+        # Calculate metrics
+        total_distance = distances.sum()
+        avg_speed = np.mean(speeds[speeds > 0]) if any(speeds > 0) else 0
+        max_speed = np.max(speeds) if len(speeds) > 0 else 0
+        
+        # Calculate path efficiency (straight line / actual path)
+        if len(mouse_movement_df) >= 2:
+            start_point = mouse_movement_df.iloc[0][['x', 'y']].values
+            end_point = mouse_movement_df.iloc[-1][['x', 'y']].values
+            straight_line = np.sqrt(np.sum((end_point - start_point)**2))
+            path_efficiency = straight_line / total_distance if total_distance > 0 else 0
+        else:
+            path_efficiency = 0
+        
+        # Return metrics
+        return {
+            'total_distance': total_distance,
+            'avg_speed': avg_speed,
+            'max_speed': max_speed,
+            'path_efficiency': path_efficiency,
+            'data_points': len(mouse_movement_df)
+        }
+    except Exception as e:
+        logger.error(f"Error processing mouse movement data: {str(e)}")
+        return {}
+
+def process_keyboard_data(keyboard_df):
+    """
+    Process keyboard data to extract metrics
+    
+    Args:
+        keyboard_df: DataFrame containing keyboard data
+        
+    Returns:
+        Dictionary of metrics
+    """
+    if keyboard_df is None or keyboard_df.empty:
+        return {}
+    
+    try:
+        # Count keypresses
+        total_keypresses = len(keyboard_df)
+        
+        # Count backspaces as corrections
+        backspaces = keyboard_df[keyboard_df['keys'] == 'Key.backspace']
+        correction_count = len(backspaces)
+        
+        # Calculate correction ratio
+        correction_ratio = correction_count / total_keypresses if total_keypresses > 0 else 0
+        
+        # Calculate typing speed (keypresses per second)
+        if 'running_time' in keyboard_df.columns:
+            if not pd.api.types.is_numeric_dtype(keyboard_df['running_time']):
+                keyboard_df['running_time'] = pd.to_numeric(keyboard_df['running_time'], errors='coerce')
+                
+            # Use max time as duration
+            duration = keyboard_df['running_time'].max()
+            typing_speed = total_keypresses / duration if duration > 0 else 0
+        else:
+            typing_speed = 0
+        
+        # Return metrics
+        return {
+            'total_keypresses': total_keypresses,
+            'correction_count': correction_count,
+            'correction_ratio': correction_ratio,
+            'typing_speed': typing_speed
+        }
+    except Exception as e:
+        logger.error(f"Error processing keyboard data: {str(e)}")
+        return {}
+
+def process_mouse_clicks_data(mouse_clicks_df):
+    """
+    Process mouse clicks data to extract metrics
+    
+    Args:
+        mouse_clicks_df: DataFrame containing mouse clicks data
+        
+    Returns:
+        Dictionary of metrics
+    """
+    if mouse_clicks_df is None or mouse_clicks_df.empty:
+        return {}
+    
+    try:
+        # Count clicks
+        total_clicks = len(mouse_clicks_df)
+        
+        # Calculate click frequency if time data available
+        if 'running_time' in mouse_clicks_df.columns:
+            if not pd.api.types.is_numeric_dtype(mouse_clicks_df['running_time']):
+                mouse_clicks_df['running_time'] = pd.to_numeric(mouse_clicks_df['running_time'], errors='coerce')
+                
+            # Use max time as duration
+            duration = mouse_clicks_df['running_time'].max()
+            click_frequency = total_clicks / duration if duration > 0 else 0
+        else:
+            click_frequency = 0
+        
+        # Check for double clicks (clicks within 0.5 seconds of each other)
+        double_clicks = 0
+        if total_clicks > 1 and 'running_time' in mouse_clicks_df.columns:
+            time_diffs = mouse_clicks_df['running_time'].diff().fillna(0)
+            double_clicks = sum(time_diffs < 0.5)
+        
+        # Return metrics
+        return {
+            'total_clicks': total_clicks,
+            'click_frequency': click_frequency,
+            'double_clicks': double_clicks
+        }
+    except Exception as e:
+        logger.error(f"Error processing mouse clicks data: {str(e)}")
+        return {}
+
+def analyze_trial_interaction_data(trial_zip_path):
+    """
+    Analyze all interaction data from a trial zip file
+    
+    Args:
+        trial_zip_path: Path to the trial zip file
+        
+    Returns:
+        Dictionary with metrics for each interaction type
+    """
+    # Extract data from zip
+    data_dict = extract_session_data_from_zip(trial_zip_path)
+    
+    # Process each data type
+    metrics = {}
+    
+    # Process mouse movement data
+    if 'Mouse Movement' in data_dict:
+        metrics['mouse_movement'] = process_mouse_movement_data(data_dict['Mouse Movement'])
+    
+    # Process keyboard data
+    if 'Keyboard Inputs' in data_dict:
+        metrics['keyboard'] = process_keyboard_data(data_dict['Keyboard Inputs'])
+    
+    # Process mouse clicks data
+    if 'Mouse Clicks' in data_dict:
+        metrics['mouse_clicks'] = process_mouse_clicks_data(data_dict['Mouse Clicks'])
+    
+    # Add metadata
+    metrics['data_types_found'] = list(data_dict.keys())
+    metrics['total_data_points'] = sum(len(df) for df in data_dict.values())
+    
+    return metrics
+
+# Async processing functions
+
+def process_zip_data_async(study_id=None, participant_id=None, zip_path=None, **kwargs):
+    """
+    Process zip data asynchronously
+    
+    Args:
+        study_id: Study ID for the data to process
+        participant_id: Optional participant ID for filtering
+        zip_path: Optional direct path to an existing zip file
+        **kwargs: Additional keyword arguments (including _job_meta from task queue)
+        
+    Returns:
+        Dictionary with metrics for each data type
+    """
+    logger.info(f"Starting async processing for study ID: {study_id}, participant ID: {participant_id}")
+    logger.info(f"Additional kwargs: {kwargs}")
+    
+    # Create a new database connection inside the worker process
+    # This prevents issues with the Flask app's connection pool being exhausted
+    # or connections being closed during processing
+    import MySQLdb
+    import os
+    import tempfile
+    
+    # Get environment variables for database connection
+    db_host = os.environ.get('MYSQL_HOST')
+    db_user = os.environ.get('MYSQL_USER')
+    db_pass = os.environ.get('MYSQL_PASSWORD')
+    db_name = os.environ.get('MYSQL_DB')
+    
+    start_time = time.time()
+    temp_file = None
+    
+    try:
+        # Create a fresh database connection for this job
+        logger.info(f"Creating fresh database connection for async job (host={db_host}, db={db_name})")
+        db_conn = MySQLdb.connect(
+            host=db_host,
+            user=db_user,
+            passwd=db_pass,
+            db=db_name
+        )
+        logger.info("Database connection successful")
+        
+        # If we don't have a zip file path, we need to create one
+        if not zip_path:
+            logger.info(f"No zip file provided, creating one for study: {study_id}")
+            
+            # Import the sessions utility here to avoid circular imports
+            from app.utility.sessions import get_all_study_csv_files, get_zip, get_all_participant_csv_files
+            
+            cursor = db_conn.cursor()
+            
+            # Get the zip file data
+            if participant_id:
+                logger.info(f"Getting files for participant {participant_id}")
+                results_with_size = get_all_participant_csv_files(participant_id, cursor)
+                memory_file = get_zip(results_with_size, study_id, db_conn, mode="participant")
+                scope = "participant"
+            else:
+                logger.info(f"Getting files for entire study {study_id}")
+                results_with_size = get_all_study_csv_files(study_id, cursor)
+                memory_file = get_zip(results_with_size, study_id, db_conn, mode="study")
+                scope = "study"
+            
+            if not results_with_size:
+                logger.warning(f"No data files found for {'participant ' + str(participant_id) if participant_id else 'study ' + str(study_id)}")
+                cursor.close()
+                db_conn.close()
+                return {
+                    "error": f"No data found for {'participant ' + str(participant_id) if participant_id else 'study ' + str(study_id)}",
+                    "study_id": study_id,
+                    "participant_id": participant_id,
+                    "processing_time": time.time() - start_time
+                }
+            
+            # Save the zip file temporarily
+            temp_file = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+            temp_file.write(memory_file.getvalue())
+            temp_file.close()
+            
+            # Use the temp file path
+            zip_path = temp_file.name
+            logger.info(f"Created temporary zip file: {zip_path}")
+            
+            # Close the cursor but keep the connection open for later
+            cursor.close()
+        
+        # Extract data from zip
+        logger.info(f"Extracting data from zip file: {zip_path}")
+        data_dict = extract_session_data_from_zip(zip_path)
+        
+        if not data_dict:
+            logger.warning(f"No data extracted from zip file: {zip_path}")
+            # Ensure DB connection is closed if it was opened
+            if db_conn:
+                db_conn.close()
+                logger.info("Database connection closed")
+            
+            return {
+                "error": "No valid data found in the zip file",
+                "study_id": study_id,
+                "participant_id": participant_id,
+                "processing_time": time.time() - start_time
+            }
+        
+        # Process each data type
+        metrics = {
+            "scope": "participant" if participant_id else "study",
+            "study_id": study_id,
+            "participant_id": participant_id,
+            "data_types_found": list(data_dict.keys()),
+            "file_count": len(data_dict),
+            "total_data_points": sum(len(df) for df in data_dict.values())
+        }
+        
+        # Process mouse movement data
+        if 'Mouse Movement' in data_dict:
+            logger.info(f"Processing {len(data_dict['Mouse Movement'])} mouse movement data points")
+            metrics['mouse_movement'] = process_mouse_movement_data(data_dict['Mouse Movement'])
+        
+        # Process keyboard data
+        if 'Keyboard Input' in data_dict:
+            logger.info(f"Processing {len(data_dict['Keyboard Input'])} keyboard input data points")
+            metrics['keyboard'] = process_keyboard_data(data_dict['Keyboard Input'])
+        elif 'Keyboard Inputs' in data_dict:
+            logger.info(f"Processing {len(data_dict['Keyboard Inputs'])} keyboard inputs data points")
+            metrics['keyboard'] = process_keyboard_data(data_dict['Keyboard Inputs'])
+        
+        # Process mouse clicks data
+        if 'Mouse Clicks' in data_dict:
+            logger.info(f"Processing {len(data_dict['Mouse Clicks'])} mouse clicks data points")
+            metrics['mouse_clicks'] = process_mouse_clicks_data(data_dict['Mouse Clicks'])
+        
+        # Calculate processing time
+        end_time = time.time()
+        processing_time = end_time - start_time
+        metrics['processing_time'] = processing_time
+        
+        logger.info(f"Finished processing zip data in {processing_time:.2f} seconds")
+        
+        # Convert numpy values to standard Python types for JSON serialization
+        def convert_numpy_to_python(obj):
+            """Convert numpy types to standard Python types for JSON serialization"""
+            import numpy as np
+            if isinstance(obj, dict):
+                return {k: convert_numpy_to_python(v) for k, v in obj.items()}
+            elif isinstance(obj, (list, tuple)):
+                return [convert_numpy_to_python(i) for i in obj]
+            elif isinstance(obj, np.integer):
+                return int(obj)
+            elif isinstance(obj, np.floating):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            else:
+                return obj
+        
+        # Convert all metrics to standard Python types
+        metrics = convert_numpy_to_python(metrics)
+        
+        return metrics
+    except Exception as e:
+        # Handle any exceptions during processing
+        logger.error(f"Error processing zip data: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Return error information
+        return {
+            "error": f"Error processing zip data: {str(e)}",
+            "study_id": study_id,
+            "participant_id": participant_id,
+            "processing_time": time.time() - start_time
+        }
+    finally:
+        # Clean up resources
+        # Remove the temporary zip file after processing
+        try:
+            if zip_path:
+                os.unlink(zip_path)
+                logger.info(f"Deleted temporary zip file: {zip_path}")
+        except Exception as e:
+            logger.warning(f"Failed to delete temporary zip file: {str(e)}")
+        
+        # Close the database connection if it was opened
+        if 'db_conn' in locals() and db_conn:
+            db_conn.close()
+            logger.info("Database connection closed")
+            
+        # We've already returned from the function in both try and except blocks,
+        # so this code below should not be reachable
 
 @cached()
 def get_study_summary(conn, study_id):

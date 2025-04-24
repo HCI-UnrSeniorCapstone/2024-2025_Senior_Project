@@ -13,7 +13,7 @@ const cache = new Map();
 function getApiClient(baseUrl = API_BASE_URL) {
   return axios.create({
     baseURL: baseUrl,
-    timeout: 5000, // Lower timeout to 5 seconds - if it takes longer than this, something is wrong
+    timeout: 30000, // 30 seconds timeout for larger requests
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
@@ -21,7 +21,7 @@ function getApiClient(baseUrl = API_BASE_URL) {
     // Add responseType: 'json' explicitly
     responseType: 'json',
     // Add max content length option
-    maxContentLength: 10 * 1024 * 1024 // 10MB max response size
+    maxContentLength: 50 * 1024 * 1024 // 50MB max response size
   });
 }
 
@@ -331,6 +331,225 @@ const analyticsApi = {
     } catch (error) {
       console.error(`Failed to export study data for study ${studyId}:`, error);
       handleApiError(error, `exportStudyData(${studyId}, ${format})`);
+    }
+  },
+
+  // NEW METHODS FOR ZIP DATA ANALYTICS
+  
+  // Get interaction data from a trial zip file
+  async getTrialInteractionData(studyId, trialId) {
+    return getCachedData(`trial_interaction_${studyId}_${trialId}`, async () => {
+      try {
+        console.log(`Attempting to get interaction data for trial ${trialId} in study ${studyId}...`);
+        
+        // Try API call with fallback
+        const response = await makeApiCallWithFallback(`/analytics/${studyId}/trial-interaction`, {
+          params: { trial_id: trialId }
+        });
+        console.log('Successfully got trial interaction data from API');
+        return response.data;
+      } catch (error) {
+        console.error('Failed to fetch trial interaction data:', error);
+        return {
+          error: 'Failed to fetch trial interaction data',
+          trialId: trialId,
+          message: error.message
+        };
+      }
+    });
+  },
+  
+  // Get aggregated metrics from zip files for a study or participant
+  async getZipDataMetrics(studyId, participantId = null) {
+    const cacheKey = participantId 
+      ? `zip_metrics_${studyId}_participant_${participantId}` 
+      : `zip_metrics_${studyId}`;
+      
+    return getCachedData(cacheKey, async () => {
+      try {
+        console.log(`Attempting to get zip data metrics for study ${studyId}${participantId ? ' and participant ' + participantId : ''}...`);
+        
+        // Set up params
+        const params = {};
+        if (participantId) {
+          params.participant_id = participantId;
+        }
+        
+        // Request data from API (starts async process)
+        const response = await makeApiCallWithFallback(`/analytics/${studyId}/zip-data`, {
+          params
+        });
+        
+        // Check if this is an async job (will have status="processing" and job_id)
+        if (response.data && response.data.status === 'processing' && response.data.job_id) {
+          console.log(`ZIP processing started asynchronously with job ID: ${response.data.job_id}`);
+          
+          // Now we need to poll for results
+          const jobId = response.data.job_id;
+          const maxAttempts = 60;  // Max 60 attempts (with initial pollInterval of 1s)
+          let attempts = 0;
+          let pollInterval = 1000;  // Start with 1 second intervals
+          
+          // Define the polling function
+          const pollForResults = async () => {
+            attempts++;
+            
+            try {
+              // Check job status using our dedicated method
+              const jobStatus = await this.checkJobStatus(jobId);
+              
+              console.log(`Poll attempt ${attempts}/${maxAttempts}: Job status ${jobStatus.status}`);
+              
+              if (jobStatus.status === 'completed') {
+                // Job completed successfully
+                console.log('ZIP processing job completed successfully');
+                return jobStatus.result;
+              } else if (jobStatus.status === 'failed') {
+                // Job failed
+                console.error('ZIP processing job failed:', jobStatus.error);
+                throw new Error(jobStatus.error || 'Processing failed');
+              } else if (attempts >= maxAttempts) {
+                // Too many attempts
+                console.error(`Polling timeout after ${maxAttempts} attempts`);
+                throw new Error('Timeout waiting for results');
+              } else {
+                // Job still in progress, wait and try again
+                console.log(`Job still in progress (${jobStatus.status}), waiting ${pollInterval/1000}s before next poll`);
+                
+                // Increasing poll interval with exponential backoff (max 5 seconds)
+                pollInterval = Math.min(pollInterval * 1.2, 5000);
+                
+                // Wait for the interval then try again
+                await new Promise(resolve => setTimeout(resolve, pollInterval));
+                return pollForResults();
+              }
+            } catch (error) {
+              console.error(`Error during polling (attempt ${attempts}/${maxAttempts}):`, error);
+              if (attempts >= maxAttempts) {
+                throw error;
+              }
+              
+              // Wait and try again
+              await new Promise(resolve => setTimeout(resolve, pollInterval));
+              return pollForResults();
+            }
+          };
+          
+          // Start polling
+          return await pollForResults();
+        } else {
+          // Not an async job, return the data directly
+          console.log('Successfully got zip data metrics from API immediately');
+          return response.data;
+        }
+      } catch (error) {
+        // Special handling for timeout errors
+        if (error.message && error.message.includes('timeout')) {
+          console.warn('Initial request timed out but the job might still be processing');
+          return {
+            status: 'timeout',
+            error: 'Request timed out. The job may still be processing in the background.',
+            message: 'The server request timed out. Try checking the job status in a few seconds.',
+            studyId: studyId,
+            participantId: participantId
+          };
+        }
+        
+        // Other errors
+        console.error('Failed to fetch zip data metrics:', error);
+        return {
+          error: 'Failed to fetch zip data metrics',
+          studyId: studyId,
+          participantId: participantId,
+          message: error.message
+        };
+      }
+    });
+  },
+  
+  // Poll for job status with retries and backoff
+  async pollJobUntilComplete(jobId, maxAttempts = 60, initialPollInterval = 1000) {
+    let attempts = 0;
+    let pollInterval = initialPollInterval;
+    
+    console.log(`Starting polling for job ${jobId} (max ${maxAttempts} attempts)`);
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        // Check job status
+        const jobStatus = await this.checkJobStatus(jobId);
+        console.log(`Poll attempt ${attempts}/${maxAttempts}: Job ${jobId} status: ${jobStatus.status}`);
+        
+        if (jobStatus.status === 'completed') {
+          // Job is done
+          return jobStatus.result;
+        } else if (jobStatus.status === 'failed') {
+          // Job failed
+          throw new Error(jobStatus.error || 'Job failed');
+        } else if (jobStatus.status === 'not_found') {
+          // Job not found
+          throw new Error('Job not found');
+        }
+        
+        // If we're here, job is still in progress (queued or running)
+        // Wait before checking again
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+        // Increase poll interval with exponential backoff (max 5 seconds)
+        pollInterval = Math.min(pollInterval * 1.2, 5000);
+      } catch (error) {
+        console.error(`Error polling job ${jobId} (attempt ${attempts}/${maxAttempts}):`, error);
+        
+        // For most errors, we should retry after waiting
+        if (attempts >= maxAttempts) {
+          throw new Error(`Polling timed out after ${maxAttempts} attempts: ${error.message}`);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        pollInterval = Math.min(pollInterval * 1.5, 5000); // Increase more aggressively on error
+      }
+    }
+    
+    // If we get here, we've run out of attempts
+    throw new Error(`Polling timed out after ${maxAttempts} attempts`);
+  },
+  
+  // Check status of an async job
+  async checkJobStatus(jobId) {
+    try {
+      console.log(`Checking status for job ${jobId}...`);
+      
+      // Try API call with fallback
+      const response = await makeApiCallWithFallback(`/analytics/jobs/${jobId}`);
+      console.log(`Job ${jobId} status: ${response.data.status}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to check job status for ${jobId}:`, error);
+      return {
+        job_id: jobId,
+        status: 'error',
+        error: error.message
+      };
+    }
+  },
+  
+  // Check queue status
+  async getQueueStatus() {
+    try {
+      console.log('Checking queue status...');
+      
+      // Try API call with fallback
+      const response = await makeApiCallWithFallback('/analytics/queue-status');
+      console.log('Queue status:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to check queue status:', error);
+      return {
+        status: 'error',
+        error: error.message
+      };
     }
   }
 };

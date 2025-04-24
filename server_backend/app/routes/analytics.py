@@ -1417,6 +1417,176 @@ def validate_analytics_schema_endpoint():
             "timestamp": datetime.now().isoformat()
         }), 500
 
+@analytics_bp.route('/<study_id>/trial-interaction', methods=['GET'])
+def get_trial_interaction_data(study_id):
+    """Get interaction metrics from a specific trial"""
+    try:
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+        
+        # Get trial_id parameter
+        trial_id = request.args.get('trial_id', type=int)
+        if not trial_id:
+            return jsonify({"error": "Missing required 'trial_id' parameter"}), 400
+        
+        try:
+            # Connect to database
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            # Verify trial belongs to study
+            cursor.execute("""
+                SELECT t.trial_id 
+                FROM trial t
+                JOIN participant_session ps ON t.participant_session_id = ps.participant_session_id
+                WHERE ps.study_id = %s AND t.trial_id = %s
+            """, (study_id, trial_id))
+            
+            if not cursor.fetchone():
+                return jsonify({"error": f"Trial ID {trial_id} not found in study {study_id}"}), 404
+            
+            # Get session data files
+            cursor.execute("""
+                SELECT 
+                    sdi.results_path,
+                    mo.measurement_option_name
+                FROM session_data_instance sdi
+                JOIN measurement_option mo ON sdi.measurement_option_id = mo.measurement_option_id
+                WHERE sdi.trial_id = %s
+            """, (trial_id,))
+            
+            results = cursor.fetchall()
+            
+            if not results:
+                return jsonify({"error": "No data files found for this trial"}), 404
+            
+            # Process each file
+            metrics = {}
+            
+            # Create a temporary zip file with all the session data files
+            import tempfile
+            import zipfile
+            import os
+            
+            with tempfile.NamedTemporaryFile(suffix='.zip', delete=False) as temp_zip:
+                with zipfile.ZipFile(temp_zip.name, 'w') as zf:
+                    for file_path, measurement_name in results:
+                        if os.path.exists(file_path):
+                            # Add the file to the zip with the measurement name as the filename
+                            zf.write(file_path, f"{measurement_name}{os.path.splitext(file_path)[1]}")
+                
+                # Close the temp file
+                temp_zip_path = temp_zip.name
+                
+            # Import the analytical functions
+            from app.utility.analytics.data_processor import analyze_trial_interaction_data
+            
+            # Process the zip file
+            metrics = analyze_trial_interaction_data(temp_zip_path)
+            
+            # Clean up the temporary file
+            try:
+                os.unlink(temp_zip_path)
+            except:
+                pass
+            
+            # Close database connection
+            cursor.close()
+            conn.close()
+            
+            # Add trial ID to the result
+            metrics['trial_id'] = trial_id
+            
+            # Add CORS headers
+            response = jsonify(metrics)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error processing interaction data: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({"error": f"Error processing interaction data: {str(e)}"}), 500
+            
+    except Exception as e:
+        return handle_route_error(e, "get_trial_interaction_data", study_id)
+
+@analytics_bp.route('/<study_id>/zip-data', methods=['GET'])
+def get_zip_data_metrics(study_id):
+    """Get metrics from a study zip file"""
+    try:
+        # Check for job_id parameter, which indicates client is polling for results
+        job_id = request.args.get('job_id')
+        if job_id:
+            # Import the task queue module
+            from app.utility.analytics.task_queue import get_job_status
+            
+            # Get the job status
+            job_status = get_job_status(job_id)
+            logger.info(f"Checking job status for {job_id}: {job_status['status']}")
+            
+            # Return the job status
+            response = jsonify(job_status)
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        # Validate study_id
+        try:
+            study_id = int(study_id)
+        except ValueError:
+            raise ValueError("Study ID must be an integer")
+        
+        # Get optional participant_id parameter
+        participant_id = request.args.get('participant_id')
+        
+        # Always use async processing to prevent timeouts
+        # This avoids browser timeouts by immediately returning a job ID
+        logger.info(f"Processing zip data asynchronously for study {study_id}")
+        
+        try:
+            # Import async processing functions
+            from app.utility.analytics.task_queue import enqueue_task
+            from app.utility.analytics.data_processor import process_zip_data_async
+            
+            # Enqueue the task for async processing
+            # The worker will handle all database and file operations
+            job_info = enqueue_task(
+                process_zip_data_async,
+                study_id=study_id,
+                participant_id=participant_id
+            )
+            
+            logger.info(f"Enqueued async zip processing job: {job_info['job_id']}")
+            
+            # Return the job information for polling
+            # The response includes a job_id that the client can use to poll for results
+            response = jsonify({
+                "status": "processing",
+                "job_id": job_info['job_id'],
+                "message": "The data is being processed asynchronously. Please poll for results using the job_id.",
+                "studyId": study_id,
+                "participantId": participant_id
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error processing zip data: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({"error": f"Error processing zip data: {str(e)}"}), 500
+            
+    except Exception as e:
+        return handle_route_error(e, "get_zip_data_metrics", study_id)
+
 @analytics_bp.route('/health', methods=['GET'])
 def health_check():
     # Check if API is working properly
@@ -1467,6 +1637,24 @@ def health_check():
         # Close the connection properly
         cursor.close()
         conn.close()
+        
+        # Check queue status
+        queue_status = "unavailable"
+        queue_workers = 0
+        queue_jobs = 0
+        try:
+            # Import the task queue module
+            from app.utility.analytics.task_queue import redis_conn, queue
+            
+            if redis_conn and redis_conn.ping():
+                queue_status = "connected"
+                # Check if we can get queue stats
+                if queue:
+                    queue_jobs = queue.count
+                    queue_workers = len(queue.workers)
+        except Exception as e:
+            logger.error(f"Queue check failed: {str(e)}")
+        
     except Exception as e:
         db_connected = False
         schema_ok = False
@@ -1487,5 +1675,101 @@ def health_check():
             "host": os.getenv("MYSQL_HOST", "unknown"),
             "database": os.getenv("MYSQL_DB", "unknown"),
             "connected": db_connected
+        },
+        "queue_status": {
+            "status": queue_status,
+            "workers": queue_workers,
+            "pending_jobs": queue_jobs,
+            "redis_host": os.getenv("REDIS_HOST", "localhost")
         }
     })
+
+@analytics_bp.route('/jobs/<job_id>', methods=['GET'])
+def check_job_status(job_id):
+    """Check the status of an asynchronous job"""
+    try:
+        # Import the task queue module
+        from app.utility.analytics.task_queue import get_job_status, JobStatus
+        
+        # Get the job status
+        job_status = get_job_status(job_id)
+        logger.info(f"Checking job status for {job_id}: {job_status['status']}")
+        
+        # Debug log the structure of the response
+        if job_status['status'] == JobStatus.COMPLETED and 'result' in job_status:
+            logger.info(f"Job {job_id} completed with result keys: {list(job_status['result'].keys()) if isinstance(job_status['result'], dict) else 'non-dict result'}")
+        
+        # Return the job status
+        response = jsonify(job_status)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        return response
+    except Exception as e:
+        logger.error(f"Error checking job status: {str(e)}")
+        logger.error(traceback.format_exc())  # Add full traceback for easier debugging
+        return jsonify({
+            "job_id": job_id,
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+@analytics_bp.route('/queue-status', methods=['GET'])
+def queue_status():
+    """Get the status of the task queue"""
+    try:
+        # Import the task queue module
+        from app.utility.analytics.task_queue import redis_conn, queue
+        
+        # Check Redis connection
+        redis_ok = False
+        redis_info = {}
+        queue_info = {}
+        
+        try:
+            if redis_conn:
+                redis_ok = redis_conn.ping()
+                if redis_ok:
+                    # Get Redis info
+                    redis_info = {
+                        "version": redis_conn.info().get("redis_version", "unknown"),
+                        "used_memory": redis_conn.info().get("used_memory_human", "unknown"),
+                        "uptime": redis_conn.info().get("uptime_in_seconds", 0)
+                    }
+        except Exception as e:
+            logger.error(f"Error checking Redis status: {str(e)}")
+        
+        # Check queue status
+        queue_ok = False
+        try:
+            if queue:
+                queue_ok = True
+                queue_info = {
+                    "pending_jobs": queue.count,
+                    "workers": len(queue.workers),
+                    "failed_jobs": len(queue.failed_job_registry)
+                }
+        except Exception as e:
+            logger.error(f"Error checking queue status: {str(e)}")
+        
+        # Return the status
+        return jsonify({
+            "redis": {
+                "connected": redis_ok,
+                "host": os.getenv("REDIS_HOST", "localhost"),
+                "port": os.getenv("REDIS_PORT", 6379),
+                **redis_info
+            },
+            "queue": {
+                "available": queue_ok,
+                "name": "analytics",
+                **queue_info
+            },
+            "timestamp": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error checking queue status: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500

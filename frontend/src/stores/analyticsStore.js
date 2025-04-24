@@ -14,6 +14,10 @@ export const useAnalyticsStore = defineStore('analytics', {
     participantData: [],
     customMetrics: {},
     
+    // New data states for zip analytics
+    trialInteractionData: {}, // { trialId: data }
+    zipDataMetrics: {}, // { studyId: data } or { studyId_participantId: data }
+    
     // Loading states
     loading: {
       studies: false,
@@ -21,6 +25,8 @@ export const useAnalyticsStore = defineStore('analytics', {
       learningCurve: false,
       taskPerformance: false,
       participants: false,
+      trialInteraction: false,
+      zipDataMetrics: false,
       all: false
     },
     
@@ -31,6 +37,8 @@ export const useAnalyticsStore = defineStore('analytics', {
       learningCurve: null,
       taskPerformance: null,
       participants: null,
+      trialInteraction: null,
+      zipDataMetrics: null,
       all: null
     },
 
@@ -40,7 +48,9 @@ export const useAnalyticsStore = defineStore('analytics', {
       summaryMetrics: null,
       learningCurve: null,
       taskPerformance: null,
-      participants: null
+      participants: null,
+      trialInteraction: null,
+      zipDataMetrics: null
     },
     
     // Metric registry instance
@@ -57,6 +67,13 @@ export const useAnalyticsStore = defineStore('analytics', {
     getCustomMetrics: (state) => state.customMetrics,
     getAvailableMetrics: (state) => state.metricRegistry.getAvailableMetrics(),
     
+    // Zip data getters
+    getTrialInteractionData: (state) => (trialId) => state.trialInteractionData[trialId],
+    getZipDataMetrics: (state) => (studyId, participantId = null) => {
+      const key = participantId ? `${studyId}_${participantId}` : `${studyId}`;
+      return state.zipDataMetrics[key];
+    },
+    
     // Loading state getters
     isLoading: (state) => Object.values(state.loading).some(Boolean),
     isLoadingStudies: (state) => state.loading.studies,
@@ -64,6 +81,8 @@ export const useAnalyticsStore = defineStore('analytics', {
     isLoadingLearningCurve: (state) => state.loading.learningCurve,
     isLoadingTaskPerformance: (state) => state.loading.taskPerformance,
     isLoadingParticipants: (state) => state.loading.participants,
+    isLoadingTrialInteraction: (state) => state.loading.trialInteraction,
+    isLoadingZipDataMetrics: (state) => state.loading.zipDataMetrics,
     
     // Error state getters
     hasErrors: (state) => Object.values(state.errors).some(Boolean),
@@ -72,6 +91,8 @@ export const useAnalyticsStore = defineStore('analytics', {
     getLearningCurveError: (state) => state.errors.learningCurve,
     getTaskPerformanceError: (state) => state.errors.taskPerformance,
     getParticipantsError: (state) => state.errors.participants,
+    getTrialInteractionError: (state) => state.errors.trialInteraction,
+    getZipDataMetricsError: (state) => state.errors.zipDataMetrics,
     
     // Get data freshness
     getLastUpdated: (state) => state.lastUpdated
@@ -177,6 +198,143 @@ export const useAnalyticsStore = defineStore('analytics', {
       }
     },
     
+    // Fetch trial interaction data from zip
+    async fetchTrialInteractionData(studyId, trialId) {
+      this.loading.trialInteraction = true;
+      this.errors.trialInteraction = null;
+      
+      try {
+        console.log(`Store: Fetching trial interaction data for trial ${trialId}...`);
+        const data = await analyticsApi.getTrialInteractionData(studyId, trialId);
+        
+        // Store in state
+        this.trialInteractionData = {
+          ...this.trialInteractionData,
+          [trialId]: data
+        };
+        
+        this.lastUpdated.trialInteraction = new Date().toISOString();
+        return data;
+      } catch (error) {
+        console.error(`Store: Error fetching trial interaction data for trial ${trialId}:`, error);
+        this.errors.trialInteraction = error.message || `Error fetching trial interaction data`;
+        throw error;
+      } finally {
+        this.loading.trialInteraction = false;
+      }
+    },
+    
+    // Fetch zip data metrics for a study or participant
+    async fetchZipDataMetrics(studyId, participantId = null) {
+      this.loading.zipDataMetrics = true;
+      this.errors.zipDataMetrics = null;
+      
+      try {
+        console.log(`Store: Fetching zip data metrics for study ${studyId}${participantId ? ' and participant ' + participantId : ''}...`);
+        
+        // Generate a key for storage
+        const key = participantId ? `${studyId}_${participantId}` : `${studyId}`;
+        
+        // First check if we already have this data cached
+        if (this.zipDataMetrics[key] && !this.zipDataMetrics[key].error) {
+          console.log(`Store: Using cached zip data for study ${studyId}`);
+          this.loading.zipDataMetrics = false;
+          return this.zipDataMetrics[key];
+        }
+        
+        // If not in cache or cached with error, try to fetch
+        try {
+          const data = await analyticsApi.getZipDataMetrics(studyId, participantId);
+          
+          // Check if we got valid data
+          if (!data) {
+            console.error('Store: Received null or undefined data from API');
+            throw new Error('No data received from API');
+          }
+          
+          // Special handling for async job responses
+          if (data.status === 'processing' && data.job_id) {
+            console.log(`Store: Got async job ID ${data.job_id}, will return this for polling`);
+            
+            // We'll store this as-is, but it's not the final result
+            this.zipDataMetrics = {
+              ...this.zipDataMetrics,
+              [key]: data
+            };
+            
+            return data;
+          }
+          
+          // Handle returned errors
+          if (data.error) {
+            console.error(`Store: API returned error: ${data.error}`);
+            throw new Error(data.error);
+          }
+          
+          console.log(`Store: Zip data fetch successful for study ${studyId}, keys:`, Object.keys(data));
+          
+          // Store in state
+          this.zipDataMetrics = {
+            ...this.zipDataMetrics,
+            [key]: data
+          };
+          
+          this.lastUpdated.zipDataMetrics = new Date().toISOString();
+          return data;
+        } catch (apiError) {
+          // Handle the case where the initial API call fails with timeout
+          if (apiError.message && apiError.message.includes('timeout')) {
+            console.warn('Store: API request timed out, returning a timeout status for polling');
+            
+            // Create a response that looks like an async job response but indicates timeout
+            const timeoutResponse = {
+              status: 'timeout',
+              error: 'Request timed out. The worker might still be processing the data.',
+              message: 'The server request timed out, but the job might still be running in the background.',
+              studyId: studyId,
+              participantId: participantId,
+              retry_in: 5000 // Suggest a retry in 5 seconds
+            };
+            
+            // Cache this timeout response
+            this.zipDataMetrics = {
+              ...this.zipDataMetrics,
+              [key]: timeoutResponse
+            };
+            
+            // We'll still count this as an error for the UI
+            this.errors.zipDataMetrics = 'Request timed out. Try checking the job status again in a few seconds.';
+            
+            return timeoutResponse;
+          }
+          
+          // For other errors, pass through
+          throw apiError;
+        }
+      } catch (error) {
+        console.error(`Store: Error fetching zip data metrics:`, error);
+        this.errors.zipDataMetrics = error.message || `Error fetching zip data metrics`;
+        
+        // Return the error as structured data so components can handle it
+        const errorData = {
+          error: error.message || 'Unknown error',
+          studyId: studyId,
+          participantId: participantId
+        };
+        
+        // Also cache the error so we don't keep retrying the same failing request
+        const key = participantId ? `${studyId}_${participantId}` : `${studyId}`;
+        this.zipDataMetrics = {
+          ...this.zipDataMetrics,
+          [key]: errorData
+        };
+        
+        return errorData;
+      } finally {
+        this.loading.zipDataMetrics = false;
+      }
+    },
+    
     // Fetch all data for a study in parallel
     async fetchAllStudyData(studyId) {
       this.loading.all = true;
@@ -252,6 +410,8 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.taskPerformanceData = [];
       this.participantData = [];
       this.customMetrics = {};
+      this.trialInteractionData = {};
+      this.zipDataMetrics = {};
       
       // Reset all loading states
       Object.keys(this.loading).forEach(key => {
