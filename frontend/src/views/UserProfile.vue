@@ -1,43 +1,104 @@
 <template>
-  <v-container fluid class="page-container">
-    <v-slide-y-transition mode="in-out">
-      <v-row justify="center" align="start" class="pt-10">
-        <!-- Left: Profile Card -->
-        <v-col cols="12" md="4">
-          <ProfileCard
-            :fullName="firstName + ' ' + lastName"
-            :phone="userPhone"
-            :email="email"
-            @save="submit"
-          />
-        </v-col>
+  <v-main>
+    <v-container class="mt-5 profile-page">
+      <!-- Banner and Avatar -->
+      <div class="banner-container">
+        <v-img src="/images/convert.jpg" class="banner-img" cover></v-img>
 
-        <!-- Right: Editable Sections -->
-        <v-col cols="12" md="6">
-          <v-card class="pa-6 rounded-xl" elevation="2">
-            <!-- Password Change -->
-            <h2 class="text-h6 font-weight-bold mb-4">Change Password</h2>
+        <div class="avatar-wrapper">
+          <v-avatar class="profile-avatar" size="120">
+            <v-img src="/images/unr n.jpg" alt="User Avatar" contain></v-img>
+          </v-avatar>
+        </div>
+      </div>
+
+      <!-- Profile Form -->
+      <v-card class="pa-6 mt-6" elevation="2">
+        <v-tabs v-model="tab" background-color="transparent" grow>
+          <v-tab>Profile</v-tab>
+          <v-tab>Change Password</v-tab>
+        </v-tabs>
+
+        <v-window v-model="tab" class="mt-6">
+          <!-- Profile Info -->
+          <v-window-item :value="0">
+            <v-row class="form-grid" dense>
+              <!-- Labels column -->
+              <v-col cols="12" md="3" class="form-labels">
+                <div class="form-label">Full Name</div>
+                <div class="form-label">Email</div>
+              </v-col>
+
+              <!-- Inputs column -->
+              <v-col cols="12" md="9" class="form-inputs">
+                <div class="full-name-inputs">
+                  <v-text-field
+                    v-model="firstName"
+                    placeholder="First name"
+                    variant="outlined"
+                    hide-details
+                    density="comfortable"
+                  />
+                  <v-text-field
+                    v-model="lastName"
+                    placeholder="Last name"
+                    variant="outlined"
+                    hide-details
+                    density="comfortable"
+                  />
+                </div>
+                <v-text-field
+                  v-model="email"
+                  disabled
+                  variant="outlined"
+                  hide-details
+                  density="comfortable"
+                />
+              </v-col>
+            </v-row>
+
+            <div v-if="isModified" class="button-row right-align">
+              <v-btn
+                variant="outlined"
+                color="primary"
+                class="rounded-pill px-6"
+                @click="resetFields"
+              >
+                Cancel
+              </v-btn>
+
+              <v-btn
+                :loading="loading"
+                color="primary"
+                class="rounded-pill px-6"
+                @click="submit"
+              >
+                Save Changes
+              </v-btn>
+            </div>
+          </v-window-item>
+
+          <!-- Password Change -->
+          <v-window-item :value="1">
             <form @submit.prevent="changePassword">
               <v-text-field
                 v-model="currentPassword"
                 label="Current Password"
                 type="password"
-                variant="filled"
+                variant="outlined"
                 class="mb-4"
                 required
               />
-
               <v-text-field
                 v-model="newPassword"
                 :type="showPassword ? 'text' : 'password'"
                 label="New Password"
                 :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
                 @click:append-inner="showPassword = !showPassword"
-                required
+                variant="outlined"
                 class="mb-4"
-                hide-details="auto"
+                required
               />
-
               <v-text-field
                 v-model="confirmNewPassword"
                 :type="showPassword ? 'text' : 'password'"
@@ -46,105 +107,95 @@
                 :error-messages="
                   showPasswordMismatch ? ['Passwords do not match'] : []
                 "
-                required
+                variant="outlined"
                 class="mb-4"
-                hide-details="auto"
+                required
               />
 
               <v-btn
                 :loading="changingPassword"
                 :disabled="!passwordsMatch"
                 color="primary"
-                type="submit"
-                variant="flat"
                 class="rounded-pill px-6"
+                type="submit"
               >
                 Change Password
               </v-btn>
-
-              <v-alert
-                v-if="passwordError"
-                type="error"
-                class="mt-2"
-                variant="outlined"
-                border="start"
-              >
-                <div class="alert-text">{{ passwordError }}</div>
-              </v-alert>
             </form>
+          </v-window-item>
+        </v-window>
 
-            <!-- Alerts -->
-            <v-alert
-              v-if="error"
-              type="error"
-              class="mt-4"
-              variant="outlined"
-              border="start"
-            >
-              <div class="alert-text">{{ error }}</div>
-            </v-alert>
+        <v-alert
+          v-if="error"
+          type="error"
+          class="mt-4"
+          variant="outlined"
+          border="start"
+        >
+          {{ error }}
+        </v-alert>
 
-            <v-alert
-              v-if="success"
-              type="success"
-              class="mt-4"
-              variant="tonal"
-              border="start"
-            >
-              <div class="alert-text">
-                {{ successMessage || 'Update successful!' }}
-              </div>
-            </v-alert>
-          </v-card>
+        <v-alert
+          v-if="success"
+          type="success"
+          class="mt-4"
+          variant="tonal"
+          border="start"
+        >
+          {{ successMessage || 'Update successful!' }}
+        </v-alert>
+      </v-card>
 
-          <!-- Logout Button -->
-          <v-row justify="center" class="mt-6">
-            <v-btn
-              @click="logOut"
-              color="primary"
-              variant="flat"
-              class="rounded-pill px-6"
-            >
-              Logout
-            </v-btn>
-          </v-row>
-        </v-col>
+      <!-- Logout -->
+      <v-row justify="center" class="mt-6">
+        <v-btn
+          @click="logOut"
+          color="primary"
+          variant="flat"
+          class="rounded-pill px-6 logout"
+        >
+          Logout
+        </v-btn>
       </v-row>
-    </v-slide-y-transition>
-  </v-container>
+    </v-container>
+  </v-main>
 </template>
 
 <script>
 import api from '@/axiosInstance'
-import ProfileCard from '@/components/ProfileCard.vue'
 import { auth } from '@/stores/auth'
 import { useStudyStore } from '@/stores/study'
+
 export default {
   name: 'UserProfile',
-  components: { ProfileCard },
   data() {
     return {
+      tab: 0,
       email: '',
       firstName: '',
       lastName: '',
-      userPhone: '',
       loading: false,
       error: '',
       success: false,
       successMessage: '',
 
-      // Password change
       currentPassword: '',
       newPassword: '',
       confirmNewPassword: '',
       changingPassword: false,
-      passwordError: '',
       showPassword: false,
 
-      showCard: false,
+      originalFirstName: '',
+      originalLastName: '',
     }
   },
   computed: {
+    isModified() {
+      return (
+        this.firstName !== this.originalFirstName ||
+        this.lastName !== this.originalLastName
+      )
+    },
     passwordsMatch() {
       return (
         this.newPassword === this.confirmNewPassword && this.newPassword !== ''
@@ -159,10 +210,13 @@ export default {
     },
   },
   mounted() {
-    this.showCard = true
     this.loadUserInfo()
   },
   methods: {
+    resetFields() {
+      this.loadUserInfo() // Re-fetches the original values
+    },
+
     async loadUserInfo() {
       try {
         const res = await api.get('/accounts/get_user_profile_info')
@@ -170,57 +224,56 @@ export default {
         this.email = user.email
         this.firstName = user.first_name || ''
         this.lastName = user.last_name || ''
-        this.userPhone = user.us_phone_number || ''
+        this.originalFirstName = this.firstName
+        this.originalLastName = this.lastName
       } catch (err) {
         this.error = 'Failed to load user profile.'
-        console.error(err)
       }
     },
     async submit() {
       this.error = ''
       this.success = false
       this.loading = true
-
       try {
         const payload = {
           first_name: this.firstName,
           last_name: this.lastName,
         }
-
         const res = await api.post('/accounts/update_user_profile', payload)
-
         if (res.status === 200) {
           this.success = true
           this.successMessage = 'Profile updated successfully.'
+
+          auth.user.first_name = this.firstName
+          auth.user.last_name = this.lastName
+
+          this.originalFirstName = this.firstName
+          this.originalLastName = this.lastName
         }
       } catch (err) {
         this.error =
           err.response?.data?.error ||
           err.response?.data?.message ||
           'Failed to update profile.'
-        console.error(err)
       } finally {
         this.loading = false
       }
     },
     async changePassword() {
-      this.passwordError = ''
-      this.success = false
       this.changingPassword = true
-
+      this.error = ''
+      this.success = false
       if (!this.passwordsMatch) {
-        this.passwordError = 'Passwords do not match.'
+        this.error = 'Passwords do not match.'
         this.changingPassword = false
         return
       }
-
       try {
         const res = await api.post('/accounts/change', {
           password: this.currentPassword,
           new_password: this.newPassword,
           new_password_confirm: this.confirmNewPassword,
         })
-
         if (res.status === 200) {
           this.success = true
           this.successMessage = 'Password changed successfully.'
@@ -229,11 +282,10 @@ export default {
           this.confirmNewPassword = ''
         }
       } catch (err) {
-        this.passwordError =
+        this.error =
           err.response?.data?.response?.errors?.[0] ||
           err.response?.data?.error ||
           'Failed to change password.'
-        console.error(err)
       } finally {
         this.changingPassword = false
       }
@@ -257,13 +309,97 @@ export default {
 </script>
 
 <style scoped>
-.page-container {
-  background: linear-gradient(to right, #f5f7fa, #c3cfe2);
-  min-height: 100vh;
+<style scoped > .profile-page {
+  max-width: 1000px;
+  margin: auto;
+  padding-top: 24px;
 }
-.alert-text {
-  text-align: center;
+
+/* Banner */
+.banner-container {
+  position: relative;
   width: 100%;
+  height: 220px;
+  border-radius: 16px;
+  margin-bottom: 80px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+/* Avatar */
+.avatar-wrapper {
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.profile-avatar {
+  border-radius: 50%;
+  border: 4px solid white;
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+}
+
+.profile-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* Form Layout */
+.form-grid {
+  row-gap: 20px;
+}
+
+.form-labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   font-weight: 500;
+  font-size: 0.95rem;
+  color: #444;
+  gap: 24px;
+  padding-top: 8px;
+}
+
+.form-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.full-name-inputs {
+  display: flex;
+  gap: 16px;
+}
+
+.full-name-inputs .v-text-field {
+  flex: 1;
+}
+
+/* Buttons */
+.button-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+
+.logout {
+  margin-top: 16px;
+  border-radius: 999px;
+  padding: 10px 24px;
+  font-weight: bold;
+}
+.v-alert {
+  text-align: center;
+  justify-content: center;
 }
 </style>

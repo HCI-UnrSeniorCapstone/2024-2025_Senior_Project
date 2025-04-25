@@ -1,13 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
-import Dashboard from '../views/Dashboard.vue'
 import UserStudies from '../views/UserStudies.vue'
 import StudyForm from '../views/StudyForm.vue'
 import SessionReporting from '../views/SessionReporting.vue'
 import DataAnalytics from '../views/DataAnalytics.vue'
 import PingServer from '../views/PingServer.vue'
 import TestDB from '../views/TestDB.vue'
-import SessionForm from '../views/SessionForm.vue'
+import SessionRunner from '../views/SessionRunner.vue'
 import UserLogin from '../views/UserLogin.vue'
 import Confirmed from '../views/Confirmed.vue'
 import UserRegister from '../views/UserRegister.vue'
@@ -22,14 +21,9 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/Dashboard',
+      redirect: '/UserStudies',
       component: MainLayout,
       children: [
-        {
-          path: '/Dashboard',
-          name: 'Dashboard',
-          component: Dashboard,
-        },
         {
           path: '/confirmed',
           name: 'Confirmed',
@@ -93,14 +87,9 @@ const router = createRouter({
           component: SessionSetup,
         },
         {
-          path: '/SessionForm',
-          name: 'SessionForm',
-          component: SessionForm,
-          props: route => ({
-            formattedStudy: route.query.formattedStudy
-              ? JSON.parse(route.query.formattedStudy)
-              : null,
-          }),
+          path: '/SessionRunner',
+          name: 'SessionRunner',
+          component: SessionRunner,
         },
       ],
     },

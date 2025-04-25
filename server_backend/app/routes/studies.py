@@ -5,17 +5,22 @@ import os
 import requests
 from flask import Blueprint, current_app, request, jsonify, Response, send_file
 import json
+from jsonschema import validate, ValidationError
 import pandas as pd
 from app.utility.studies import (
+    check_user_study_access,
     create_study_data,
     create_study_details,
     create_study_task_factor_details,
     save_study_consent_form,
     remove_study_consent_form,
     get_all_study_data_helper,
+    save_study_survey_form,
+    remove_study_survey_form,
+    copy_consent_form,
+    copy_survey_form,
 )
 from app.utility.db_connection import get_db_connection
-from app import create_app
 from flask_security import auth_required
 from flask_login import current_user
 
@@ -39,11 +44,18 @@ def create_study():
 
         study_id = create_study_data(submission_data, current_user.id, cur)
 
-        # Handle consent file (optional)
+        # Handle files (optional)
         base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
         if "consentFile" in submission_data:
             file = submission_data["consentFile"]
             save_study_consent_form(study_id, file, cur, base_dir)
+        if "preSurveyFile" in submission_data:
+            pre_file = submission_data["preSurveyFile"]
+            save_study_survey_form(study_id, pre_file, cur, base_dir, "pre")
+        if "postSurveyFile" in submission_data:
+            post_file = submission_data["postSurveyFile"]
+            save_study_survey_form(study_id, post_file, cur, base_dir, "post")
+
         conn.commit()
         return (
             jsonify({"message": "Study created successfully", "study_id": study_id}),
@@ -56,6 +68,300 @@ def create_study():
 
         error_type = type(e).__name__
         error_message = str(e)
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/get_all_user_access_for_study", methods=["POST"])
+@auth_required()
+def get_all_user_access_for_study():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if not submission_data or "studyID" not in submission_data:
+        return jsonify({"error": "Missing studyID in request body"}), 400
+
+    study_id = submission_data["studyID"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # No access
+        if user_access_type == 0:
+            return jsonify({"message": "User lacks access"}), 403
+
+        get_all_access = """
+        SELECT us.email, study_user_role_description AS role
+        FROM study_user_role as sur
+        INNER JOIN user AS us
+        ON us.user_id = sur.user_id
+        INNER JOIN study_user_role_type AS surt
+        ON surt.study_user_role_type_id = sur.study_user_role_type_id
+        WHERE sur.study_id = %s
+        """
+
+        cur.execute(get_all_access, (study_id,))
+
+        get_all_access_results = cur.fetchall()
+
+        access_map = {1: "Owner", 2: "Editor", 3: "Viewer"}
+
+        get_study_name = """
+        SELECT study_name
+        FROM study
+        WHERE study_id = %s
+        """
+        cur.execute(get_study_name, (study_id,))
+        study_name = cur.fetchone()[0]
+
+        get_requesting_user_email = """
+        SELECT email
+        FROM user
+        WHERE user_id = %s
+        """
+        cur.execute(get_requesting_user_email, (current_user.id,))
+        requesting_user_email = cur.fetchone()[0]
+        return (
+            jsonify(
+                {
+                    "requesting user's role": access_map.get(
+                        user_access_type, "Unknown access level"
+                    ),
+                    "requesting user's email": requesting_user_email,
+                    "data": get_all_access_results,
+                    "study_name": study_name,
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/remove_user_study_access", methods=["POST"])
+@auth_required()
+def remove_user_study_access():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    removed_user_email = submission_data["desiredUserEmail"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Owner
+        if user_access_type == 1:
+            get_user_id = """
+            SELECT user_id
+            FROM user
+            WHERE email = %s
+            """
+            cur.execute(get_user_id, (removed_user_email,))
+            result = cur.fetchone()[0]
+
+            delete_user_access = """
+            DELETE FROM study_user_role
+            WHERE study_id = %s AND user_id = %s
+            """
+            cur.execute(
+                delete_user_access,
+                (
+                    study_id,
+                    result,
+                ),
+            )
+            conn.commit()
+            return jsonify({"message": "User access removed successfully"}), 200
+        # Not Owner
+        else:
+            return jsonify({"message": "User lacks owner access"}), 403
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/change_user_access_type", methods=["POST"])
+@auth_required()
+def change_user_access_type():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+        or "roleType" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    edit_user_email = submission_data["desiredUserEmail"]
+    role_type = submission_data["roleType"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Not Owner
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User lacks owner / editor access"}), 403
+
+        get_user_id = """
+        SELECT user_id
+        FROM user
+        WHERE email = %s
+        """
+        cur.execute(get_user_id, (edit_user_email,))
+        row = cur.fetchone()
+        if not row:
+            return jsonify({"error": "User not found"}), 404
+        user_id_result = row[0]
+        print(user_id_result)
+        # Check requested user's access type
+        edit_user_current_access = check_user_study_access(
+            cur, study_id, user_id_result
+        )
+
+        if edit_user_current_access == 0:
+            return (
+                jsonify(
+                    {
+                        "message": "Cannot edit access for a user that lacks access. Create access first"
+                    }
+                ),
+                409,
+            )
+        elif edit_user_current_access == 1:
+            return (
+                jsonify({"error": "Cannot edit access for the owner"}),
+                409,
+            )
+
+        access_type_id = """
+        SELECT surt.study_user_role_type_id
+        FROM study_user_role_type AS surt
+        WHERE surt.study_user_role_description = %s
+        """
+
+        cur.execute(access_type_id, (role_type,))
+
+        role_type_result = cur.fetchone()
+
+        if role_type_result is None:
+            return jsonify({"error": "Internal server error getting role type"}), 500
+
+        edit_user_access = """
+        UPDATE study_user_role
+        SET study_user_role_type_id = %s
+        WHERE study_id = %s AND user_id = %s
+        """
+        cur.execute(edit_user_access, (role_type_result[0], study_id, user_id_result))
+        conn.commit()
+        return jsonify({"message": "User access edited successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+@bp.route("/api/add_user_study_access", methods=["POST"])
+@auth_required()
+def add_user_study_access():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+        or "roleType" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    add_user_email = submission_data["desiredUserEmail"]
+    role_type = submission_data["roleType"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Not Owner
+        if user_access_type != 1 and user_access_type != 2:
+            return jsonify({"message": "User cannot add others"}), 403
+
+        get_user_id = """
+        SELECT user_id
+        FROM user
+        WHERE email = %s
+        """
+        cur.execute(get_user_id, (add_user_email,))
+        user_id_result = cur.fetchone()[0]
+
+        # Check if access already exists
+        add_user_current_access = check_user_study_access(cur, study_id, user_id_result)
+
+        if add_user_current_access != 0:
+            return jsonify({"message": "Requested user already has access"}), 409
+
+        access_type_id = """
+        SELECT surt.study_user_role_type_id
+        FROM study_user_role_type AS surt
+        WHERE surt.study_user_role_description = %s
+        """
+
+        cur.execute(access_type_id, (role_type,))
+
+        role_type_result = cur.fetchone()
+
+        if role_type_result is None:
+            return jsonify({"error": "Internal server error getting role type"}), 500
+
+        add_user_access = """
+        INSERT INTO study_user_role (study_id, user_id, study_user_role_type_id)
+        VALUES (%s, %s, %s)
+        """
+        cur.execute(
+            add_user_access,
+            (study_id, user_id_result, role_type_result[0]),
+        )
+        conn.commit()
+        return jsonify({"message": "User access added successfully"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
@@ -72,45 +378,13 @@ def is_overwrite_study_allowed():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
 
-        # Check if the user exists
-        check_user_query = """
-        SELECT COUNT(*) 
-        FROM user 
-        WHERE user_id = %s
-        """
-        cur.execute(check_user_query, (current_user.id,))
-        user_exists = cur.fetchone()[0]
-
-        # Error Message
-        if user_exists == 0:
-            return jsonify({"error": "User not found"}), 404
-
-        # Check if user has access
-        check_user_query = """
-        SELECT study_user_role_description 
-        FROM study_user_role sur
-        INNER JOIN study_user_role_type surt
-        ON surt.study_user_role_type_id = sur.study_user_role_type_id
-        WHERE user_id = %s AND study_id = %s
-        """
-        cur.execute(
-            check_user_query,
-            (
-                current_user.id,
-                study_id,
-            ),
-        )
-        user_access_exists = cur.fetchone()
-
-        # Error Message
-        if user_access_exists is None:
+        # No access / Viewer
+        if user_access_type == 0 or user_access_type == 3:
             return jsonify(False), 200
-        # Error Message
-        if user_access_exists[0] == "Viewer":
-            return jsonify(False), 200
-
-        if user_access_exists[0] == "Owner" or user_access_exists[0] == "Editor":
+        # Owner / Editor
+        elif user_access_type == 1 or user_access_type == 2:
             # If sessions exist, info can't be overwritten
             check_sessions_query = """
             SELECT participant_session_id
@@ -228,14 +502,30 @@ def overwrite_study():
         # Recreate task/factor entries
         create_study_task_factor_details(study_id, submission_data, cur)
 
-        # Handle consent file (optional)
         base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+        # Handle consent file (optional)
         if "consentFile" in submission_data:
             file = submission_data["consentFile"]
             save_study_consent_form(study_id, file, cur, base_dir)
         else:
             # No file present → remove existing file
             remove_study_consent_form(study_id, cur)
+
+        # Handle pre survey file (optional)
+        if "preSurveyFile" in submission_data:
+            pre_file = submission_data["preSurveyFile"]
+            save_study_survey_form(study_id, pre_file, cur, base_dir, "pre")
+        else:
+            # Attempt to remove existing file
+            remove_study_survey_form(study_id, cur, "pre")
+
+        # Handle post survey file (optional)
+        if "postSurveyFile" in submission_data:
+            post_file = submission_data["postSurveyFile"]
+            save_study_survey_form(study_id, post_file, cur, base_dir, "post")
+        else:
+            # Attempt to remove existing file
+            remove_study_survey_form(study_id, cur, "post")
 
         conn.commit()
         cur.close()
@@ -372,12 +662,25 @@ def copy_study():
         study_data["studyName"] = study_results[1] + " (" + str(study_count) + ")"
 
         # Call the helper function to create the new study in the database
-        study_id = create_study_data(study_data, current_user.id, cur)
+        new_study_id = create_study_data(study_data, current_user.id, cur)
+
+        base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+
+        consent_copy_status = copy_consent_form(study_id, new_study_id, cur, base_dir)
+        if consent_copy_status == "failure":
+            raise RuntimeError("Failed to copy consent form")
+
+        for survey_type in ["pre", "post"]:
+            survey_copy_status = copy_survey_form(
+                study_id, new_study_id, cur, base_dir, survey_type
+            )
+            if survey_copy_status == "failure":
+                raise RuntimeError(f"Failed to {survey_type} survey form")
 
         conn.commit()
         # Return success message
         return (
-            jsonify({"message": "Study copied successfully", "study_id": study_id}),
+            jsonify({"message": "Study copied successfully", "study_id": new_study_id}),
             200,
         )
 
@@ -489,6 +792,7 @@ def delete_study():
 
 
 @bp.route("/api/get_study_consent_form", methods=["POST"])
+@auth_required()
 def get_study_consent_form():
     try:
         data = request.get_json()
@@ -531,3 +835,140 @@ def get_study_consent_form():
 
     except Exception as e:
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+
+@bp.route("/api/get_study_survey_form", methods=["POST"])
+@auth_required()
+def get_study_survey_form():
+    try:
+        data = request.get_json()
+
+        # Check if study_id is provided
+        if not data or "study_id" not in data or "survey_type" not in data:
+            return (
+                jsonify({"error": "Missing request parameters for survey retrieval"}),
+                400,
+            )
+
+        study_id = data["study_id"]
+        survey_type = data["survey_type"]
+
+        if survey_type not in ["pre", "post"]:
+            return jsonify({"error": "Invalid survey type received"}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        survey_form_details_query = """
+        SELECT
+            file_path,
+            original_filename
+        FROM survey_form
+        WHERE study_id = %s AND form_type = %s
+        """
+        cur.execute(survey_form_details_query, (study_id, survey_type))
+        results = cur.fetchone()
+        cur.close()
+
+        # Study never had an assoc survey form which is okay
+        if not results:
+            return "", 204
+
+        file_path, origin_filename = results
+
+        # Db suggest a survey file should exist but could not retrieve one
+        if not os.path.isfile(file_path):
+            return (
+                jsonify({"error": f"{survey_type} survey form retrieval failed."}),
+                404,
+            )
+
+        response = send_file(
+            file_path, mimetype="application/json", as_attachment=False
+        )
+        response.headers["X-Original-Filename"] = (
+            origin_filename  # Need to rename file from filesystem convention to original
+        )
+        response.headers["Access-Control-Expose-Headers"] = "X-Original-Filename"
+        return response
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+
+# Validate survey uploads before allowing to save
+@bp.route("/api/validate_survey_upload", methods=["POST"])
+@auth_required()
+def validate_survey_upload():
+    try:
+        survey_json = request.get_json()
+        if not survey_json:
+            return (
+                jsonify(
+                    {"error_type": "FileError", "error_message": "No JSON received."}
+                ),
+                400,
+            )
+
+        # High-level validation schema - Ref: https://builtin.com/software-engineering-perspectives/python-json-schema
+        survey_schema = {
+            "type": "object",
+            "required": ["elements", "title", "description"],
+            "properties": {
+                "title": {"type": "string", "minLength": 1},
+                "description": {"type": "string", "minLength": 1},
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["type", "name", "title"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": [
+                                    "text",
+                                    "comment",
+                                    "dropdown",
+                                    "tagbox",
+                                    "boolean",
+                                    "checkbox",
+                                    "rating",
+                                ],
+                            },
+                            "name": {"type": "string", "minLength": 1},
+                            "title": {"type": "string", "minLength": 1},
+                        },
+                    },
+                },
+            },
+        }
+
+        validate(instance=survey_json, schema=survey_schema)
+
+        # Ensure no name duplicates since these are unique identifiers later
+        used_names = set()
+        for i, element in enumerate(survey_json["elements"]):
+            name = element.get("name")
+            if name in used_names:
+                raise ValueError(f"Duplicate name found for question #{i+1}")
+            used_names.add(name)
+
+        return jsonify(survey_json), 200
+
+    except ValidationError as ve:
+        return (
+            jsonify(
+                {
+                    "error_type": "ValidationError",
+                    "error_message": ve.message,
+                    "location": list(ve.path),
+                }
+            ),
+            400,
+        )
+
+    except ValueError as ve:
+        return jsonify({"error_type": "ValueError", "error_message": str(ve)}), 400
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 400

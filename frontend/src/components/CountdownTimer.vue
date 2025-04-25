@@ -21,7 +21,7 @@ export default {
   props: {
     duration: {
       type: Number,
-      default: 20,
+      default: 15,
     },
     start: {
       type: Boolean,
@@ -36,6 +36,11 @@ export default {
     return {
       timer: 0,
       timerInterval: null,
+    }
+  },
+  mounted() {
+    if (this.start) {
+      this.startCountdown()
     }
   },
   computed: {
@@ -77,10 +82,9 @@ export default {
 }
 .timer-counter {
   width: 100%;
-  height: 100vh;
-  margin: 0 auto;
+  margin: 2rem auto;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
 }
 .timer-msgs {

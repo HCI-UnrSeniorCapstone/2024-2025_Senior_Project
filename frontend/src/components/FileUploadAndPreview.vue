@@ -1,5 +1,5 @@
 <template>
-  <v-row class="mt-4">
+  <v-row class="mt-2">
     <!-- File upload field -->
     <v-col cols="6">
       <v-file-input
@@ -21,7 +21,7 @@
         color="primary"
         prepend-icon="mdi-eye-outline"
         @click="$emit('preview')"
-        :disabled="!modelValue"
+        :disabled="previewDisabled"
       >
         Preview
       </v-btn>
@@ -44,6 +44,10 @@ export default {
     accept: {
       type: String,
       required: true,
+    },
+    previewDisabled: {
+      type: Boolean,
+      default: true,
     },
   },
   emits: ['update:modelValue', 'preview'],

@@ -36,6 +36,9 @@ For experiments conducted outside the platform (e.g., VR, web-based, PowerPoint)
 - **Platform Compatibility**:  
    Due to hardware access needs, development will proceed on Windows to ensure native support for device permissions, rather than WSL.
 
+  - **Environment Variables**:  
+   Meet with a current Dev to request an env file for the project along with a config.json for the frontend.
+
 - **Installing/Updating Dependencies**:  
    When developing, dependencies must be installed, but this process normally must be repeated by each developer on their own machine. For the Python code, every developer should [create their own venv virtual environment](https://realpython.com/python-virtual-environments-a-primer/) for `local_backend` and `server_backend`. These venvs should NOT be pushed to GitHub.
 

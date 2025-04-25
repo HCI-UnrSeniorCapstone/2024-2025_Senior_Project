@@ -217,7 +217,7 @@ export default {
       chartReady: false,
       studyId: null,
       study: null,
-      formattedStudy: null,
+      sessionJson: null,
       // Options that populate the dropdowns
       taskOptions: [],
       factorOptions: [],
@@ -242,12 +242,12 @@ export default {
     }
   },
 
-  mounted() {
+  async mounted() {
     console.log('mounted: SessionSetup')
     this.studyId = useStudyStore().currentStudyID
     console.log('study id in session setup' + this.studyId)
-    this.getStudyInfo()
-    this.getRecPermLength()
+    await this.getStudyInfo()
+    await this.getRecPermLength()
     // Dynamically add trial cards to the pg immediately based on recommended count
     for (let i = 0; i < this.recommendedPermLength; i++) {
       this.addTrial()
@@ -299,8 +299,8 @@ export default {
     // If they agree to canceling we route elsewhere & if they click continue we route to demographics form
     closeDialog(source) {
       if (source == 'begin') {
-        this.formatStudy()
-        this.goToParticipantForm()
+        this.createSessionJson()
+        this.goToSessionRunner()
       } else if (source == 'cancel') {
         this.$router.push({
           name: 'UserStudies',
@@ -367,9 +367,9 @@ export default {
       }
     },
 
-    // Getting study JSON into proper format for passing to the local scripts
-    formatStudy() {
-      this.formattedStudy = {
+    // Outputs the session json needed by local scripts to run the session (study json + trial perms + formatting = session json)
+    createSessionJson() {
+      this.sessionJson = {
         participantSessId: null,
         study_id: this.studyId,
         studyName: this.study.studyName,
@@ -410,7 +410,7 @@ export default {
         ),
       }
 
-      console.log('Formatted Study JSON:', this.formattedStudy)
+      console.log('Formatted session JSON:', this.sessionJson)
     },
 
     // Retrieves all study details using passed study ID at page mount
@@ -525,10 +525,11 @@ export default {
     },
 
     // Route to the next pg
-    goToParticipantForm() {
+    goToSessionRunner() {
+      const studyStore = useStudyStore()
+      studyStore.setSessionJson(this.sessionJson)
       this.$router.push({
-        name: 'SessionForm',
-        query: { formattedStudy: JSON.stringify(this.formattedStudy) },
+        name: 'SessionRunner',
       })
     },
   },
