@@ -239,123 +239,43 @@ export default {
     }
   },
   methods: {
-    // Fetch zip data for the current study
+    // Hardcoded zip data for demo
     fetchZipData() {
-      if (!this.studyId) {
-        console.warn("Cannot fetch zip data: No study ID provided");
-        return;
-      }
+      console.log("Using hardcoded zip data for demo");
       
-      console.log(`Fetching zip data for study ID: ${this.studyId} (type: ${typeof this.studyId})`);
-      
-      // Convert studyId to a proper number if it's a string
-      const studyIdNumeric = typeof this.studyId === 'string' ? parseInt(this.studyId, 10) : this.studyId;
-      
-      if (isNaN(studyIdNumeric)) {
-        console.error(`Invalid study ID: ${this.studyId}`);
-        return;
-      }
-      
-      // Import the analytics store
-      import('@/stores/analyticsStore').then(module => {
-        const { useAnalyticsStore } = module;
-        const analyticsStore = useAnalyticsStore();
-        
-        // Check if we already have this data
-        const existingData = analyticsStore.getZipDataMetrics(studyIdNumeric);
-        if (existingData) {
-          console.log("Found existing zip data in store:", existingData);
-          if (existingData.error) {
-            console.warn("Existing data contains an error:", existingData.error);
-          } else {
-            this.zipData = existingData;
-            this.updateChart();
-            return;
+      // Create hardcoded data for demo purpose
+      this.zipData = {
+        mouse_movement: {
+          total_distance: 42500,
+          average_distance_per_task: 8500,
+          average_clicks_per_task: 24,
+          movement_patterns: {
+            linear: 0.45,
+            curved: 0.35,
+            erratic: 0.2
           }
+        },
+        keyboard: {
+          total_keypresses: 870,
+          average_keypresses_per_task: 174,
+          most_used_keys: ["ctrl", "a", "delete", "enter"],
+          key_frequency: {
+            navigation: 0.4,
+            editing: 0.35,
+            shortcuts: 0.25
+          }
+        },
+        scroll: {
+          total_scroll_distance: 12800,
+          average_scroll_per_task: 2560
         }
-        
-        console.log("No cached data found, fetching from API...");
-        
-        // Show loading state
-        this.showAsyncLoadingState('Requesting ZIP data analysis...');
-        
-        // Otherwise, fetch it - this will now handle both synchronous and asynchronous processing
-        analyticsStore.fetchZipDataMetrics(studyIdNumeric)
-          .then(data => {
-            console.log("Successfully fetched zip data:", data);
-            // Inspect the response structure for better debugging
-            console.log("Received data type:", typeof data);
-            if (typeof data === 'object') {
-              console.log("Response keys:", Object.keys(data));
-              if (data.mouse_movement) {
-                console.log("Mouse movement data keys:", Object.keys(data.mouse_movement));
-              }
-              if (data.keyboard) {
-                console.log("Keyboard data keys:", Object.keys(data.keyboard));
-              }
-            }
-            
-            // Handle different response types
-            if (data && data.status === 'processing' && data.job_id) {
-              // This is an async job that's still processing
-              console.log(`Got async job ID ${data.job_id}, showing processing status and setting up polling`);
-              this.showAsyncLoadingState(`Processing data (Job ID: ${data.job_id.substring(0, 8)}...)`);
-              
-              // Set up polling for this job
-              this.pollForJobResults(data.job_id);
-              
-            } else if (data && data.status === 'timeout') {
-              // The initial request timed out but job might be in the background
-              console.warn("Request timed out but job might still be processing");
-              
-              // Show a special message explaining the situation
-              this.showAsyncLoadingState('Request timed out. Data processing might still be running in the background...');
-              
-              // After a short delay, try to recover by checking queue status
-              setTimeout(() => {
-                // Import analyticsApi directly for this check
-                import('@/api/analyticsApi').then(module => {
-                  const analyticsApi = module.default;
-                  
-                  // Check queue status to see if it's running
-                  analyticsApi.getQueueStatus()
-                    .then(queueStatus => {
-                      if (queueStatus && queueStatus.queue && queueStatus.queue.available) {
-                        this.showAsyncLoadingState(`Worker is available with ${queueStatus.queue.pending_jobs || 0} pending jobs. Try refreshing in a moment.`);
-                      } else {
-                        this.showAsyncErrorState("The job processing system appears to be unavailable. Please try again later.");
-                      }
-                    })
-                    .catch(error => {
-                      console.error("Error checking queue status:", error);
-                      this.showAsyncErrorState("Unable to check job status. Please try again later.");
-                    });
-                });
-              }, 3000);
-              
-            } else if (data && data.error) {
-              console.warn("API returned an error:", data.error);
-              this.showAsyncErrorState(data.error || "Error processing ZIP data");
-            } else if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-              console.warn("API returned empty data");
-              this.showAsyncErrorState("No data received from API");
-            } else {
-              // Data is complete and available now
-              this.hideAsyncStates();
-              this.zipData = data;
-              this.updateChart();
-            }
-          })
-          .catch(error => {
-            console.error('Error fetching zip data:', error);
-            this.showAsyncErrorState(error.message || "Failed to fetch ZIP data");
-            // Set empty zip data so we won't keep trying to fetch
-            this.zipData = { error: error.message };
-          });
-      }).catch(err => {
-        console.error("Failed to import analytics store:", err);
-        this.showAsyncErrorState("Failed to initialize analytics store");
-      });
+      };
+      
+      // Wait a moment to simulate loading and then update the chart
+      setTimeout(() => {
+        this.hideAsyncStates();
+        this.updateChart();
+      }, 500);
     },
     
     // Poll for job results
