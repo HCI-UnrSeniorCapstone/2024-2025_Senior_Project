@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
   const backendPort = isProd
     ? env.VITE_APP_PRODUCTION_BACKEND_PORT
     : env.VITE_APP_DEVELOPMENT_BACKEND_PORT
+
   if (!backendUrl || !backendPort) {
     throw new Error(
       'Backend URL or port is undefined — check your .env file and restart Vite!',
@@ -23,7 +24,9 @@ export default defineConfig(({ mode }) => {
   }
 
   const target = `${backendUrl}:${backendPort}`
-  console.log(`[VITE] Proxying /api → ${target}`)
+
+  console.log(`[VITE] Mode: ${mode}`)
+  console.log(`[VITE] Proxy target: ${target}`)
 
   return {
     plugins: [vue(), vueDevTools()],
@@ -33,15 +36,15 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      // host: '0.0.0.0',
-      // port: 5173,
-      proxy: {
-        '/api': {
-          target: target,
-          changeOrigin: true,
-          secure: false,
-        },
-      },
+      proxy: isProd
+        ? undefined
+        : {
+            '/api': {
+              target: target,
+              changeOrigin: true,
+              secure: false,
+            },
+          },
     },
   }
 })
