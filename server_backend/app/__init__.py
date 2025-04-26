@@ -55,7 +55,15 @@ def create_app(env="production"):
     app.config["VITE_APP_DEVELOPMENT_BACKEND_URL"] = os.getenv(
         "VITE_APP_DEVELOPMENT_BACKEND_URL"
     )
-    app.config["VITE_APP_BACKEND_PORT"] = os.getenv("VITE_APP_BACKEND_PORT")
+
+    if env == "development":
+        app.config["VITE_APP_BACKEND_PORT"] = os.getenv(
+            "VITE_APP_DEVELOPMENT_BACKEND_PORT"
+        )
+    else:
+        app.config["VITE_APP_BACKEND_PORT"] = os.getenv(
+            "VITE_APP_PRODUCTION_BACKEND_PORT"
+        )
 
     # Server CSV pathway configuration
     app.config["RESULTS_BASE_DIR_PATH"] = os.getenv("RESULTS_BASE_DIR_PATH")
