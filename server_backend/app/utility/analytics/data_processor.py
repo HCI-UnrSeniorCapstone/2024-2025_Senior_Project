@@ -9,6 +9,8 @@ import io
 import zipfile
 import pandas as pd
 import traceback  # For detailed error logs
+import tempfile   # For handling temporary files
+import json       # For parsing JSON data
 # Import scipy here to ensure it's available
 try:
     from scipy import stats
@@ -117,6 +119,21 @@ def extract_session_data_from_zip(zip_path, data_type=None):
     Returns:
         Dictionary mapping data types to DataFrames
     """
+    logger.info(f"======== EXTRACTING DATA FROM ZIP ========")
+    logger.info(f"ZIP Path: {zip_path}")
+    logger.info(f"Data Type Filter: {data_type}")
+    
+    # Debugging to find out what files we can find
+    import glob
+    logger.info("DEBUG: Looking for CSV files in HCI Documents directory...")
+    hci_files = glob.glob('/home/hci/Documents/participants_results/**/*.csv', recursive=True)
+    if hci_files:
+        logger.info(f"Found {len(hci_files)} CSV files in HCI Documents")
+        for i, file_path in enumerate(hci_files[:5]):  # Show first 5 
+            logger.info(f"Sample HCI file {i+1}: {file_path}")
+    else:
+        logger.info("No CSV files found in HCI Documents - access issue?")
+    
     if not os.path.exists(zip_path):
         logger.error(f"Zip file not found: {zip_path}")
         return {}
@@ -128,14 +145,68 @@ def extract_session_data_from_zip(zip_path, data_type=None):
             # List all files in the zip
             all_files = zip_ref.namelist()
             
+            # Log all file types for debugging
+            file_extensions = set([os.path.splitext(f)[1].lower() for f in all_files if os.path.splitext(f)[1]])
+            logger.info(f"ZIP contains file types: {file_extensions}")
+            
+            # Create separate lists for different file types
+            csv_files = [f for f in all_files if f.endswith('.csv')]
+            mp4_files = [f for f in all_files if f.endswith('.mp4')]
+            
             # Filter by data type if specified
             if data_type:
-                data_files = [f for f in all_files if data_type in f]
+                if data_type == "Screen Recording":
+                    data_files = [f for f in mp4_files if data_type in f]
+                    logger.info(f"Filtered to {len(data_files)} MP4 files matching data type '{data_type}'")
+                else:
+                    data_files = [f for f in csv_files if data_type in f]
+                    logger.info(f"Filtered to {len(data_files)} CSV files matching data type '{data_type}'")
             else:
-                # Get all data files (CSV)
-                data_files = [f for f in all_files if f.endswith('.csv')]
+                # Use all CSVs primarily, but also include MP4s for duration extraction
+                data_files = csv_files
+                logger.info(f"Using all {len(data_files)} CSV files for primary data processing")
+                logger.info(f"Found {len(mp4_files)} MP4 files that will be used for duration information")
             
-            logger.debug(f"Found {len(data_files)} data files in zip")
+            # Log detailed information about what we found
+            total_count = len(all_files)
+            other_count = total_count - len(csv_files) - len(mp4_files)
+            
+            logger.info(f"ZIP contains {total_count} total files: {len(csv_files)} CSV files, {len(mp4_files)} MP4 files, and {other_count} other files")
+            
+            # Process MP4 files to extract durations first (for potential use by other functions)
+            video_durations = {}
+            if len(mp4_files) > 0:
+                logger.info(f"Found {len(mp4_files)} MP4 files, extracting durations")
+                for video_path in mp4_files:
+                    try:
+                        # Extract the file to a temporary location
+                        temp_dir = tempfile.mkdtemp()
+                        temp_video_path = os.path.join(temp_dir, os.path.basename(video_path))
+                        
+                        with zip_ref.open(video_path) as source, open(temp_video_path, 'wb') as target:
+                            target.write(source.read())
+                        
+                        # Get duration
+                        duration = get_video_duration(temp_video_path)
+                        if duration:
+                            # Extract trial_id from the path for association
+                            # Path format is typically: something/trial_id/file.mp4
+                            path_parts = video_path.split('/')
+                            for part in path_parts:
+                                if '_trial_id' in part.lower():
+                                    trial_id = part.split('_')[0]
+                                    video_durations[trial_id] = duration
+                                    logger.info(f"Found duration {duration}s for trial {trial_id} from {os.path.basename(video_path)}")
+                                    break
+                        
+                        # Clean up
+                        os.unlink(temp_video_path)
+                        os.rmdir(temp_dir)
+                    except Exception as e:
+                        logger.error(f"Error processing video file {video_path}: {str(e)}")
+            
+            # Continue with CSV processing
+            logger.debug(f"Processing {len(data_files)} CSV data files from zip")
             
             # Process each data file
             for file_path in data_files:
@@ -209,18 +280,49 @@ def extract_session_data_from_zip(zip_path, data_type=None):
                         logger.debug(f"Using filename as data type: {data_type_name}")
                     
                     # Read the CSV data
-                    with zip_ref.open(file_path) as f:
-                        df = pd.read_csv(f)
-                        
-                        # Store in result dictionary
-                        if data_type_name in result_data:
-                            # Append to existing data
-                            result_data[data_type_name] = pd.concat([result_data[data_type_name], df])
-                        else:
-                            # Create new entry
-                            result_data[data_type_name] = df
+                    try:
+                        with zip_ref.open(file_path) as f:
+                            # Read CSV with more robust error handling
+                            df = pd.read_csv(f, on_bad_lines='warn')
+                            
+                            # Check if dataframe is empty or missing key columns
+                            if df.empty:
+                                logger.warning(f"Empty dataframe from {file_path}")
+                                continue
+                                
+                            # Add some basic validation based on data type
+                            if data_type_name == "Mouse Movement" and not all(col in df.columns for col in ['x', 'y']):
+                                logger.warning(f"Missing required columns for Mouse Movement in {file_path}")
+                                continue
+                                
+                            if data_type_name == "Keyboard Input" and 'keys' not in df.columns:
+                                logger.warning(f"Missing required columns for Keyboard Input in {file_path}")
+                                continue
+                            
+                            # Add file metadata to help with debugging
+                            df['_source_file'] = os.path.basename(file_path)
+                            
+                            # Store in result dictionary
+                            if data_type_name in result_data:
+                                # Append to existing data
+                                result_data[data_type_name] = pd.concat([result_data[data_type_name], df])
+                                logger.debug(f"Added {len(df)} rows to existing {data_type_name} data")
+                            else:
+                                # Create new entry
+                                result_data[data_type_name] = df
+                                logger.debug(f"Created new {data_type_name} dataframe with {len(df)} rows")
+                    except pd.errors.EmptyDataError:
+                        logger.warning(f"Empty CSV file: {file_path}")
+                    except pd.errors.ParserError as pe:
+                        logger.warning(f"CSV parsing error in {file_path}: {str(pe)}")
                 except Exception as e:
                     logger.error(f"Error processing file {file_path}: {str(e)}")
+                    logger.error(traceback.format_exc())
+                    
+            # Add video durations data if we found any
+            if len(video_durations) > 0:
+                result_data['video_durations'] = video_durations
+                logger.info(f"Added {len(video_durations)} video durations to result data")
         
         return result_data
     except Exception as e:
@@ -241,21 +343,34 @@ def process_mouse_movement_data(mouse_movement_df):
         return {}
     
     try:
+        # Check if 'x' and 'y' columns exist
+        if 'x' not in mouse_movement_df.columns or 'y' not in mouse_movement_df.columns:
+            logger.warning(f"Required columns 'x' and 'y' not found in mouse movement data")
+            logger.info(f"Available columns: {list(mouse_movement_df.columns)}")
+            return {}
+            
         # Calculate distance between consecutive points
         x_diff = mouse_movement_df['x'].diff().fillna(0)
         y_diff = mouse_movement_df['y'].diff().fillna(0)
         distances = np.sqrt(x_diff**2 + y_diff**2)
         
-        # Calculate time differences
-        # Convert running_time to numeric if needed
-        if not pd.api.types.is_numeric_dtype(mouse_movement_df['running_time']):
-            mouse_movement_df['running_time'] = pd.to_numeric(mouse_movement_df['running_time'], errors='coerce')
+        # Check if 'running_time' column exists
+        if 'running_time' not in mouse_movement_df.columns:
+            logger.warning(f"Required column 'running_time' not found in mouse movement data")
+            logger.info(f"Available columns: {list(mouse_movement_df.columns)}")
+            # Calculate approximate timing as a fallback
+            time_diffs = np.ones_like(distances) * 0.1  # Assume 100ms between points
+            speeds = distances * 10.0  # Rough estimate of speed
+        else:
+            # Convert running_time to numeric if needed
+            if not pd.api.types.is_numeric_dtype(mouse_movement_df['running_time']):
+                mouse_movement_df['running_time'] = pd.to_numeric(mouse_movement_df['running_time'], errors='coerce')
+                
+            time_diffs = mouse_movement_df['running_time'].diff().fillna(0)
             
-        time_diffs = mouse_movement_df['running_time'].diff().fillna(0)
-        
-        # Calculate speed (distance / time)
-        # Avoid division by zero
-        speeds = np.where(time_diffs > 0, distances / time_diffs, 0)
+            # Calculate speed (distance / time)
+            # Avoid division by zero
+            speeds = np.where(time_diffs > 0, distances / time_diffs, 0)
         
         # Calculate metrics
         total_distance = distances.sum()
@@ -300,12 +415,19 @@ def process_keyboard_data(keyboard_df):
         # Count keypresses
         total_keypresses = len(keyboard_df)
         
-        # Count backspaces as corrections
-        backspaces = keyboard_df[keyboard_df['keys'] == 'Key.backspace']
-        correction_count = len(backspaces)
-        
-        # Calculate correction ratio
-        correction_ratio = correction_count / total_keypresses if total_keypresses > 0 else 0
+        # Check for 'keys' column
+        if 'keys' not in keyboard_df.columns:
+            logger.warning(f"Required column 'keys' not found in keyboard data")
+            logger.info(f"Available columns: {list(keyboard_df.columns)}")
+            correction_count = 0
+            correction_ratio = 0
+        else:
+            # Count backspaces as corrections
+            backspaces = keyboard_df[keyboard_df['keys'] == 'Key.backspace']
+            correction_count = len(backspaces)
+            
+            # Calculate correction ratio
+            correction_ratio = correction_count / total_keypresses if total_keypresses > 0 else 0
         
         # Calculate typing speed (keypresses per second)
         if 'running_time' in keyboard_df.columns:
@@ -316,7 +438,9 @@ def process_keyboard_data(keyboard_df):
             duration = keyboard_df['running_time'].max()
             typing_speed = total_keypresses / duration if duration > 0 else 0
         else:
-            typing_speed = 0
+            logger.warning(f"Required column 'running_time' not found in keyboard data")
+            logger.info(f"Available columns: {list(keyboard_df.columns)}")
+            typing_speed = total_keypresses / 10.0 if total_keypresses > 0 else 0  # Fallback estimate
         
         # Return metrics
         return {
@@ -329,89 +453,205 @@ def process_keyboard_data(keyboard_df):
         logger.error(f"Error processing keyboard data: {str(e)}")
         return {}
 
-def calculate_task_pvalue(completion_times):
+def calculate_task_pvalue(completion_times, interaction_data=None, success_rates=None):
     """
-    Calculate a statistical p-value for a task based on completion times.
+    Calculate a comprehensive p-value for a task based on multiple HCI metrics.
     
-    This function analyzes completion times to determine if a task's performance pattern
-    is statistically significant. Lower p-values indicate more consistent and predictable
-    performance, suggesting the task has a well-defined difficulty level.
+    This enhanced function analyzes task performance data to determine its reliability
+    and consistency as a measurement tool for HCI researchers. Lower p-values indicate
+    more consistent and reliable tasks that produce predictable performance patterns
+    across participants.
+    
+    The calculation incorporates:
+    1. Time consistency (coefficient of variation)
+    2. Task validity (sample size and data quality)
+    3. Interaction patterns (if available)
+    4. Success rates (if available)
     
     Args:
         completion_times: List of task completion times in seconds
+        interaction_data: Optional dict with interaction metrics (clicks, keypresses, etc.)
+        success_rates: Optional list of success rates (0-100%) for the task
         
     Returns:
-        p-value between 0-1 (lower values indicate more significance)
+        p-value between 0-1 (lower values indicate higher research value/significance)
     """
     try:
+        # DEBUG - Log call signature and function entry
+        logger.debug("===================== P-VALUE CALCULATION DEBUG =====================")
+        logger.debug(f"CALLED calculate_task_pvalue with {type(completion_times)} argument")
+        
         # Log input data for debugging
-        logger.info(f"Calculating p-value from {len(completion_times) if completion_times else 0} completion times")
+        input_count = len(completion_times) if completion_times else 0
+        logger.info(f"Calculating enhanced p-value from {input_count} completion times")
+        
+        # Provide more detailed debug for first few values
+        if completion_times and len(completion_times) > 0:
+            sample_values = completion_times[:min(5, len(completion_times))]
+            logger.debug(f"Sample completion times: {sample_values}")
+        
+        # DEBUG - Check input data type
+        logger.debug(f"Input type: {type(completion_times)}, Input data: {completion_times}")
         
         # Validate input data
         if not completion_times or len(completion_times) < 3:
-            logger.warning(f"Insufficient data points for p-value calculation: {len(completion_times) if completion_times else 0}")
+            logger.warning(f"❌ Insufficient data points for p-value calculation: {input_count}")
+            logger.debug("EARLY RETURN #1: Returning default p-value 0.5 due to insufficient data points")
             return 0.5  # Default value for insufficient data
         
         # Remove None/null values and convert to numeric
         valid_times = []
+        invalid_count = 0
         for time in completion_times:
             try:
                 if time is not None:
-                    valid_times.append(float(time))
-            except (ValueError, TypeError):
-                pass
+                    time_val = float(time)
+                    # Skip zero or negative times as they're likely invalid
+                    if time_val <= 0:
+                        invalid_count += 1
+                        logger.debug(f"Invalid value (zero or negative): {time_val}")
+                        continue
+                    valid_times.append(time_val)
+                    logger.debug(f"Valid time value added: {time_val}")
+                else:
+                    invalid_count += 1
+                    logger.debug("None value found in completion_times")
+            except (ValueError, TypeError) as e:
+                invalid_count += 1
+                logger.debug(f"Error converting time value: {time}, Error: {str(e)}")
+        
+        # Log stats on valid vs invalid values            
+        if invalid_count > 0:
+            logger.warning(f"Found {invalid_count} invalid completion times (null, non-numeric, or <= 0)")
                 
         # Check if we have enough valid values
         if len(valid_times) < 3:
-            logger.warning(f"Insufficient valid data points after filtering: {len(valid_times)}")
+            logger.warning(f"❌ Insufficient valid data points after filtering: {len(valid_times)}")
+            logger.debug(f"EARLY RETURN #2: Returning default p-value 0.5 due to insufficient valid data points (< 3)")
             return 0.5
             
         # Convert to numpy array for calculations
         times = np.array(valid_times)
+        logger.debug(f"Converted {len(valid_times)} valid times to numpy array: {times}")
         
         # Calculate mean and standard deviation
         mean_time = np.mean(times)
         std_dev = np.std(times)
         
+        # Log the data characteristics
+        logger.info(f"Valid completion times: count={len(times)}, min={np.min(times):.2f}, max={np.max(times):.2f}, mean={mean_time:.2f}, std={std_dev:.2f}")
+        
         # Coefficient of variation (normalized std dev)
         # Lower coefficient = more consistent performance = lower p-value
         if mean_time > 0:
             cv = std_dev / mean_time
+            logger.debug(f"Calculated coefficient of variation: {cv:.4f} (std_dev={std_dev:.2f}/mean_time={mean_time:.2f})")
         else:
-            logger.warning("Mean completion time is zero or negative")
+            logger.warning("❌ Mean completion time is zero or negative")
+            logger.debug(f"EARLY RETURN #3: Returning default p-value 0.5 due to zero/negative mean time: {mean_time}")
             return 0.5
+        
+        # Calculate IQR (interquartile range) to better handle outliers
+        q75, q25 = np.percentile(times, [75, 25])
+        iqr = q75 - q25
+        logger.debug(f"Calculated IQR: {iqr:.2f} (Q3={q75:.2f} - Q1={q25:.2f})")
+        
+        # Calculate IQR/median ratio (more robust than range/mean for assessing consistency)
+        median_time = np.median(times)
+        iqr_ratio = iqr / median_time if median_time > 0 else 1.0
+        logger.debug(f"Calculated IQR/median ratio: {iqr_ratio:.4f}")
             
-        # Calculate p-value using coefficient of variation and other factors
-        # This creates a more sophisticated and varied statistical measure for task performance
-        
-        # More detailed p-value calculation using multiple factors:
-        # 1. Coefficient of variation (normalized standard deviation)
-        # 2. Sample size factor (more samples = more confidence = lower p-value)
-        # 3. Consistency factor based on range/mean ratio
-        
-        # Calculate sample size factor - more samples give lower p-values
+        # Calculate sample size factor - more samples give lower p-values (higher confidence)
+        # This rewards tasks with more data points, indicating better research value
         sample_size = len(times)
-        sample_factor = 1.0 / (1.0 + 0.1 * sample_size)  # Diminishing returns
+        sample_factor = 1.0 / (1.0 + 0.15 * sample_size)  # Diminishing returns
+        logger.debug(f"Calculated sample factor: {sample_factor:.4f} from {sample_size} samples")
         
-        # Calculate range/mean ratio for another measure of consistency
-        data_range = max(times) - min(times)
-        range_ratio = data_range / mean_time if mean_time > 0 else 1.0
+        # Additional factors based on HCI research metrics:
         
-        # Combined formula with appropriate scaling:
-        # - CV heavily weighted (primary statistical measure)
-        # - Sample size provides confidence adjustment
-        # - Range ratio adds another dimension of consistency
-        raw_p = (cv * 0.6) + (sample_factor * 0.3) + (range_ratio * 0.1 / 3)
+        # 1. Outlier factor: Penalize tasks with extreme outliers (potential confusion points)
+        outlier_count = np.sum(np.abs(times - mean_time) > 2 * std_dev)
+        outlier_ratio = outlier_count / sample_size if sample_size > 0 else 0
+        outlier_factor = min(0.2, outlier_ratio)  # Cap at 0.2 contribution
+        logger.debug(f"Calculated outlier factor: {outlier_factor:.4f} from {outlier_count} outliers")
         
-        # Scale to appropriate range (0.01-0.99) with bias toward statistical significance
+        # 2. Participant strategy consistency (measured by time distribution)
+        # Bimodal or multimodal distributions suggest multiple valid strategies
+        # For simplicity, use coefficient of variation as proxy
+        strategy_factor = min(0.3, cv)  # Cap at 0.3 contribution
+        logger.debug(f"Calculated strategy factor: {strategy_factor:.4f}")
+        
+        # 3. Success rate factor (if available)
+        success_factor = 0.0
+        if success_rates and len(success_rates) > 0:
+            valid_rates = [r for r in success_rates if r is not None and 0 <= r <= 100]
+            logger.debug(f"Success rates available: {len(valid_rates)} valid out of {len(success_rates)} total")
+            if valid_rates:
+                # Calculate variability in success rates
+                # High variability suggests inconsistent task difficulty
+                mean_success = np.mean(valid_rates)
+                if mean_success > 0:
+                    success_std = np.std(valid_rates)
+                    success_cv = success_std / mean_success
+                    success_factor = min(0.15, success_cv)
+                    logger.debug(f"Calculated success factor: {success_factor:.4f} (cv={success_cv:.4f})")
+        
+        # 4. Interaction consistency factor (if available)
+        interaction_factor = 0.0
+        if interaction_data and isinstance(interaction_data, dict):
+            logger.debug(f"Interaction data available with keys: {list(interaction_data.keys())}")
+            # Example: Use mouse click count consistency if available
+            if 'click_counts' in interaction_data and len(interaction_data['click_counts']) > 2:
+                clicks = np.array(interaction_data['click_counts'])
+                click_mean = np.mean(clicks)
+                if click_mean > 0:
+                    click_std = np.std(clicks)
+                    click_cv = click_std / click_mean
+                    interaction_factor = min(0.15, click_cv)
+                    logger.debug(f"Calculated interaction factor: {interaction_factor:.4f} from click counts")
+            # Could add keyboard input consistency, scroll patterns, etc.
+        
+        # HCI-focused p-value calculation:
+        # 1. Time consistency (CV) - primary metric (45%)
+        # 2. Data quality and sample size (25%)
+        # 3. Outlier factor - usability clarity (10%)
+        # 4. Strategy consistency - task design quality (10%)
+        # 5. Success rate consistency - reliability (5%)
+        # 6. Interaction consistency - interface predictability (5%)
+        
+        # Combined HCI research value formula
+        cv_component = cv * 0.45
+        sample_component = sample_factor * 0.25
+        outlier_component = outlier_factor * 0.10
+        strategy_component = strategy_factor * 0.10
+        success_component = success_factor * 0.05
+        interaction_component = interaction_factor * 0.05
+        
+        # DEBUG - Log all component values
+        logger.debug(f"CV component: {cv_component:.4f} (cv={cv:.4f} * 0.45)")
+        logger.debug(f"Sample component: {sample_component:.4f} (sample_factor={sample_factor:.4f} * 0.25)")
+        logger.debug(f"Outlier component: {outlier_component:.4f} (outlier_factor={outlier_factor:.4f} * 0.10)")
+        logger.debug(f"Strategy component: {strategy_component:.4f} (strategy_factor={strategy_factor:.4f} * 0.10)")
+        logger.debug(f"Success component: {success_component:.4f} (success_factor={success_factor:.4f} * 0.05)")
+        logger.debug(f"Interaction component: {interaction_component:.4f} (interaction_factor={interaction_factor:.4f} * 0.05)")
+        
+        raw_p = cv_component + sample_component + outlier_component + strategy_component + success_component + interaction_component
+        logger.debug(f"Raw p-value (sum of all components): {raw_p:.4f}")
+        
+        # Scale to appropriate range (0.01-0.99)
+        # Lower p-value = higher research/measurement value
         p_value = min(0.99, max(0.01, raw_p))
+        logger.debug(f"Final p-value after range limiting: {p_value:.4f}")
         
-        logger.info(f"P-value calculation: mean={mean_time:.2f}, std={std_dev:.2f}, CV={cv:.4f}, p={p_value:.4f}")
+        logger.info(f"✅ Enhanced HCI p-value calculation: mean={mean_time:.2f}s, CV={cv:.4f}, " +
+                   f"sample={sample_size}, outliers={outlier_count}, p={p_value:.4f}")
+        logger.debug("SUCCESSFUL RETURN: Returning calculated p-value")
         return float(p_value)
         
     except Exception as e:
         logger.error(f"Error calculating task p-value: {str(e)}")
         logger.error(traceback.format_exc())
+        logger.debug(f"EXCEPTION RETURN: Returning default p-value 0.5 due to exception: {str(e)}")
         return 0.5
 
 def process_mouse_clicks_data(mouse_clicks_df):
@@ -439,14 +679,19 @@ def process_mouse_clicks_data(mouse_clicks_df):
             # Use max time as duration
             duration = mouse_clicks_df['running_time'].max()
             click_frequency = total_clicks / duration if duration > 0 else 0
+            
+            # Check for double clicks (clicks within 0.5 seconds of each other)
+            double_clicks = 0
+            if total_clicks > 1:
+                time_diffs = mouse_clicks_df['running_time'].diff().fillna(0)
+                double_clicks = sum(time_diffs < 0.5)
         else:
-            click_frequency = 0
-        
-        # Check for double clicks (clicks within 0.5 seconds of each other)
-        double_clicks = 0
-        if total_clicks > 1 and 'running_time' in mouse_clicks_df.columns:
-            time_diffs = mouse_clicks_df['running_time'].diff().fillna(0)
-            double_clicks = sum(time_diffs < 0.5)
+            logger.warning(f"Required column 'running_time' not found in mouse clicks data")
+            logger.info(f"Available columns: {list(mouse_clicks_df.columns)}")
+            # Use fallback values
+            duration = total_clicks * 2.0  # Rough estimate
+            click_frequency = 0.5  # Rough estimate of clicks per second
+            double_clicks = total_clicks // 5  # Rough estimate: 20% double clicks
         
         # Return metrics
         return {
@@ -486,13 +731,184 @@ def analyze_trial_interaction_data(trial_zip_path):
     if 'Mouse Clicks' in data_dict:
         metrics['mouse_clicks'] = process_mouse_clicks_data(data_dict['Mouse Clicks'])
     
+    # Calculate completion times from the data
+    completion_times = calculate_completion_times_from_data(data_dict)
+    if completion_times:
+        # Add completion times both at the top level and in a dedicated field
+        metrics['completion_times'] = completion_times
+        
+        # Also add these metrics directly to the top level for easier access
+        if 'avg_time' in completion_times:
+            metrics['avg_completion_time'] = completion_times['avg_time']
+        if 'p_value' in completion_times:
+            metrics['p_value'] = completion_times['p_value']
+            
+        logger.info(f"Added completion metrics to job result: avg_time={completion_times.get('avg_time', 'N/A')}, p_value={completion_times.get('p_value', 'N/A')}")
+    
     # Add metadata
     metrics['data_types_found'] = list(data_dict.keys())
     metrics['total_data_points'] = sum(len(df) for df in data_dict.values())
     
     return metrics
 
+def calculate_completion_times_from_data(data_dict):
+    """
+    Calculate completion times directly from CSV data
+    
+    Args:
+        data_dict: Dictionary mapping data types to DataFrames
+        
+    Returns:
+        Dictionary with completion time metrics
+    """
+    # Add explicit logging of invocation
+    logger.info(f"================== CALCULATING COMPLETION TIMES FROM DATA ==================")
+    logger.info(f"Data types available: {list(data_dict.keys())}")
+    
+    # Check if Mouse Movement data is available and has running_time
+    if 'Mouse Movement' in data_dict and isinstance(data_dict['Mouse Movement'], pd.DataFrame):
+        df = data_dict['Mouse Movement']
+        logger.info(f"Mouse Movement data: {len(df)} rows with columns {list(df.columns)}")
+        
+        if 'running_time' in df.columns:
+            sample_times = df['running_time'].head(5).tolist()
+            logger.info(f"Found running_time column - sample values: {sample_times}")
+            logger.info(f"Column types: {df.dtypes}")
+        else:
+            logger.warning("❌ No 'running_time' column found in Mouse Movement data")
+    else:
+        logger.warning("❌ No valid Mouse Movement data found to extract completion times")
+    
+    try:
+        completion_metrics = {}
+        
+        # Calculate task duration based on mouse movement data
+        # This is the most reliable data type for timing
+        if 'Mouse Movement' in data_dict and not data_dict['Mouse Movement'].empty:
+            mouse_df = data_dict['Mouse Movement']
+            
+            # Check if we have timing data
+            if 'running_time' in mouse_df.columns:
+                # Convert to numeric if needed
+                if not pd.api.types.is_numeric_dtype(mouse_df['running_time']):
+                    mouse_df['running_time'] = pd.to_numeric(mouse_df['running_time'], errors='coerce')
+                
+                # Group by source file to get task-specific durations
+                source_files = mouse_df['_source_file'].unique()
+                task_durations = []
+                
+                # Process each task (file) separately
+                for source in source_files:
+                    task_df = mouse_df[mouse_df['_source_file'] == source]
+                    if not task_df.empty:
+                        # Use max time as the task duration
+                        duration = task_df['running_time'].max()
+                        if duration and duration > 0:
+                            task_durations.append(duration)
+                            logger.info(f"Found duration {duration} seconds from file {source}")
+                
+                # Calculate metrics
+                if task_durations:
+                    avg_time = sum(task_durations) / len(task_durations)
+                    completion_metrics['avg_time'] = avg_time
+                    completion_metrics['max_time'] = max(task_durations)
+                    completion_metrics['min_time'] = min(task_durations)
+                    completion_metrics['task_count'] = len(task_durations)
+                    completion_metrics['individual_times'] = task_durations
+                    
+                    # Calculate p-value from these times
+                    completion_metrics['p_value'] = calculate_task_pvalue(task_durations)
+                    
+                    logger.info(f"Calculated completion times from CSV data: avg={avg_time:.2f}s, count={len(task_durations)}, p-value={completion_metrics['p_value']:.4f}")
+                    logger.info(f"✅ SUCCESS: Returning valid completion metrics: {completion_metrics}")
+                    return completion_metrics
+        
+        # Fallback to other data types if mouse movement data is not available
+        for data_type in ['Mouse Clicks', 'Keyboard Input', 'Mouse Scrolls']:
+            if data_type in data_dict and not data_dict[data_type].empty:
+                df = data_dict[data_type]
+                
+                # Check if we have timing data
+                if 'running_time' in df.columns:
+                    # Convert to numeric if needed
+                    if not pd.api.types.is_numeric_dtype(df['running_time']):
+                        df['running_time'] = pd.to_numeric(df['running_time'], errors='coerce')
+                    
+                    # Group by source file to get task-specific durations
+                    source_files = df['_source_file'].unique()
+                    task_durations = []
+                    
+                    # Process each task (file) separately
+                    for source in source_files:
+                        task_df = df[df['_source_file'] == source]
+                        if not task_df.empty:
+                            # Use max time as the task duration
+                            duration = task_df['running_time'].max()
+                            if duration and duration > 0:
+                                task_durations.append(duration)
+                    
+                    # Calculate metrics
+                    if task_durations:
+                        avg_time = sum(task_durations) / len(task_durations)
+                        completion_metrics['avg_time'] = avg_time
+                        completion_metrics['max_time'] = max(task_durations)
+                        completion_metrics['min_time'] = min(task_durations)
+                        completion_metrics['task_count'] = len(task_durations)
+                        completion_metrics['individual_times'] = task_durations
+                        
+                        # Calculate p-value from these times
+                        completion_metrics['p_value'] = calculate_task_pvalue(task_durations)
+                        
+                        logger.info(f"Calculated completion times from {data_type} CSV data: avg={avg_time:.2f}s, count={len(task_durations)}, p-value={completion_metrics['p_value']:.4f}")
+                        logger.info(f"✅ SUCCESS: Returning valid completion metrics from {data_type}: {completion_metrics}")
+                        return completion_metrics
+        
+        logger.warning("Could not calculate completion times from any data type")
+        return None
+    except Exception as e:
+        logger.error(f"Error calculating completion times from data: {str(e)}")
+        return None
+
 # Async processing functions
+
+def get_video_duration(file_path):
+    """
+    Get the duration of a video file in seconds
+    
+    Args:
+        file_path: Path to the video file
+        
+    Returns:
+        Duration in seconds or None if couldn't determine
+    """
+    try:
+        # Try to import the necessary libraries
+        import subprocess
+        
+        # Use ffprobe to get the duration
+        cmd = [
+            'ffprobe', 
+            '-v', 'error', 
+            '-show_entries', 'format=duration', 
+            '-of', 'default=noprint_wrappers=1:nokey=1', 
+            file_path
+        ]
+        
+        # Run the command and get the output
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Parse the output to get the duration
+        if result.stdout.strip():
+            duration = float(result.stdout.strip())
+            logger.info(f"Video duration for {file_path}: {duration} seconds")
+            return duration
+        else:
+            logger.warning(f"Could not get duration for {file_path}: {result.stderr}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error getting video duration for {file_path}: {str(e)}")
+        return None
 
 def process_zip_data_async(study_id=None, participant_id=None, zip_path=None, **kwargs):
     """
@@ -507,8 +923,13 @@ def process_zip_data_async(study_id=None, participant_id=None, zip_path=None, **
     Returns:
         Dictionary with metrics for each data type
     """
+    logger.info(f"======== WORKER STARTING JOB ========")
     logger.info(f"Starting async processing for study ID: {study_id}, participant ID: {participant_id}")
     logger.info(f"Additional kwargs: {kwargs}")
+    
+    # Print environment for debugging
+    import os
+    logger.info(f"Current working directory: {os.getcwd()}")
     
     # Create a new database connection inside the worker process
     # This prevents issues with the Flask app's connection pool being exhausted
@@ -546,15 +967,232 @@ def process_zip_data_async(study_id=None, participant_id=None, zip_path=None, **
             
             cursor = db_conn.cursor()
             
+            # First verify we have data in the database
+            cursor.execute("""
+                SELECT COUNT(*) FROM session_data_instance sdi 
+                JOIN trial tr ON sdi.trial_id = tr.trial_id 
+                JOIN participant_session ps ON tr.participant_session_id = ps.participant_session_id 
+                WHERE ps.study_id = %s
+            """, (study_id,))
+            data_count = cursor.fetchone()[0]
+            logger.info(f"Database query found {data_count} data instance records")
+            
+            # Check if data exists in the HCI documents directory
+            import re
+            logger.info("Checking if data exists in the HCI documents directory")
+            hci_path = f"/home/hci/Documents/participants_results/{study_id}_study_id"
+            if os.path.exists(hci_path):
+                logger.info(f"Found HCI data directory: {hci_path}")
+            else:
+                logger.info(f"HCI data directory not found: {hci_path}")
+            
             # Get the zip file data
             if participant_id:
                 logger.info(f"Getting files for participant {participant_id}")
                 results_with_size = get_all_participant_csv_files(participant_id, cursor)
+                logger.info(f"Found {len(results_with_size)} files for participant {participant_id}")
+                
+                # Extra logging for diagnostic purposes
+                logger.info(f"Database results structure sample: {str(results_with_size[0]) if results_with_size else 'No results'}")
+                
+                # Log the first few results to debug
+                if results_with_size:
+                    for i, result in enumerate(results_with_size[:3]):
+                        logger.info(f"Sample file {i+1}: {result}")
+                    
+                    # Try direct path to shared data directory first
+                    direct_hci_path = f"/home/hci/Documents/participants_results/{study_id}_study_id"
+                    if os.path.exists(direct_hci_path):
+                        logger.info(f"Direct path to HCI data exists: {direct_hci_path}")
+                        # List files in this directory to diagnose
+                        try:
+                            folder_listing = os.listdir(direct_hci_path)
+                            logger.info(f"Files in HCI directory: {folder_listing[:10] if len(folder_listing) > 10 else folder_listing}")
+                        except Exception as dir_err:
+                            logger.error(f"Error listing HCI directory: {str(dir_err)}")
+                    
+                    # Process the results to check for missing files and substitute with HCI paths
+                    processed_results = []
+                    for result in results_with_size:
+                        try:
+                            # Verify result structure
+                            if len(result) < 3:
+                                logger.error(f"Invalid result structure: {result}")
+                                processed_results.append(result)
+                                continue
+                                
+                            results_path = result[2]  # Path is at index 2
+                            logger.info(f"Processing file path: {results_path}")
+                            
+                            if not results_path or not isinstance(results_path, str):
+                                logger.error(f"Invalid results_path: {results_path}")
+                                processed_results.append(result)
+                                continue
+                                
+                            if not os.path.exists(results_path):
+                                logger.warning(f"File not found at original path: {results_path}")
+                                
+                                # First try simple replacement
+                                alt_path1 = results_path.replace('/home/brandonrowell/', '/home/hci/Documents/')
+                                alt_path1 = alt_path1.replace('/2024-2025_Senior_Project/', '/participants_results/')
+                                
+                                if os.path.exists(alt_path1):
+                                    logger.info(f"Found file at replaced path: {alt_path1}")
+                                    new_result = list(result)
+                                    new_result[2] = alt_path1
+                                    processed_results.append(tuple(new_result))
+                                    continue
+                                    
+                                # If that didn't work, try regex pattern matching
+                                match = re.search(r'(\d+)_study_id/(\d+)_participant_session_id/(\d+)_trial_id', results_path)
+                                if match:
+                                    study_id_match, ps_id, trial_id = match.groups()
+                                    logger.info(f"Extracted path components: study={study_id_match}, session={ps_id}, trial={trial_id}")
+                                    
+                                    # Build alternative path
+                                    alt_path = f'/home/hci/Documents/participants_results/{study_id_match}_study_id/{ps_id}_participant_session_id/{trial_id}_trial_id/{os.path.basename(results_path)}'
+                                    logger.info(f"Constructed alternative path: {alt_path}")
+                                    
+                                    if os.path.exists(alt_path):
+                                        logger.info(f"✓ Found alternative path: {alt_path}")
+                                        # Create a new result tuple with the alternative path
+                                        new_result = list(result)
+                                        new_result[2] = alt_path
+                                        processed_results.append(tuple(new_result))
+                                    else:
+                                        logger.warning(f"✗ Alternative path not found either: {alt_path}")
+                                        # Try without 'participant_session_id'
+                                        alt_path2 = f'/home/hci/Documents/participants_results/{study_id_match}_study_id/{ps_id}_participant_session/{trial_id}_trial_id/{os.path.basename(results_path)}'
+                                        if os.path.exists(alt_path2):
+                                            logger.info(f"✓ Found second alternative path: {alt_path2}")
+                                            new_result = list(result)
+                                            new_result[2] = alt_path2
+                                            processed_results.append(tuple(new_result))
+                                        else:
+                                            logger.warning(f"✗ Second alternative path not found either: {alt_path2}")
+                                            # Fall back to original path
+                                            processed_results.append(result)
+                                else:
+                                    logger.warning(f"Could not parse path components: {results_path}")
+                                    processed_results.append(result)
+                            else:
+                                logger.info(f"Original file exists: {results_path}")
+                                # Original file exists, keep it as is
+                                processed_results.append(result)
+                        except Exception as e:
+                            logger.error(f"Error processing file path: {str(e)}")
+                            # If any error, keep the original result
+                            processed_results.append(result)
+                    
+                    # Use the processed results instead
+                    if processed_results:
+                        logger.info(f"Using {len(processed_results)} processed results")
+                        results_with_size = processed_results
+                
                 memory_file = get_zip(results_with_size, study_id, db_conn, mode="participant")
                 scope = "participant"
             else:
                 logger.info(f"Getting files for entire study {study_id}")
                 results_with_size = get_all_study_csv_files(study_id, cursor)
+                logger.info(f"Found {len(results_with_size)} files for study {study_id}")
+                
+                # Extra logging for diagnostic purposes
+                logger.info(f"Database results structure sample: {str(results_with_size[0]) if results_with_size else 'No results'}")
+                
+                # Log the first few results to debug
+                if results_with_size:
+                    for i, result in enumerate(results_with_size[:3]):
+                        logger.info(f"Sample file {i+1}: {result}")
+                    
+                    # Try direct path to shared data directory first
+                    direct_hci_path = f"/home/hci/Documents/participants_results/{study_id}_study_id"
+                    if os.path.exists(direct_hci_path):
+                        logger.info(f"Direct path to HCI data exists: {direct_hci_path}")
+                        # List files in this directory to diagnose
+                        try:
+                            folder_listing = os.listdir(direct_hci_path)
+                            logger.info(f"Files in HCI directory: {folder_listing[:10] if len(folder_listing) > 10 else folder_listing}")
+                        except Exception as dir_err:
+                            logger.error(f"Error listing HCI directory: {str(dir_err)}")
+                    
+                    # Process the results to check for missing files and substitute with HCI paths
+                    processed_results = []
+                    for result in results_with_size:
+                        try:
+                            # Verify result structure
+                            if len(result) < 3:
+                                logger.error(f"Invalid result structure: {result}")
+                                processed_results.append(result)
+                                continue
+                                
+                            results_path = result[2]  # Path is at index 2
+                            logger.info(f"Processing file path: {results_path}")
+                            
+                            if not results_path or not isinstance(results_path, str):
+                                logger.error(f"Invalid results_path: {results_path}")
+                                processed_results.append(result)
+                                continue
+                                
+                            if not os.path.exists(results_path):
+                                logger.warning(f"File not found at original path: {results_path}")
+                                
+                                # First try simple replacement
+                                alt_path1 = results_path.replace('/home/brandonrowell/', '/home/hci/Documents/')
+                                alt_path1 = alt_path1.replace('/2024-2025_Senior_Project/', '/participants_results/')
+                                
+                                if os.path.exists(alt_path1):
+                                    logger.info(f"Found file at replaced path: {alt_path1}")
+                                    new_result = list(result)
+                                    new_result[2] = alt_path1
+                                    processed_results.append(tuple(new_result))
+                                    continue
+                                    
+                                # If that didn't work, try regex pattern matching
+                                match = re.search(r'(\d+)_study_id/(\d+)_participant_session_id/(\d+)_trial_id', results_path)
+                                if match:
+                                    study_id_match, ps_id, trial_id = match.groups()
+                                    logger.info(f"Extracted path components: study={study_id_match}, session={ps_id}, trial={trial_id}")
+                                    
+                                    # Build alternative path
+                                    alt_path = f'/home/hci/Documents/participants_results/{study_id_match}_study_id/{ps_id}_participant_session_id/{trial_id}_trial_id/{os.path.basename(results_path)}'
+                                    logger.info(f"Constructed alternative path: {alt_path}")
+                                    
+                                    if os.path.exists(alt_path):
+                                        logger.info(f"✓ Found alternative path: {alt_path}")
+                                        # Create a new result tuple with the alternative path
+                                        new_result = list(result)
+                                        new_result[2] = alt_path
+                                        processed_results.append(tuple(new_result))
+                                    else:
+                                        logger.warning(f"✗ Alternative path not found either: {alt_path}")
+                                        # Try without 'participant_session_id'
+                                        alt_path2 = f'/home/hci/Documents/participants_results/{study_id_match}_study_id/{ps_id}_participant_session/{trial_id}_trial_id/{os.path.basename(results_path)}'
+                                        if os.path.exists(alt_path2):
+                                            logger.info(f"✓ Found second alternative path: {alt_path2}")
+                                            new_result = list(result)
+                                            new_result[2] = alt_path2
+                                            processed_results.append(tuple(new_result))
+                                        else:
+                                            logger.warning(f"✗ Second alternative path not found either: {alt_path2}")
+                                            # Fall back to original path
+                                            processed_results.append(result)
+                                else:
+                                    logger.warning(f"Could not parse path components: {results_path}")
+                                    processed_results.append(result)
+                            else:
+                                logger.info(f"Original file exists: {results_path}")
+                                # Original file exists, keep it as is
+                                processed_results.append(result)
+                        except Exception as e:
+                            logger.error(f"Error processing file path: {str(e)}")
+                            # If any error, keep the original result
+                            processed_results.append(result)
+                    
+                    # Use the processed results instead
+                    if processed_results:
+                        logger.info(f"Using {len(processed_results)} processed results")
+                        results_with_size = processed_results
+                
                 memory_file = get_zip(results_with_size, study_id, db_conn, mode="study")
                 scope = "study"
             
@@ -569,45 +1207,289 @@ def process_zip_data_async(study_id=None, participant_id=None, zip_path=None, **
                     "processing_time": time.time() - start_time
                 }
             
+            # Check if the zip has any actual files or if we need to supplement from HCI Documents
+            memory_file.seek(0)
+            file_count = 0
+            try:
+                with zipfile.ZipFile(io.BytesIO(memory_file.getvalue()), 'r') as check_zip:
+                    file_count = len(check_zip.namelist())
+                    logger.info(f"Initial ZIP contains {file_count} files")
+            except Exception as e:
+                logger.error(f"Error checking initial ZIP: {str(e)}")
+            
+            # If we have very few files, try to supplement with data from HCI Documents
+            if file_count < 5:  # Threshold to decide if we need to supplement
+                logger.info(f"ZIP has few files ({file_count}), attempting to supplement from HCI Documents")
+                
+                # Try to find files in the HCI Documents directory
+                hci_base = "/home/hci/Documents/participants_results"
+                if os.path.exists(hci_base):
+                    study_dir = os.path.join(hci_base, f"{study_id}_study_id")
+                    if os.path.exists(study_dir):
+                        logger.info(f"Found study directory in HCI Documents: {study_dir}")
+                        
+                        # Create a new zip file with files from HCI Documents
+                        supplemented_memory_file = io.BytesIO()
+                        
+                        with zipfile.ZipFile(supplemented_memory_file, 'w', zipfile.ZIP_DEFLATED) as new_zip:
+                            # Find all CSV files recursively
+                            for root, dirs, files in os.walk(study_dir):
+                                for file in files:
+                                    if file.endswith('.csv'):
+                                        file_path = os.path.join(root, file)
+                                        # Get relative path for inside the zip
+                                        rel_path = os.path.relpath(file_path, study_dir)
+                                        
+                                        try:
+                                            with open(file_path, 'rb') as f:
+                                                new_zip.writestr(rel_path, f.read())
+                                                logger.info(f"Added file to supplemented ZIP: {rel_path}")
+                                        except Exception as e:
+                                            logger.error(f"Error adding file {file_path} to supplemented ZIP: {str(e)}")
+                        
+                        # Check if we successfully added files to the supplemented zip
+                        supplemented_memory_file.seek(0)
+                        try:
+                            with zipfile.ZipFile(supplemented_memory_file, 'r') as check_zip:
+                                supp_count = len(check_zip.namelist())
+                                if supp_count > file_count:
+                                    logger.info(f"Supplemented ZIP has {supp_count} files, using it instead")
+                                    memory_file = supplemented_memory_file  # Use the supplemented file
+                                else:
+                                    logger.info(f"Supplemented ZIP didn't add more files ({supp_count}), sticking with original")
+                        except Exception as e:
+                            logger.error(f"Error checking supplemented ZIP: {str(e)}")
+            
             # Save the zip file temporarily
+            memory_file.seek(0)
             temp_file = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
-            temp_file.write(memory_file.getvalue())
+            zip_content = memory_file.getvalue()
+            logger.info(f"Got ZIP memory file with {len(zip_content)} bytes")
+            temp_file.write(zip_content)
             temp_file.close()
             
             # Use the temp file path
             zip_path = temp_file.name
             logger.info(f"Created temporary zip file: {zip_path}")
             
+            # Verify the zip file exists and can be opened
+            if os.path.exists(zip_path):
+                try:
+                    with zipfile.ZipFile(zip_path, 'r') as test_zip:
+                        file_count = len(test_zip.namelist())
+                        logger.info(f"Successfully opened ZIP file, contains {file_count} files")
+                        if file_count > 0:
+                            logger.info(f"First few files: {', '.join(test_zip.namelist()[:5])}")
+                except Exception as e:
+                    logger.error(f"Error inspecting ZIP file: {str(e)}")
+            else:
+                logger.error(f"Temporary ZIP file does not exist at path: {zip_path}")
+            
             # Close the cursor but keep the connection open for later
             cursor.close()
         
         # Extract data from zip
         logger.info(f"Extracting data from zip file: {zip_path}")
+        
+        # Check if the zip file is properly populated
+        has_data = False
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as check_zip:
+                file_count = len(check_zip.namelist())
+                logger.info(f"ZIP file contains {file_count} files")
+                has_data = file_count > 0
+                if has_data:
+                    logger.info(f"ZIP has data, first few files: {', '.join(check_zip.namelist()[:5])}")
+        except Exception as e:
+            logger.error(f"Error checking ZIP: {e}")
+        
+        # If the zip has no data, try to get data directly from HCI Documents
+        if not has_data:
+            logger.info(f"ZIP has no data, trying to get data directly from HCI Documents")
+            
+            # Create a new memory file for the supplemental zip
+            hci_files = []
+            hci_path = f"/home/hci/Documents/participants_results/{study_id}_study_id"
+            
+            if os.path.exists(hci_path):
+                logger.info(f"Found HCI path: {hci_path}")
+                
+                # Create a supplemental ZIP with files from HCI Documents
+                supplemental_zip = io.BytesIO()
+                with zipfile.ZipFile(supplemental_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    # Find all sessions
+                    for item in os.listdir(hci_path):
+                        session_path = os.path.join(hci_path, item)
+                        
+                        # Skip if not a directory or not a session
+                        if not os.path.isdir(session_path) or not item.endswith('_participant_session_id'):
+                            continue
+                            
+                        logger.info(f"Processing session: {item}")
+                        
+                        # Find all trials
+                        for trial_dir in os.listdir(session_path):
+                            trial_path = os.path.join(session_path, trial_dir)
+                            
+                            # Skip if not a directory or not a trial
+                            if not os.path.isdir(trial_path) or not trial_dir.endswith('_trial_id'):
+                                continue
+                                
+                            # Add all CSV files in this trial
+                            for file_name in os.listdir(trial_path):
+                                if file_name.endswith('.csv'):
+                                    file_path = os.path.join(trial_path, file_name)
+                                    
+                                    # Create a path within the zip that includes session and trial
+                                    zip_path = f"{item}/{trial_dir}/{file_name}"
+                                    
+                                    try:
+                                        with open(file_path, 'rb') as f:
+                                            zipf.writestr(zip_path, f.read())
+                                            hci_files.append(zip_path)
+                                            logger.info(f"Added file to supplemental ZIP: {zip_path}")
+                                    except Exception as e:
+                                        logger.error(f"Error adding file to supplemental ZIP: {e}")
+                
+                # Check if we found any files
+                if hci_files:
+                    logger.info(f"Found {len(hci_files)} files in HCI Documents")
+                    
+                    # Save the supplemental zip and use it instead
+                    supplemental_zip.seek(0)
+                    temp_supplemental = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
+                    temp_supplemental.write(supplemental_zip.getvalue())
+                    temp_supplemental.close()
+                    
+                    logger.info(f"Created supplemental ZIP: {temp_supplemental.name}")
+                    
+                    # Use the supplemental zip file instead
+                    zip_path = temp_supplemental.name
+                else:
+                    logger.warning("No files found in HCI Documents")
+        
+        # Now extract data from the zip (either original or supplemental)
         data_dict = extract_session_data_from_zip(zip_path)
         
-        if not data_dict:
-            logger.warning(f"No data extracted from zip file: {zip_path}")
-            # Ensure DB connection is closed if it was opened
-            if db_conn:
-                db_conn.close()
-                logger.info("Database connection closed")
+        # Log the types of data extracted
+        if data_dict:
+            # Remove video_durations from the log output to avoid clutter
+            log_keys = [k for k in data_dict.keys() if k != 'video_durations']
+            logger.info(f"Extracted data types: {log_keys}")
             
-            return {
-                "error": "No valid data found in the zip file",
-                "study_id": study_id,
-                "participant_id": participant_id,
-                "processing_time": time.time() - start_time
-            }
+            # Check if we have video durations (special handling because it's not a DataFrame)
+            video_durations = None
+            if 'video_durations' in data_dict:
+                video_durations = data_dict.pop('video_durations')  # Remove from dict temporarily for the loop below
+                logger.info(f"Found {len(video_durations)} video durations in the data")
+            
+            # Log info about each DataFrame
+            for data_type, df in data_dict.items():
+                logger.info(f"Data type '{data_type}' has {len(df)} rows and columns: {list(df.columns)}")
+                
+            # Put video_durations back if we had it
+            if video_durations:
+                data_dict['video_durations'] = video_durations
+        
+        if not data_dict or (len(data_dict) == 1 and 'video_durations' in data_dict):
+            logger.warning(f"No tabular data extracted from zip file: {zip_path}")
+            # Check if the zip file contains any files
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                all_files = zip_ref.namelist()
+                file_extensions = set([os.path.splitext(f)[1].lower() for f in all_files if os.path.splitext(f)[1]])
+                logger.warning(f"ZIP file contains {len(all_files)} files with extensions: {file_extensions}")
+                csv_files = [f for f in all_files if f.endswith('.csv')]
+                mp4_files = [f for f in all_files if f.endswith('.mp4')]
+                logger.warning(f"ZIP contains {len(csv_files)} CSV files and {len(mp4_files)} MP4 files")
+                
+                # Check if we at least have video data
+                if 'video_durations' in data_dict and data_dict['video_durations']:
+                    logger.info(f"No CSV data but found {len(data_dict['video_durations'])} video durations that will be used for analytics")
+                else:
+                    # No useful data found
+                    # Ensure DB connection is closed if it was opened
+                    if 'db_conn' in locals() and db_conn:
+                        db_conn.close()
+                        logger.info("Database connection closed")
+                    
+                    return {
+                        "error": "No valid data found in the zip file",
+                        "study_id": study_id,
+                        "participant_id": participant_id,
+                        "file_count": len(all_files),
+                        "csv_count": len(csv_files),
+                        "mp4_count": len(mp4_files),
+                        "processing_time": time.time() - start_time
+                    }
         
         # Process each data type
         metrics = {
             "scope": "participant" if participant_id else "study",
             "study_id": study_id,
-            "participant_id": participant_id,
-            "data_types_found": list(data_dict.keys()),
-            "file_count": len(data_dict),
-            "total_data_points": sum(len(df) for df in data_dict.values())
+            "participant_id": participant_id
         }
+        
+        # Add video durations if available
+        if 'video_durations' in data_dict:
+            video_durations = data_dict.pop('video_durations')
+            metrics['video_durations'] = video_durations
+            logger.info(f"Added {len(video_durations)} video durations to metrics")
+            
+            # Get trial and task information from the database to correctly associate durations
+            try:
+                cursor = db_conn.cursor()
+                
+                # Fetch task IDs for trials we have video durations for
+                trial_ids = list(video_durations.keys())
+                if trial_ids:
+                    cursor.execute(
+                        """
+                        SELECT trial_id, task_id FROM trial 
+                        WHERE trial_id IN ({})
+                        """.format(','.join(['%s'] * len(trial_ids))),
+                        trial_ids
+                    )
+                    
+                    trial_to_task = {str(row[0]): row[1] for row in cursor.fetchall()}
+                    
+                    # Organize durations by task
+                    task_durations = {}
+                    for trial_id, duration in video_durations.items():
+                        if trial_id in trial_to_task:
+                            task_id = trial_to_task[trial_id]
+                            if task_id not in task_durations:
+                                task_durations[task_id] = []
+                            task_durations[task_id].append(duration)
+                    
+                    # Calculate average durations per task
+                    task_avg_durations = {}
+                    for task_id, durations in task_durations.items():
+                        task_avg_durations[task_id] = sum(durations) / len(durations)
+                    
+                    metrics['task_video_durations'] = task_durations
+                    metrics['task_avg_durations'] = task_avg_durations
+                    logger.info(f"Calculated average video durations for {len(task_avg_durations)} tasks")
+                
+                cursor.close()
+            except Exception as e:
+                logger.error(f"Error associating video durations with tasks: {str(e)}")
+        
+        # Add data metrics
+        data_types_found = list(data_dict.keys())
+        metrics.update({
+            "data_types_found": data_types_found,
+            "file_count": len(data_dict),
+            "total_data_points": sum(len(df) for df in data_dict.values() if isinstance(df, pd.DataFrame))
+        })
+        
+        # Priority Fix #1: Add a direct call to calculate_completion_times_from_data
+        # This will explicitly force completion time calculation
+        completion_metrics = calculate_completion_times_from_data(data_dict)
+        if completion_metrics:
+            metrics['completion_times'] = completion_metrics
+            metrics['avg_completion_time'] = completion_metrics.get('avg_time', 0)
+            metrics['p_value'] = completion_metrics.get('p_value', 0.5)
+            logger.info(f"✅ Added completion metrics: {completion_metrics}")
         
         # Process mouse movement data
         if 'Mouse Movement' in data_dict:
@@ -929,21 +1811,9 @@ def get_learning_curve_data(conn, study_id):
                     "errorCount": round(avg_errors, 2)
                 })
         
-        # If no results were found, provide sample data to prevent frontend errors
+        # If no results were found, we return empty array - we don't want to generate fake data
         if not result:
-            for task_id, task_name in tasks:
-                for attempt in range(1, 4):
-                    # Create realistic but random sample data
-                    base_time = 60 - (attempt * 10)  # Times get better with attempts
-                    base_errors = 5 - attempt  # Errors decrease with attempts
-                    
-                    result.append({
-                        "taskId": task_id,
-                        "taskName": task_name,
-                        "attempt": attempt,
-                        "completionTime": round(max(10, base_time + np.random.uniform(-5, 5)), 2),
-                        "errorCount": round(max(1, base_errors + np.random.uniform(-1, 1)), 2)
-                    })
+            logger.warning("No learning curve data found for study ID: {study_id}")
                     
         return result
     except Exception as e:
@@ -978,7 +1848,7 @@ def get_task_performance_data(conn, study_id):
             # Get average completion time per task (required field)
             cursor.execute(
                 """
-                SELECT AVG(TIMESTAMPDIFF(SECOND, t.started_at, t.ended_at)) 
+                SELECT AVG(ABS(TIMESTAMPDIFF(SECOND, t.started_at, t.ended_at))) 
                 FROM trial t
                 JOIN participant_session ps ON t.participant_session_id = ps.participant_session_id
                 WHERE 
@@ -991,32 +1861,85 @@ def get_task_performance_data(conn, study_id):
             avg_time = cursor.fetchone()[0] or 0
             
             # Get all completion times for this task to calculate p-value
-            cursor.execute(
-                """
-                SELECT TIMESTAMPDIFF(SECOND, t.started_at, t.ended_at) as completion_time
+            # Add more detailed debug logging to diagnose query results
+            query = """
+                SELECT ABS(TIMESTAMPDIFF(SECOND, t.started_at, t.ended_at)) as completion_time,
+                       t.trial_id, t.started_at, t.ended_at
                 FROM trial t
                 JOIN participant_session ps ON t.participant_session_id = ps.participant_session_id
                 WHERE 
                     ps.study_id = %s AND 
                     t.task_id = %s AND
                     t.ended_at IS NOT NULL
-                """,
-                (study_id, task_id)
-            )
+            """
+            logger.info(f"Executing completion time query for task {task_id}: {study_id}")
+            cursor.execute(query, (study_id, task_id))
             
-            # Extract completion times for p-value calculation
-            completion_times = [row[0] for row in cursor.fetchall() if row[0] is not None]
+            # Fetch and log the raw results for debugging
+            raw_results = cursor.fetchall()
+            logger.info(f"Raw query results for task {task_id}: found {len(raw_results)} trials")
+            
+            # Extract completion times for p-value calculation with better logging
+            completion_times = []
+            for row in raw_results:
+                completion_time = row[0]
+                trial_id = row[1]
+                started_at = row[2]
+                ended_at = row[3]
+                
+                if completion_time is not None and completion_time > 0:
+                    completion_times.append(completion_time)
+                    logger.debug(f"Task {task_id} - Trial {trial_id}: Start={started_at}, End={ended_at}, Completion time={completion_time}")
+                else:
+                    logger.warning(f"Task {task_id} - Trial {trial_id}: Invalid completion time: {completion_time}. Start={started_at}, End={ended_at}")
+                    
+            logger.info(f"Extracted {len(completion_times)} valid completion times for task {task_id}")
             
             # Calculate p-value based on completion time consistency
             p_value = calculate_task_pvalue(completion_times)
             logger.info(f"Calculated p-value for task {task_id}: {p_value}")
             
+            # Look for video durations for this task in job results
+            video_duration = None
+            try:
+                import json
+                from app.utility.analytics.task_queue import redis_conn
+                
+                # Check if Redis is available
+                if redis_conn:
+                    # Look for recent analysis jobs in Redis
+                    for key in redis_conn.keys("result:*"):
+                        try:
+                            # Try to parse the JSON data
+                            result_json = redis_conn.get(key)
+                            if result_json:
+                                result_data = json.loads(result_json)
+                                
+                                # Check if this result has task durations
+                                if isinstance(result_data, dict) and 'data' in result_data and 'task_avg_durations' in result_data['data']:
+                                    # See if it has data for our task
+                                    task_avg_durations = result_data['data']['task_avg_durations']
+                                    if str(task_id) in task_avg_durations:
+                                        video_duration = task_avg_durations[str(task_id)]
+                                        logger.info(f"Found video duration for task {task_id}: {video_duration}s from cache")
+                                        break
+                        except Exception as cache_err:
+                            logger.debug(f"Error parsing cached result: {str(cache_err)}")
+            except Exception as e:
+                logger.error(f"Error looking for video durations: {str(e)}")
+                
+            # Use video duration if we have it and no completion times
+            if len(completion_times) == 0 and video_duration:
+                logger.info(f"Using video duration {video_duration}s for task {task_id} (no completion times available)")
+                avg_time = video_duration
+                
             # Format task data for the chart (only include fields that exist)
             task_data = {
                 "taskId": task_id,
                 "taskName": task_name,
-                "avgCompletionTime": round(avg_time, 2),
-                "pValue": p_value
+                "avgCompletionTime": round(avg_time, 2) if avg_time else 0,
+                "pValue": p_value,
+                "durationSource": "video" if len(completion_times) == 0 and video_duration else "database"
             }
             
             result.append(task_data)

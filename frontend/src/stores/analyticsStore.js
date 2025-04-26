@@ -3,7 +3,6 @@ import analyticsApi from '@/api/analyticsApi';
 import MetricRegistry from '@/api/metrics/MetricRegistry';
 import CustomFormulaMetric from '@/api/metrics/CustomFormulaMetric';
 
-// Analytics store for managing data related to analytics features
 export const useAnalyticsStore = defineStore('analytics', {
   state: () => ({
     // Data states
@@ -71,6 +70,27 @@ export const useAnalyticsStore = defineStore('analytics', {
     getCustomMetrics: (state) => state.customMetrics,
     getAvailableMetrics: (state) => state.metricRegistry.getAvailableMetrics(),
     
+    // Get a specific metric value for a study from summary metrics
+    getMetricForStudy: (state) => (metricName, studyId) => {
+      if (!state.summaryMetrics || !state.summaryMetrics.metrics) {
+        return null;
+      }
+      
+      // Find the metric in the summary metrics
+      return state.summaryMetrics.metrics.find(m => m.name === metricName);
+    },
+    
+    // Get the average completion time for a task
+    getTaskCompletionTime: (state) => (studyId, taskId) => {
+      if (!state.taskPerformanceData) return null;
+      
+      const taskData = state.taskPerformanceData.find(t => 
+        (t.taskId === taskId || t.task_id === taskId)
+      );
+      
+      return taskData?.completionTime || taskData?.completion_time || null;
+    },
+    
     // Zip data getters
     getTrialInteractionData: (state) => (trialId) => state.trialInteractionData[trialId],
     getZipDataMetrics: (state) => (studyId, participantId = null) => {
@@ -112,20 +132,11 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.errors.studies = null;
       
       try {
-        console.log('Store: Fetching studies...');
         const studies = await analyticsApi.getStudies();
-        
-        // Reset studies array to ensure no duplicates
-        this.studies = [];
-        
-        // Add the new studies
         this.studies = studies;
-        console.log('Store: Studies updated with ', studies.length, 'items');
-        
         this.lastUpdated.studies = new Date().toISOString();
         return studies;
       } catch (error) {
-        console.error('Store: Error fetching studies:', error);
         this.errors.studies = error.message || 'Error fetching studies';
         throw error;
       } finally {
@@ -211,7 +222,6 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.errors.trialInteraction = null;
       
       try {
-        console.log(`Store: Fetching trial interaction data for trial ${trialId}...`);
         const data = await analyticsApi.getTrialInteractionData(studyId, trialId);
         
         // Store in state
@@ -223,7 +233,6 @@ export const useAnalyticsStore = defineStore('analytics', {
         this.lastUpdated.trialInteraction = new Date().toISOString();
         return data;
       } catch (error) {
-        console.error(`Store: Error fetching trial interaction data for trial ${trialId}:`, error);
         this.errors.trialInteraction = error.message || `Error fetching trial interaction data`;
         throw error;
       } finally {
@@ -237,7 +246,6 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.errors.participantTaskDetails = null;
       
       try {
-        console.log(`Store: Fetching task details for participant ${participantId}...`);
         const data = await analyticsApi.getParticipantTaskDetails(studyId, participantId);
         
         // Store in state
@@ -249,7 +257,6 @@ export const useAnalyticsStore = defineStore('analytics', {
         this.lastUpdated.participantTaskDetails = new Date().toISOString();
         return data;
       } catch (error) {
-        console.error(`Store: Error fetching participant task details for participant ${participantId}:`, error);
         this.errors.participantTaskDetails = error.message || `Error fetching participant task details`;
         throw error;
       } finally {
@@ -263,14 +270,11 @@ export const useAnalyticsStore = defineStore('analytics', {
       this.errors.zipDataMetrics = null;
       
       try {
-        console.log(`Store: Fetching zip data metrics for study ${studyId}${participantId ? ' and participant ' + participantId : ''}...`);
-        
         // Generate a key for storage
         const key = participantId ? `${studyId}_${participantId}` : `${studyId}`;
         
         // First check if we already have this data cached
         if (this.zipDataMetrics[key] && !this.zipDataMetrics[key].error) {
-          console.log(`Store: Using cached zip data for study ${studyId}`);
           this.loading.zipDataMetrics = false;
           return this.zipDataMetrics[key];
         }
@@ -281,14 +285,11 @@ export const useAnalyticsStore = defineStore('analytics', {
           
           // Check if we got valid data
           if (!data) {
-            console.error('Store: Received null or undefined data from API');
             throw new Error('No data received from API');
           }
           
           // Special handling for async job responses
           if (data.status === 'processing' && data.job_id) {
-            console.log(`Store: Got async job ID ${data.job_id}, will return this for polling`);
-            
             // We'll store this as-is, but it's not the final result
             this.zipDataMetrics = {
               ...this.zipDataMetrics,
@@ -300,11 +301,8 @@ export const useAnalyticsStore = defineStore('analytics', {
           
           // Handle returned errors
           if (data.error) {
-            console.error(`Store: API returned error: ${data.error}`);
             throw new Error(data.error);
           }
-          
-          console.log(`Store: Zip data fetch successful for study ${studyId}, keys:`, Object.keys(data));
           
           // Store in state
           this.zipDataMetrics = {
@@ -317,8 +315,6 @@ export const useAnalyticsStore = defineStore('analytics', {
         } catch (apiError) {
           // Handle the case where the initial API call fails with timeout
           if (apiError.message && apiError.message.includes('timeout')) {
-            console.warn('Store: API request timed out, returning a timeout status for polling');
-            
             // Create a response that looks like an async job response but indicates timeout
             const timeoutResponse = {
               status: 'timeout',
@@ -345,7 +341,6 @@ export const useAnalyticsStore = defineStore('analytics', {
           throw apiError;
         }
       } catch (error) {
-        console.error(`Store: Error fetching zip data metrics:`, error);
         this.errors.zipDataMetrics = error.message || `Error fetching zip data metrics`;
         
         // Return the error as structured data so components can handle it

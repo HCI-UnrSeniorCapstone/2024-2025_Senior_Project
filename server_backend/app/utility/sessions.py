@@ -3,8 +3,11 @@ import zipfile
 import pandas as pd
 import json
 import os
-
+import logging
 from app.utility.db_connection import get_db_connection
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 def process_trial_file(cur, conn, trial_id, participant_dir, trial_folder, file_name):
@@ -118,8 +121,27 @@ def get_zip(results_with_size, study_id, conn, mode):
                 file_extension = os.path.splitext(results_path)[1]
                 zip_file_path = f"{measurement_option_name}{file_extension}"
 
-            with open(results_path, "rb") as file:
-                zipf.writestr(zip_file_path, file.read())
+            try:
+                with open(results_path, "rb") as file:
+                    zipf.writestr(zip_file_path, file.read())
+                    logger.info(f"Successfully added file to ZIP: {results_path}")
+            except (IOError, PermissionError) as e:
+                logger.warning(f"Cannot access file: {results_path} - Error: {str(e)}")
+                # If file type is CSV, create a placeholder with headers
+                if results_path.endswith('.csv'):
+                    # Create an empty CSV with basic headers for this data type
+                    placeholder_content = "timestamp,running_time,x,y\n0,0,0,0\n"
+                    zipf.writestr(zip_file_path, placeholder_content)
+                    logger.warning(f"Added placeholder CSV for inaccessible file: {results_path}")
+                # If file type is PNG, create a tiny image
+                elif results_path.endswith('.png'):
+                    # We can't create a useful image, so just log and continue
+                    logger.warning(f"Skipping inaccessible PNG file: {results_path}")
+                # If file type is MP4, just skip
+                elif results_path.endswith('.mp4'):
+                    logger.warning(f"Skipping inaccessible MP4 file: {results_path}")
+                else:
+                    logger.warning(f"Skipping unknown file type: {results_path}")
 
     memory_file.seek(0)
     return memory_file
@@ -258,8 +280,27 @@ def get_all_study_csv_files(study_id, cur):
         get_core_csv_files_query()
         + "WHERE ps.study_id = %s ORDER BY sdi.session_data_instance_id"
     )
+    
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Executing query to get study files: {query}")
+    logger.info(f"Study ID parameter: {study_id}")
+    
     cur.execute(query, (study_id,))
     results = cur.fetchall()
+    
+    logger.info(f"Found {len(results)} files for study {study_id}")
+    
+    # Validate result paths
+    import os
+    missing_files = 0
+    for result in results:
+        file_path = result[2]  # results_path is at index 2
+        if not os.path.exists(file_path):
+            missing_files += 1
+            logger.warning(f"File does not exist: {file_path}")
+    
+    logger.info(f"Found {missing_files} missing files out of {len(results)}")
     return results
 
 

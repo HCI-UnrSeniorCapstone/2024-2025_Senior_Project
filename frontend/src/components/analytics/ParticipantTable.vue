@@ -183,6 +183,7 @@ export default {
   components: {
     ParticipantDetailsModal
   },
+  emits: ['selection-change', 'participants-selected'],
   props: {
     studyId: {
       type: [String, Number],

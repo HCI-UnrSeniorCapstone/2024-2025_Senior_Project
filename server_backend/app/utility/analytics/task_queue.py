@@ -1,6 +1,4 @@
-"""
-Task queue implementation for asynchronous processing of analytics data
-"""
+"""Task queue for async analytics processing"""
 import os
 import logging
 import redis
@@ -26,12 +24,13 @@ try:
     logger.info(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
     
     # Connection for direct Redis operations (with decoding)
+    # Use explicit True for decode_responses to ensure it's properly set
     redis_conn = redis.Redis(
         host=REDIS_HOST,
         port=REDIS_PORT,
         db=REDIS_DB,
         password=REDIS_PASSWORD,
-        decode_responses=True,  # Auto-decode for our direct operations
+        decode_responses=True,  # Auto-decode for our direct operations (explicit True)
         socket_timeout=5,  # 5 second timeout for operations
         socket_connect_timeout=5  # 5 second timeout for connection
     )
@@ -83,17 +82,7 @@ class JobStatus:
 result_cache = {}
 
 def enqueue_task(func, *args, **kwargs):
-    """
-    Enqueue a task for asynchronous processing
-    
-    Args:
-        func: The function to execute
-        *args: Positional arguments for the function
-        **kwargs: Keyword arguments for the function
-        
-    Returns:
-        dict: Job information with ID and status
-    """
+    """Enqueue task for async processing, returns job info dict"""
     if queue is None:
         # Fallback to synchronous execution if queue is not available
         logger.warning("Queue not available, executing task synchronously")
@@ -181,15 +170,7 @@ def enqueue_task(func, *args, **kwargs):
         }
 
 def get_job_status(job_id):
-    """
-    Get the status of a job
-    
-    Args:
-        job_id: The job ID to check
-        
-    Returns:
-        dict: Job status information
-    """
+    """Check job status by ID, returns status info dict"""
     # First check if the result is in our cache
     if job_id in result_cache:
         logger.info(f"Found cached result for job {job_id}")
@@ -280,18 +261,19 @@ def get_job_status(job_id):
         }
 
 def store_result(job_id, result):
-    """
-    Store a job result in the cache
-    
-    Args:
-        job_id: The job ID
-        result: The result data to store
-    """
+    """Cache job results in memory and Redis"""
     try:
+        # Extract study_id for indexing if available
+        study_id = None
+        if isinstance(result, dict) and 'study_id' in result:
+            study_id = result['study_id']
+            logger.info(f"Found study_id={study_id} in job result for indexing")
+        
         # Store in memory cache
         result_cache[job_id] = {
             'data': result,
-            'timestamp': datetime.now()
+            'timestamp': datetime.now(),
+            'study_id': study_id
         }
         
         # Clean up old cache entries
@@ -299,28 +281,62 @@ def store_result(job_id, result):
         
         # If Redis is available, also store there with TTL
         if redis_conn:
-            # Convert result to JSON string
-            result_json = json.dumps({
-                'data': result,
-                'timestamp': datetime.now().isoformat()
-            })
-            redis_conn.setex(f"result:{job_id}", RESULT_CACHE_TTL, result_json)
-            logger.debug(f"Stored result for job {job_id} in Redis")
+            try:
+                # Check for completion_times data at the top level
+                completion_metrics = None
+                if isinstance(result, dict):
+                    # Check if we have direct metrics at the top level
+                    direct_metrics = {}
+                    if 'avg_completion_time' in result and result['avg_completion_time']:
+                        direct_metrics['avg_completion_time'] = result['avg_completion_time']
+                        
+                    if 'p_value' in result and result['p_value']:
+                        direct_metrics['p_value'] = result['p_value']
+                    
+                    # Check for nested completion_times
+                    if 'completion_times' in result and result['completion_times']:
+                        completion_times = result['completion_times']
+                        
+                        # Promote important metrics to the top level for easier access
+                        if 'avg_time' in completion_times and completion_times['avg_time'] and 'avg_completion_time' not in direct_metrics:
+                            result['avg_completion_time'] = completion_times['avg_time']
+                            
+                        if 'p_value' in completion_times and completion_times['p_value'] and 'p_value' not in direct_metrics:
+                            result['p_value'] = completion_times['p_value']
+                
+                # Convert result to JSON string
+                result_json = json.dumps({
+                    'data': result,
+                    'timestamp': datetime.now().isoformat(),
+                    'study_id': study_id
+                }, default=str)  # Use str for non-serializable objects
+                
+                # Store with TTL indexed by job_id
+                redis_conn.setex(f"result:{job_id}", RESULT_CACHE_TTL, result_json)
+                logger.info(f"Stored result for job {job_id} in Redis")
+                
+                # Also store indexed by study_id if available (for direct lookups)
+                if study_id:
+                    redis_conn.setex(f"study:{study_id}:latest_result", RESULT_CACHE_TTL, result_json)
+                    logger.info(f"Also indexed result by study_id={study_id}")
+            except Exception as json_err:
+                logger.error(f"Error serializing job result to JSON: {str(json_err)}")
+                # Store a simplified version
+                try:
+                    # Create a simplified version without complex objects
+                    simple_result = {"error": "Could not serialize full result", "study_id": study_id}
+                    redis_conn.setex(f"result:{job_id}", RESULT_CACHE_TTL, json.dumps(simple_result))
+                except:
+                    logger.error("Could not store even simplified result")
         
         logger.debug(f"Stored result for job {job_id}")
     except Exception as e:
         logger.error(f"Error storing result for job {job_id}: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 def get_result(job_id):
-    """
-    Get a stored result from the cache
-    
-    Args:
-        job_id: The job ID
-        
-    Returns:
-        The cached result data or None if not found
-    """
+    """Retrieve cached result by job ID"""
     # First check memory cache
     if job_id in result_cache:
         return result_cache[job_id]['data']
@@ -344,7 +360,7 @@ def get_result(job_id):
     return None
 
 def clean_result_cache():
-    """Clean up old entries from the result cache"""
+    """Remove expired entries from cache"""
     now = datetime.now()
     expired_keys = []
     
