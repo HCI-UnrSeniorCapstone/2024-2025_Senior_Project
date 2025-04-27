@@ -483,6 +483,8 @@ class GlobalToolbar(QWidget):
             task_name = task["taskName"]
             task_dirs = task["taskDirections"]
             task_dur = task.get("taskDuration", None)
+            if task_dur is not None:
+                task_dur = f"{float(task_dur):.2f}"
             factor_id = str(trial["factorID"])
             factor = self.factors[factor_id]
             factor_name = factor["factorName"]

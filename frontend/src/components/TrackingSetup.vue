@@ -19,8 +19,9 @@
           variant="tonal"
           color="primary"
           prepend-icon="mdi-download"
-          :href="getDownload()"
-          download
+          @click="downloadTrackingTool()"
+          :loading="isDownloading"
+          :disabled="isDownloading"
           type="application/zip"
         >
           Download Tracking Tool
@@ -68,6 +69,7 @@
 </template>
 
 <script>
+import api from '@/axiosInstance'
 export default {
   name: 'TrackingSetup',
   data() {
@@ -75,6 +77,7 @@ export default {
       isConnected: false,
       visible: true,
       pingRate: null,
+      isDownloading: false,
     }
   },
   mounted() {
@@ -104,9 +107,27 @@ export default {
       }
     },
 
-    getDownload() {
-      // Store executables as zips under /public/downloads
-      return `/downloads/FulcrumTrackingTool.zip`
+    async downloadTrackingTool() {
+      this.isDownloading = true
+      try {
+        const response = await api.post(
+          '/download_tracking_tool',
+          {},
+          { responseType: 'blob' },
+        )
+
+        const blob = new Blob([response.data], { type: 'application/zip' })
+        const link = document.createElement('a')
+        link.href = URL.createObjectURL(blob)
+        link.download = 'FulcrumTrackingTool.zip'
+        link.click()
+
+        URL.revokeObjectURL(link.href)
+      } catch (err) {
+        console.error('Failed to download tracking tool', err)
+      } finally {
+        this.isDownloading = false
+      }
     },
 
     async leaveSession() {
