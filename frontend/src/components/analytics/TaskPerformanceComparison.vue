@@ -265,7 +265,33 @@ export default {
       if (this.needsZipData && !this.zipData) {
         this.fetchZipData();
       }
-      this.updateChart();
+      
+      // Force a resize when switching to mouse or keyboard metrics 
+      // This helps ensure proper rendering
+      if (this.selectedMetric === 'mouse' || this.selectedMetric === 'keyboard') {
+        // First update the chart
+        this.updateChart();
+        
+        // Then trigger a resize after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          // Force recalculation of dimensions
+          if (this.$refs.chartContainer) {
+            const container = this.$refs.chartContainer;
+            this.width = container.clientWidth - this.margin.left - this.margin.right;
+            this.height = container.clientHeight - this.margin.top - this.margin.bottom;
+            
+            // Update chart again with new dimensions
+            this.updateChart();
+            
+            // Force another redraw after a short delay to ensure rendering
+            setTimeout(() => {
+              window.dispatchEvent(new Event('resize'));
+            }, 100);
+          }
+        }, 100);
+      } else {
+        this.updateChart();
+      }
     },
     // Watch for changes in selected participants
     selectedParticipantIds: {
@@ -563,7 +589,13 @@ export default {
       // Start fresh
       d3.select(this.$refs.chartContainer).selectAll('*').remove();
       
+      // Explicitly set height to ensure proper rendering
       const container = this.$refs.chartContainer;
+      container.style.height = '400px';
+      
+      // Force layout reflow
+      void container.offsetHeight;
+      
       this.width = container.clientWidth - this.margin.left - this.margin.right;
       this.height = 400 - this.margin.top - this.margin.bottom;
       
@@ -600,6 +632,9 @@ export default {
     // Draw or update the chart based on current data and metric
     updateChart() {
       if (!this.chart || !this.hasData || !this.$refs.chartContainer) return;
+      
+      // Set a fixed height for the chart container to ensure proper rendering
+      this.$refs.chartContainer.style.height = '400px';
       
       // Check if we need zip data but don't have it yet
       if (this.needsZipData && !this.zipData) {
@@ -1002,7 +1037,8 @@ export default {
 
 .chart-content {
   width: 100%;
-  height: 350px;
+  height: 400px;
   position: relative;
+  min-height: 400px;
 }
 </style>
