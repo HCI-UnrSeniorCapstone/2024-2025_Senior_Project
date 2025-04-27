@@ -3,9 +3,11 @@
     <v-tabs v-model="activeTab" background-color="primary" dark>
       <v-tab v-if="surveys.pre" value="pre">Pre-Survey</v-tab>
       <v-tab v-if="surveys.post" value="post">Post-Survey</v-tab>
-      <v-tab v-if="!surveys.pre && !surveys.post" disabled>No Surveys</v-tab>
+      <v-tab value="demographic">Demographics</v-tab>
+      <v-tab v-if="!surveys.pre && !surveys.post && !demographic" disabled>No Data</v-tab>
     </v-tabs>
     
+    <!-- Pre/Post Survey Data -->
     <v-card-text v-if="(activeTab === 'pre' && surveys.pre) || (activeTab === 'post' && surveys.post)">
       <v-list>
         <v-list-subheader>{{ activeTab === 'pre' ? 'Pre-Survey' : 'Post-Survey' }} Responses</v-list-subheader>
@@ -27,10 +29,54 @@
       </v-list>
     </v-card-text>
     
+    <!-- Demographic Data -->
+    <v-card-text v-else-if="activeTab === 'demographic' && demographic">
+      <v-list>
+        <v-list-subheader>Demographic Information</v-list-subheader>
+        
+        <v-divider></v-divider>
+        <v-list-item>
+          <v-list-item-title class="text-subtitle-1 font-weight-medium">Age</v-list-item-title>
+          <v-list-item-subtitle>{{ demographic.age }}</v-list-item-subtitle>
+        </v-list-item>
+        
+        <v-divider></v-divider>
+        <v-list-item>
+          <v-list-item-title class="text-subtitle-1 font-weight-medium">Gender</v-list-item-title>
+          <v-list-item-subtitle>{{ demographic.gender }}</v-list-item-subtitle>
+        </v-list-item>
+        
+        <v-divider></v-divider>
+        <v-list-item>
+          <v-list-item-title class="text-subtitle-1 font-weight-medium">Race/Ethnicity</v-list-item-title>
+          <v-list-item-subtitle>
+            <div class="mt-2">
+              <v-chip v-for="(item, i) in demographic.ethnicity" :key="i" class="ma-1" small>{{ item }}</v-chip>
+            </div>
+          </v-list-item-subtitle>
+        </v-list-item>
+        
+        <v-divider></v-divider>
+        <v-list-item>
+          <v-list-item-title class="text-subtitle-1 font-weight-medium">Education Level</v-list-item-title>
+          <v-list-item-subtitle>{{ demographic.education }}</v-list-item-subtitle>
+        </v-list-item>
+        
+        <v-divider></v-divider>
+        <v-list-item>
+          <v-list-item-title class="text-subtitle-1 font-weight-medium">Technology Competency</v-list-item-title>
+          <v-list-item-subtitle>{{ demographic.techCompetency }}/10</v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </v-card-text>
+    
+    <!-- No Data Available -->
     <v-card-text v-else class="text-center pa-6 grey lighten-4">
       <v-icon size="large" color="grey">mdi-clipboard-text-off</v-icon>
       <p class="mt-2">
-        {{ activeTab ? `No ${activeTab}-survey data available for this participant` : 'No survey data available' }}
+        {{ activeTab === 'demographic' 
+           ? 'No demographic data available for this participant' 
+           : (activeTab ? `No ${activeTab}-survey data available for this participant` : 'No data available') }}
       </p>
     </v-card-text>
   </div>
@@ -47,11 +93,15 @@ export default {
     surveyStructure: {
       type: Object,
       default: () => ({ pre: null, post: null })
+    },
+    demographic: {
+      type: Object,
+      default: null
     }
   },
   data() {
     return {
-      activeTab: null
+      activeTab: 'demographic'
     }
   },
   computed: {

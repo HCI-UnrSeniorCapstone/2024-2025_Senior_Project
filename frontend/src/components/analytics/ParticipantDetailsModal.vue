@@ -104,6 +104,7 @@
             v-else
             :surveys="participantSurveys"
             :survey-structure="surveyStructure"
+            :demographic="participantDemographics"
           ></participant-survey-view>
         </div>
         
@@ -253,6 +254,7 @@ export default {
     const surveyError = ref(null);
     const participantSurveys = ref({ pre: null, post: null });
     const surveyStructure = ref({ pre: null, post: null });
+    const participantDemographics = ref(null);
     
     // Selected trial and media
     const selectedTrial = ref(null);
@@ -406,6 +408,24 @@ export default {
       }
     };
     
+    // Load participant demographics
+    const loadParticipantDemographics = async () => {
+      if (!props.participant.studyId || !props.participant.participantId) {
+        return;
+      }
+      
+      try {
+        const demographics = await analyticsApi.getParticipantDemographics(
+          props.participant.studyId,
+          props.participant.participantId
+        );
+        
+        participantDemographics.value = demographics;
+      } catch (error) {
+        console.error('Error loading participant demographics:', error);
+      }
+    };
+    
     // Load participant surveys
     const loadParticipantSurveys = async () => {
       if (!props.participant.studyId || !props.participant.participantId) {
@@ -417,13 +437,14 @@ export default {
         isLoadingSurveys.value = true;
         surveyError.value = null;
         
-        // Load both surveys and structure in parallel
+        // Load surveys, structure, and demographics in parallel
         const [surveys] = await Promise.all([
           analyticsApi.getParticipantSurveys(
             props.participant.studyId,
             props.participant.participantId
           ),
-          loadSurveyStructure()
+          loadSurveyStructure(),
+          loadParticipantDemographics()
         ]);
         
         participantSurveys.value = surveys;
@@ -452,6 +473,7 @@ export default {
       surveyError,
       participantSurveys,
       surveyStructure,
+      participantDemographics,
       loadParticipantSurveys,
       
       // Selected media

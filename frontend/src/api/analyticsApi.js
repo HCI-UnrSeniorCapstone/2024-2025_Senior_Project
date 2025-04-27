@@ -504,6 +504,20 @@ const analyticsApi = {
         return { pre: null, post: null };
       }
     });
+  },
+  
+  async getParticipantDemographics(studyId, participantId) {
+    return getCachedData(`demographics_${studyId}_${participantId}`, async () => {
+      try {
+        const response = await makeApiCallWithFallback(
+          `/analytics/participant-demographics/${studyId}/${participantId}`
+        );
+        return response.data.demographics || null;
+      } catch (error) {
+        console.error('Error fetching participant demographics:', error);
+        return null;
+      }
+    });
   }
 };
 
