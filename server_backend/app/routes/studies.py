@@ -145,6 +145,64 @@ def get_all_user_access_for_study():
         return jsonify({"error_type": error_type, "error_message": error_message}), 500
 
 
+# Editor / Viewer leave
+@bp.route("/api/leave_user_study_access", methods=["POST"])
+@auth_required()
+def leave_user_study_access():
+    # Get JSON data
+    submission_data = request.get_json()
+
+    if (
+        not submission_data
+        or "studyID" not in submission_data
+        or "desiredUserEmail" not in submission_data
+    ):
+        return jsonify({"error": "Missing needed info for request body"}), 400
+
+    study_id = submission_data["studyID"]
+    removed_user_email = submission_data["desiredUserEmail"]
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        user_access_type = check_user_study_access(cur, study_id, current_user.id)
+
+        # Editor / Viewer
+        if user_access_type == 2 or user_access_type == 3:
+            get_user_id = """
+            SELECT user_id
+            FROM user
+            WHERE email = %s
+            """
+            cur.execute(get_user_id, (removed_user_email,))
+            result = cur.fetchone()[0]
+
+            delete_user_access = """
+            DELETE FROM study_user_role
+            WHERE study_id = %s AND user_id = %s
+            """
+            cur.execute(
+                delete_user_access,
+                (
+                    study_id,
+                    result,
+                ),
+            )
+            conn.commit()
+            return jsonify({"message": "User access removed successfully"}), 200
+        else:
+            return jsonify({"message": "User lacks editor or viewer access"}), 403
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Owner remove
 @bp.route("/api/remove_user_study_access", methods=["POST"])
 @auth_required()
 def remove_user_study_access():
