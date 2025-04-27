@@ -135,7 +135,7 @@ const emptySummaryMetrics = {
     },
     {
       "title": "P-Value",
-      "value": "N/A",
+      "value": 0.0,
       "icon": "mdi-function-variant",
       "color": "success"
     }
