@@ -66,3 +66,41 @@ def get_participant_surveys(study_id, participant_id):
     except Exception as e:
         logger.error(f"Error retrieving participant surveys: {str(e)}")
         return jsonify({"error": f"Failed to retrieve surveys: {str(e)}"}), 500
+
+@analytics_surveys_bp.route('/survey-structure/<int:study_id>', methods=['GET'])
+def get_survey_structure(study_id):
+    """Get survey structure for a study"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get the survey form paths for both pre and post surveys
+        cursor.execute("""
+            SELECT file_path, form_type 
+            FROM survey_form 
+            WHERE study_id = %s
+        """, (study_id,))
+        
+        survey_forms = cursor.fetchall()
+        
+        # Load survey structure from files
+        survey_structure = {"pre": None, "post": None}
+        for survey in survey_forms:
+            try:
+                file_path = survey[0]  # Index 0 = file_path
+                form_type = survey[1]  # Index 1 = form_type
+                
+                if os.path.exists(file_path):
+                    with open(file_path, 'r') as f:
+                        survey_structure[form_type] = json.load(f)
+                        logger.info(f"Loaded {form_type} survey structure from {file_path}")
+                else:
+                    logger.warning(f"Survey file not found: {file_path}")
+            except Exception as e:
+                logger.error(f"Error loading survey file {file_path}: {str(e)}")
+        
+        return jsonify({"structure": survey_structure}), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving survey structure: {str(e)}")
+        return jsonify({"error": f"Failed to retrieve survey structure: {str(e)}"}), 500

@@ -490,6 +490,20 @@ const analyticsApi = {
         return { pre: null, post: null };
       }
     });
+  },
+  
+  async getSurveyStructure(studyId) {
+    return getCachedData(`survey_structure_${studyId}`, async () => {
+      try {
+        const response = await makeApiCallWithFallback(
+          `/analytics/survey-structure/${studyId}`
+        );
+        return response.data.structure || { pre: null, post: null };
+      } catch (error) {
+        console.error('Error fetching survey structure:', error);
+        return { pre: null, post: null };
+      }
+    });
   }
 };
 

@@ -103,6 +103,7 @@
           <participant-survey-view 
             v-else
             :surveys="participantSurveys"
+            :survey-structure="surveyStructure"
           ></participant-survey-view>
         </div>
         
@@ -251,6 +252,7 @@ export default {
     const isLoadingSurveys = ref(false);
     const surveyError = ref(null);
     const participantSurveys = ref({ pre: null, post: null });
+    const surveyStructure = ref({ pre: null, post: null });
     
     // Selected trial and media
     const selectedTrial = ref(null);
@@ -387,6 +389,23 @@ export default {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')} hrs`;
     };
     
+    // Load survey structure
+    const loadSurveyStructure = async () => {
+      if (!props.participant.studyId) {
+        return;
+      }
+      
+      try {
+        const structure = await analyticsApi.getSurveyStructure(
+          props.participant.studyId
+        );
+        
+        surveyStructure.value = structure;
+      } catch (error) {
+        console.error('Error loading survey structure:', error);
+      }
+    };
+    
     // Load participant surveys
     const loadParticipantSurveys = async () => {
       if (!props.participant.studyId || !props.participant.participantId) {
@@ -398,10 +417,14 @@ export default {
         isLoadingSurveys.value = true;
         surveyError.value = null;
         
-        const surveys = await analyticsApi.getParticipantSurveys(
-          props.participant.studyId,
-          props.participant.participantId
-        );
+        // Load both surveys and structure in parallel
+        const [surveys] = await Promise.all([
+          analyticsApi.getParticipantSurveys(
+            props.participant.studyId,
+            props.participant.participantId
+          ),
+          loadSurveyStructure()
+        ]);
         
         participantSurveys.value = surveys;
       } catch (error) {
@@ -428,6 +451,7 @@ export default {
       isLoadingSurveys,
       surveyError,
       participantSurveys,
+      surveyStructure,
       loadParticipantSurveys,
       
       // Selected media

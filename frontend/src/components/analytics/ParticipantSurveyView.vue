@@ -43,6 +43,10 @@ export default {
     surveys: {
       type: Object,
       default: () => ({ pre: null, post: null })
+    },
+    surveyStructure: {
+      type: Object,
+      default: () => ({ pre: null, post: null })
     }
   },
   data() {
@@ -70,7 +74,18 @@ export default {
       return metadataFields.includes(key);
     },
     formatQuestionName(key) {
-      // Convert camelCase or snake_case to readable text
+      // If survey structure is available, get the title from it
+      const surveyData = this.activeTab === 'pre' ? this.surveyStructure.pre : this.surveyStructure.post;
+      
+      if (surveyData && surveyData.elements) {
+        // Try to find the question in the survey structure
+        const question = surveyData.elements.find(q => q.name === key);
+        if (question && question.title) {
+          return question.title;
+        }
+      }
+      
+      // Fallback: Convert camelCase or snake_case to readable text
       return key
         .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
         .replace(/_/g, ' ') // Replace underscores with spaces
