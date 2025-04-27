@@ -231,8 +231,16 @@ export default {
       } 
       // Handle P-Value
       else if (title === 'P-Value') {
+        // Return N/A for certain known placeholder values (0.33, 0.333, etc.)
         const numValue = typeof value === 'string' ? parseFloat(value) : value;
-        return isNaN(numValue) ? 'N/A' : `${numValue.toFixed(3)}`;
+        
+        if (value === "N/A" || isNaN(numValue) || 
+            numValue === 0.33 || numValue === 0.333 || numValue === 0.334 ||
+            numValue === 0.3 || numValue === 0.5) {
+          return 'N/A';
+        }
+        
+        return `${numValue.toFixed(3)}`;
       } 
       // Default formatting
       else {

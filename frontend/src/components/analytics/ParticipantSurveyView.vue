@@ -1,0 +1,88 @@
+<template>
+  <div class="participant-survey-view">
+    <v-tabs v-model="activeTab" background-color="primary" dark>
+      <v-tab v-if="surveys.pre" value="pre">Pre-Survey</v-tab>
+      <v-tab v-if="surveys.post" value="post">Post-Survey</v-tab>
+      <v-tab v-if="!surveys.pre && !surveys.post" disabled>No Surveys</v-tab>
+    </v-tabs>
+    
+    <v-card-text v-if="(activeTab === 'pre' && surveys.pre) || (activeTab === 'post' && surveys.post)">
+      <v-list>
+        <v-list-subheader>{{ activeTab === 'pre' ? 'Pre-Survey' : 'Post-Survey' }} Responses</v-list-subheader>
+        
+        <template v-for="(value, key) in activeSurveyData" :key="key">
+          <v-divider v-if="!isMetadataField(key)"></v-divider>
+          <v-list-item v-if="!isMetadataField(key)">
+            <v-list-item-title class="text-subtitle-1 font-weight-medium">
+              {{ formatQuestionName(key) }}
+            </v-list-item-title>
+            <v-list-item-subtitle>
+              <div v-if="Array.isArray(value)" class="mt-2">
+                <v-chip v-for="(item, i) in value" :key="i" class="ma-1" small>{{ item }}</v-chip>
+              </div>
+              <div v-else>{{ value }}</div>
+            </v-list-item-subtitle>
+          </v-list-item>
+        </template>
+      </v-list>
+    </v-card-text>
+    
+    <v-card-text v-else class="text-center pa-6 grey lighten-4">
+      <v-icon size="large" color="grey">mdi-clipboard-text-off</v-icon>
+      <p class="mt-2">
+        {{ activeTab ? `No ${activeTab}-survey data available for this participant` : 'No survey data available' }}
+      </p>
+    </v-card-text>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'ParticipantSurveyView',
+  props: {
+    surveys: {
+      type: Object,
+      default: () => ({ pre: null, post: null })
+    }
+  },
+  data() {
+    return {
+      activeTab: null
+    }
+  },
+  computed: {
+    activeSurveyData() {
+      return this.activeTab === 'pre' ? this.surveys.pre : this.surveys.post;
+    }
+  },
+  mounted() {
+    // Set initial active tab based on available surveys
+    if (this.surveys.pre) {
+      this.activeTab = 'pre';
+    } else if (this.surveys.post) {
+      this.activeTab = 'post';
+    }
+  },
+  methods: {
+    isMetadataField(key) {
+      // Ignore metadata fields from SurveyJS
+      const metadataFields = ['pageNo', 'startedAt', 'completedAt'];
+      return metadataFields.includes(key);
+    },
+    formatQuestionName(key) {
+      // Convert camelCase or snake_case to readable text
+      return key
+        .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
+        .replace(/_/g, ' ') // Replace underscores with spaces
+        .toLowerCase()
+        .replace(/^\w/, c => c.toUpperCase()); // Capitalize first letter
+    }
+  }
+}
+</script>
+
+<style scoped>
+.participant-survey-view {
+  margin-top: 20px;
+}
+</style>

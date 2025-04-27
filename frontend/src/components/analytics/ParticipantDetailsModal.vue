@@ -79,6 +79,33 @@
           </v-col>
         </v-row>
         
+        <!-- Survey section -->
+        <div class="mt-6">
+          <h3 class="text-h5 mb-4">
+            <v-icon start color="blue">mdi-clipboard-text</v-icon>
+            Survey Responses
+          </h3>
+          
+          <div v-if="isLoadingSurveys" class="text-center pa-4">
+            <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
+            <p class="mt-2">Loading survey data...</p>
+          </div>
+          
+          <div v-else-if="surveyError" class="text-center">
+            <v-icon color="error">mdi-alert-circle</v-icon>
+            <p class="mt-2 text-body-1">{{ surveyError }}</p>
+            <v-btn color="primary" @click="loadParticipantSurveys" class="mt-4" size="small">
+              <v-icon start>mdi-refresh</v-icon>
+              Try Again
+            </v-btn>
+          </div>
+          
+          <participant-survey-view 
+            v-else
+            :surveys="participantSurveys"
+          ></participant-survey-view>
+        </div>
+        
         <!-- Media Section with Heat Map and Video -->
         <div v-if="mediaLoaded" class="mt-6">
           <h3 class="text-h5 mb-4">
@@ -185,9 +212,13 @@
 <script>
 import { ref, watch, onMounted, computed } from 'vue';
 import analyticsApi from '@/api/analyticsApi';
+import ParticipantSurveyView from './ParticipantSurveyView.vue';
 
 export default {
   name: 'ParticipantDetailsModal',
+  components: {
+    ParticipantSurveyView
+  },
   props: {
     modelValue: {
       type: Boolean,
@@ -216,6 +247,11 @@ export default {
     const participantMedia = ref({});
     const mediaLoaded = ref(false);
     
+    // Survey loading state
+    const isLoadingSurveys = ref(false);
+    const surveyError = ref(null);
+    const participantSurveys = ref({ pre: null, post: null });
+    
     // Selected trial and media
     const selectedTrial = ref(null);
     const selectedScreenshot = ref(null);
@@ -237,6 +273,7 @@ export default {
     watch(() => props.modelValue, (newVal) => {
       if (newVal && props.participant.studyId && props.participant.participantId) {
         loadParticipantMedia();
+        loadParticipantSurveys();
       }
     });
     
@@ -244,6 +281,7 @@ export default {
     watch(() => props.participant, (newVal) => {
       if (dialog.value && newVal.studyId && newVal.participantId) {
         loadParticipantMedia();
+        loadParticipantSurveys();
       }
     }, { deep: true });
     
@@ -349,6 +387,31 @@ export default {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')} hrs`;
     };
     
+    // Load participant surveys
+    const loadParticipantSurveys = async () => {
+      if (!props.participant.studyId || !props.participant.participantId) {
+        surveyError.value = 'Missing study ID or participant ID';
+        return;
+      }
+      
+      try {
+        isLoadingSurveys.value = true;
+        surveyError.value = null;
+        
+        const surveys = await analyticsApi.getParticipantSurveys(
+          props.participant.studyId,
+          props.participant.participantId
+        );
+        
+        participantSurveys.value = surveys;
+      } catch (error) {
+        console.error('Error loading participant surveys:', error);
+        surveyError.value = 'Failed to load survey data. Please try again.';
+      } finally {
+        isLoadingSurveys.value = false;
+      }
+    };
+
     return {
       dialog,
       close,
@@ -360,6 +423,12 @@ export default {
       participantMedia,
       mediaLoaded,
       loadParticipantMedia,
+      
+      // Survey loading
+      isLoadingSurveys,
+      surveyError,
+      participantSurveys,
+      loadParticipantSurveys,
       
       // Selected media
       selectedTrial,

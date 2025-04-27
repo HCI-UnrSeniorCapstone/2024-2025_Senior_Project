@@ -132,6 +132,12 @@ const emptySummaryMetrics = {
       "value": "0s",
       "icon": "mdi-clock-outline",
       "color": "info"
+    },
+    {
+      "title": "P-Value",
+      "value": "N/A",
+      "icon": "mdi-function-variant",
+      "color": "success"
     }
   ]
 };
@@ -470,6 +476,20 @@ const analyticsApi = {
   
   getMediaFileUrl(studyId, participantId, trialId, filename) {
     return `/api/analytics/media/${studyId}/${participantId}/${trialId}/${filename}`;
+  },
+  
+  async getParticipantSurveys(studyId, participantId) {
+    return getCachedData(`surveys_${studyId}_${participantId}`, async () => {
+      try {
+        const response = await makeApiCallWithFallback(
+          `/analytics/participant-surveys/${studyId}/${participantId}`
+        );
+        return response.data.surveys || { pre: null, post: null };
+      } catch (error) {
+        console.error('Error fetching participant surveys:', error);
+        return { pre: null, post: null };
+      }
+    });
   }
 };
 
