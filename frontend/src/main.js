@@ -14,6 +14,18 @@ const vuetify = createVuetify({
   components,
   directives,
   blueprint: md3,
+  theme: {
+    defaultTheme: 'light',
+    themes: {
+      light: {
+        colors: {
+          primary: '#091366', // We can change this to something else
+          background: '#f8f8f8',
+          surface: '#ffffff',
+        },
+      },
+    },
+  },
 })
 
 const app = createApp(App)

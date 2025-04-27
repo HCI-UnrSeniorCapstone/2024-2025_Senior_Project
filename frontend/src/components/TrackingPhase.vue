@@ -336,6 +336,8 @@ export default {
       this.resultsSaved = false
       this.isWrappingUp = false
       this.isRestarting = false
+      this.attemptingToReconnect = false
+      this.reconnectTimer = null
       this.wrapUpFailed = false
       this.isConnected = true
 

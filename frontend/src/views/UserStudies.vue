@@ -213,8 +213,9 @@
                     icon
                     @click="removeSharedUser(user.email)"
                     class="ml-2"
+                    color="transparent"
                   >
-                    <v-icon color="red">mdi-trash-can-outline</v-icon>
+                    <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
               </v-list>
@@ -343,16 +344,6 @@ export default {
       this.openDrawer(studyStore.drawerStudyID)
     }
   },
-
-  methods: {
-    handleDrawerUpdate(newVal) {
-      this.drawer = newVal
-      if (!newVal) {
-        const studyStore = useStudyStore()
-        studyStore.clearDrawerStudyID
-      }
-    },
-  },
   confirmLeaveStudy() {
     this.displayDialog({
       title: 'Leave Study?',
@@ -362,6 +353,13 @@ export default {
   },
 
   methods: {
+    handleDrawerUpdate(newVal) {
+      this.drawer = newVal
+      if (!newVal) {
+        const studyStore = useStudyStore()
+        studyStore.clearDrawerStudyID()
+      }
+    },
     openLeaveConfirmation() {
       this.leaveDialogDetails = {
         title: 'Leave Study?',
