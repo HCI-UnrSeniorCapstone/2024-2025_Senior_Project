@@ -6,7 +6,6 @@ export const useStudyStore = defineStore('study', {
     drawerStudyID: null, // Used to reopen the drawer after navigating away
     sessionID: null, // Used by SessionReporting view
     formResetKey: 0, // Used to force remount of StudyForm
-    sessionJson: null, // Used for passing the formatted study JSON from SessionSetup to SessionRunner, which gets sent to local scripts for conducting session
   }),
 
   actions: {
@@ -15,13 +14,10 @@ export const useStudyStore = defineStore('study', {
       const storedStudyID = sessionStorage.getItem('currentStudyID')
       const storedDrawerID = sessionStorage.getItem('drawerStudyID')
       const storedSessionID = sessionStorage.getItem('sessionID')
-      const storedSessionJson = sessionStorage.getItem('sessionJson')
 
       if (storedStudyID !== null) this.currentStudyID = Number(storedStudyID)
       if (storedDrawerID !== null) this.drawerStudyID = Number(storedDrawerID)
       if (storedSessionID !== null) this.sessionID = Number(storedSessionID)
-      if (storedSessionJson !== null)
-        this.sessionJson = JSON.parse(storedSessionJson)
     },
 
     // STUDY ID
@@ -57,16 +53,6 @@ export const useStudyStore = defineStore('study', {
     // Remount trigger
     incrementFormResetKey() {
       this.formResetKey++
-    },
-
-    setSessionJson(json) {
-      this.sessionJson = json
-      sessionStorage.setItem('sessionJson', JSON.stringify(json))
-    },
-
-    clearSessionJson() {
-      this.sessionJson = null
-      sessionStorage.removeItem('sessionJson')
     },
 
     // Optional: clear everything at once (e.g., on logout)

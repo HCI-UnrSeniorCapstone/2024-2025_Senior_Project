@@ -2,23 +2,21 @@
   <!-- Only render the drawer if the user is authenticated -->
   <v-navigation-drawer v-if="auth.isAuthenticated" expand-on-hover rail>
     <v-list density="compact" nav>
-      <v-list-item
-        to="/UserStudies"
-        prepend-icon="mdi-view-dashboard-outline"
-        title="UserStudies"
-      ></v-list-item>
-      <v-list-item
-        @click="handleCreateNewStudy"
-        prepend-icon="mdi-plus"
-        title="Create New Study"
-      ></v-list-item>
-
+      <!-- User Studies Workspace -->
       <v-list-item
         to="/UserStudies"
         prepend-icon="mdi-form-select"
         title="User Studies"
       ></v-list-item>
 
+      <!-- Study Creation Workspace -->
+      <v-list-item
+        @click="handleCreateNewStudy"
+        prepend-icon="mdi-plus"
+        title="Create New Study"
+      ></v-list-item>
+
+      <!-- Data Analytics Workspace -->
       <v-list-item
         to="/DataAnalytics"
         prepend-icon="mdi-chart-box-outline"
