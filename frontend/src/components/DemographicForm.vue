@@ -79,7 +79,7 @@ export default {
   name: 'DemographicForm',
   emits: ['submit'],
   props: {
-    studyId: {
+    participantSessId: {
       type: Number,
       required: true,
     },
@@ -97,6 +97,7 @@ export default {
       participantAgeRules: [
         v => v !== '' || 'Required field.',
         v => Number(v) > 0 || 'Valid inputs must be a number greater than 0.',
+        v => Number(v) < 100 || 'Valid inputs must be less than 100.',
       ],
       participantGenderRules: [v => !!v || 'Required field.'],
       participantRaceEthnicityRules: [
@@ -151,17 +152,16 @@ export default {
       this.saveInProgress = true
       try {
         const submissionData = {
-          study_id: this.studyId,
+          participant_session_id: this.participantSessId,
           participantGender: this.participantGender,
           participantEducationLv: this.participantEducationLv,
           participantAge: this.participantAge,
           participantRaceEthnicity: this.participantRaceEthnicity,
           participantTechCompetency: this.participantTechCompetency,
         }
-        const path = `/create_participant_session`
+        const path = `/save_participant_demographics`
         const response = await api.post(path, submissionData)
-        this.participantSessId = response.data.participant_session_id
-        this.$emit('submit', this.participantSessId)
+        this.$emit('submit')
       } catch (error) {
         console.error('Error:', error.response?.data || error.message)
       } finally {

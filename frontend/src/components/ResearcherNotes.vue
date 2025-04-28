@@ -1,6 +1,11 @@
 <template>
   <form @submit.prevent="submit">
     <h2 class="mb-4">Facilitator Notes</h2>
+    <!-- Facilitator notice -->
+    <v-alert type="info" variant="tonal" prominent class="mb-6">
+      <strong> Facilitator Use Only</strong>
+    </v-alert>
+
     <!-- Comments field-->
     <v-textarea
       v-model="comments"
@@ -75,7 +80,6 @@ export default {
         }
         const path = `/save_facilitator_session_notes`
         await api.post(path, submissionData)
-        useStudyStore().clearSessionJson() // clean up the session json for future sessions
         this.$emit('submit')
       } catch (error) {
         console.error(

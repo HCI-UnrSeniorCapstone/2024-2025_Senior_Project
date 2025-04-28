@@ -27,7 +27,7 @@
           ></v-checkbox>
           <v-btn
             text="Continue"
-            :disabled="!acknowledgeVal"
+            :disabled="!acknowledgeVal || saving"
             @click="onAcknowledge"
           ></v-btn>
         </v-card-actions>
@@ -37,6 +37,7 @@
 </template>
 <script>
 import PdfApp from 'vue3-pdf-app'
+import api from '@/axiosInstance'
 
 export default {
   name: 'ConsentAckScreen',
@@ -46,13 +47,12 @@ export default {
   props: {
     display: Boolean,
     form: {
-      type: [File, null],
-      required: true,
+      type: [Object, File, null],
       default: null,
     },
     // Only need the fields below for live sessions (not when displaying preview versions)
     participantSessId: {
-      type: Number,
+      type: [Number, null],
       required: false,
     },
     studyId: {
@@ -68,6 +68,7 @@ export default {
     return {
       acknowledgeVal: false,
       fileURL: null,
+      saving: false,
     }
   },
   computed: {
@@ -81,22 +82,57 @@ export default {
       },
     },
   },
+  mounted() {
+    if (this.form instanceof File) {
+      this.fileURL = URL.createObjectURL(this.form)
+    }
+  },
   watch: {
-    display(newVal) {
-      // Have to create temp URL for local File obj
-      if (newVal && this.form instanceof File) {
-        this.fileURL = URL.createObjectURL(this.form)
-      }
-      // Cleanup blob if needed
-      else if (!newVal && this.fileURL) {
+    form(newVal) {
+      // Create new blob
+      if (newVal instanceof File) {
+        if (this.fileURL) {
+          URL.revokeObjectURL(this.fileURL)
+        }
+        this.fileURL = URL.createObjectURL(newVal)
+      } else if (!newVal && this.fileURL) {
         URL.revokeObjectURL(this.fileURL)
+        this.fileURL = null
       }
     },
   },
   methods: {
-    onAcknowledge() {
-      this.$emit('submit')
-      this.$emit('update:display', false)
+    async onAcknowledge() {
+      if (this.saving) {
+        return
+      }
+      this.saving = true
+      try {
+        if (this.liveSession == true) {
+          await this.saveConsentAck()
+          this.$emit('submit')
+        }
+        this.$emit('update:display', false)
+      } catch (err) {
+        console.error('Consent save failed:', err)
+      } finally {
+        this.saving = false
+      }
+    },
+
+    async saveConsentAck() {
+      if (!this.participantSessId || !this.studyId) {
+        return
+      }
+      try {
+        const path = `/save_participant_consent`
+        await api.post(path, {
+          study_id: this.studyId,
+          participant_session_id: this.participantSessId,
+        })
+      } catch (err) {
+        console.error('Error saving consent ack:', err)
+      }
     },
   },
 }

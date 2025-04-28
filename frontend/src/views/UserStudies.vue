@@ -122,7 +122,7 @@
       <StudyPanel
         v-if="drawer && studyStore.drawerStudyID"
         :drawer="drawer"
-        @update:drawer="drawer = $event"
+        @update:drawer="handleDrawerUpdate"
         @close="drawer = false"
       />
       <v-dialog v-model="shareDialog" persistent width="640">
@@ -213,8 +213,9 @@
                     icon
                     @click="removeSharedUser(user.email)"
                     class="ml-2"
+                    color="transparent"
                   >
-                    <v-icon color="red">mdi-trash-can-outline</v-icon>
+                    <v-icon>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </div>
               </v-list>
@@ -336,25 +337,12 @@ export default {
   },
   async mounted() {
     const studyStore = useStudyStore()
-    studyStore.clearSessionJson() // Incase we quit during a session, we reset this
+    studyStore.clearSessionID()
+    await this.populateStudies()
+
     if (studyStore.drawerStudyID) {
       this.openDrawer(studyStore.drawerStudyID)
     }
-    await this.populateStudies()
-    const studyID = this.$route.query.studyID
-    if (studyID) {
-      this.openDrawer(Number(studyID))
-    }
-  },
-
-  watch: {
-    drawer(newVal) {
-      if (!newVal && this.$route.query.studyID) {
-        this.$router.replace({
-          query: { ...this.$route.query, studyID: undefined },
-        })
-      }
-    },
   },
   confirmLeaveStudy() {
     this.displayDialog({
@@ -365,6 +353,13 @@ export default {
   },
 
   methods: {
+    handleDrawerUpdate(newVal) {
+      this.drawer = newVal
+      if (!newVal) {
+        const studyStore = useStudyStore()
+        studyStore.clearDrawerStudyID()
+      }
+    },
     openLeaveConfirmation() {
       this.leaveDialogDetails = {
         title: 'Leave Study?',
@@ -625,10 +620,8 @@ export default {
     openNewStudy() {
       const studyStore = useStudyStore()
       studyStore.clearStudyID()
-      // studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
       sessionStorage.removeItem('currentStudyID')
       studyStore.incrementFormResetKey()
-
       this.$router.push({ name: 'StudyForm' })
     },
 

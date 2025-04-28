@@ -3,7 +3,7 @@
     v-model="drawerProxy"
     location="right"
     temporary
-    :width="1000"
+    :width="1250"
   >
     <v-toolbar flat dense color="white">
       <v-toolbar-title> {{ studyName }}</v-toolbar-title>
@@ -35,6 +35,7 @@
 
       <v-card-text>
         <v-tabs-window v-model="tab">
+          <!-- Overview Tab -->
           <v-tabs-window-item value="one">
             <v-row>
               <v-col>
@@ -62,6 +63,7 @@
             </v-row>
           </v-tabs-window-item>
 
+          <!-- Tasks Tab -->
           <v-tabs-window-item value="two">
             <h4>Tasks</h4>
             <v-list>
@@ -99,6 +101,7 @@
             </v-list>
           </v-tabs-window-item>
 
+          <!-- Factors Tab -->
           <v-tabs-window-item value="three">
             <h4>Factors</h4>
             <v-list>
@@ -115,6 +118,7 @@
       </v-card-text>
     </v-container>
 
+    <!-- Sessions Tbl -->
     <v-container>
       <v-row class="mb-3">
         <v-col cols="12">
@@ -132,37 +136,100 @@
                 </div>
               </template>
               <template v-slot:item.status="{ value }">
-                <v-chip :color="getColor(value)" dark>
-                  {{ value }}
+                <v-chip
+                  :color="
+                    {
+                      complete: 'green',
+                      in_progress: 'orange',
+                      new: 'blue',
+                    }[value]
+                  "
+                  dark
+                >
+                  {{
+                    value
+                      .replace('_', ' ')
+                      .replace(/\b\w/g, l => l.toUpperCase())
+                  }}
                 </v-chip>
               </template>
-              <template v-slot:item.comment="{ item }">
-                <div>
+              <template v-slot:item.validity="{ item }">
+                <div v-if="item.status == 'complete'">
+                  <v-chip
+                    :color="item.validity == 'Valid' ? 'green' : 'red'"
+                    dark
+                  >
+                    {{ item.validity }}
+                  </v-chip>
+                </div>
+                <span v-else class="text-disabled">- -</span>
+              </template>
+              <template v-slot:item.comments="{ item }">
+                <div v-if="item.comments != 'No comments'">
                   {{
-                    item.comment.length > 100
-                      ? item.comment.substring(0, 100) + '...'
-                      : item.comment
+                    item.comments.length > 100
+                      ? item.comments.substring(0, 100) + '...'
+                      : item.comments
                   }}
                 </div>
+                <span v-else class="text-disabled">- -</span>
               </template>
               <template v-slot:item.actions="{ item }">
-                <v-icon
-                  v-tooltip="'Download Results'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="downloadParticipantSessionData(item.sessionID)"
-                >
-                  mdi-download
-                </v-icon>
-                <v-icon
-                  v-tooltip="'Open'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="openSession(item)"
-                >
-                  mdi-arrow-expand
-                </v-icon>
-                <v-icon v-tooltip="'Delete'" size="small"> mdi-delete </v-icon>
+                <template v-if="item.status == 'complete'">
+                  <v-icon
+                    v-tooltip="'Download Results'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="downloadParticipantSessionData(item.sessionID)"
+                    >mdi-download</v-icon
+                  >
+                  <v-icon
+                    v-tooltip="'Open'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="openSession(item)"
+                    >mdi-arrow-expand</v-icon
+                  >
+                </template>
+                <template v-else-if="item.status == 'new'">
+                  <v-icon
+                    v-tooltip="'Start Session'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="moveToSessionRunner(item.sessionID)"
+                    >mdi-rocket-launch</v-icon
+                  >
+                  <v-icon
+                    v-tooltip="'Edit'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="setupSession(item.sessionID)"
+                    >mdi-pencil</v-icon
+                  >
+                  <v-icon
+                    v-tooltip="'Delete'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="deleteSession(item.sessionID)"
+                    >mdi-delete</v-icon
+                  >
+                </template>
+                <template v-else-if="item.status == 'in_progress'">
+                  <v-icon
+                    v-tooltip="'Download Results'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="downloadParticipantSessionData(item.sessionID)"
+                    >mdi-download</v-icon
+                  >
+                  <v-icon
+                    v-tooltip="'Resume Session'"
+                    class="me-2"
+                    size="small"
+                    @click.stop="moveToSessionRunner(item.sessionID)"
+                    >mdi-play-pause</v-icon
+                  >
+                </template>
               </template>
             </v-data-table>
           </v-card>
@@ -171,7 +238,7 @@
     </v-container>
     <v-container class="d-flex flex-column align-center">
       <!-- <h4>Trial Coverage</h4> -->
-      <v-card flat style="width: 80%; margin-left: 6%">
+      <v-card flat style="width: 75%; margin-left: 6%">
         <coverage-heatmap
           :tasks="heatmapTasks"
           :factors="heatmapFactors"
@@ -183,7 +250,7 @@
 
     <v-row justify="center">
       <v-col cols="auto">
-        <v-btn @click="startNewSession" color="red">Start New Session</v-btn>
+        <v-btn @click="setupSession()" color="primary">Setup New Session</v-btn>
       </v-col>
     </v-row>
   </v-navigation-drawer>
@@ -193,6 +260,7 @@
 import api from '@/axiosInstance'
 import CoverageHeatmap from '@/components/CoverageHeatmap.vue'
 import { useStudyStore } from '@/stores/study'
+import { onUnmounted } from 'vue'
 export default {
   props: {
     drawer: {
@@ -217,13 +285,14 @@ export default {
       headers: [
         {
           align: 'start',
-          key: 'dateConducted',
-          sortable: false,
-          title: 'Date Conducted',
+          key: 'dateCreated',
+          sortable: true,
+          title: 'Date Created',
         },
         { key: 'sessionName', title: 'Session Name', sortable: false },
-        { key: 'status', title: 'Status', sortable: false },
-        { key: 'comment', title: 'Comments', sortable: false },
+        { key: 'status', title: 'Status', sortable: true },
+        { key: 'validity', title: 'Validity', sortable: true },
+        { key: 'comments', title: 'Comments', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
       sessions: [],
@@ -267,7 +336,10 @@ export default {
     },
   },
 
-  async mounted() {},
+  unmounted() {
+    const studyStore = useStudyStore()
+    studyStore.clearDrawerStudyID()
+  },
 
   methods: {
     // Retrieving all information on the study
@@ -279,10 +351,6 @@ export default {
       try {
         const response = await api.post('/load_study', { studyID })
         this.focus_study = response.data
-
-        this.focus_study = response.data
-
-        console.log(this.focus_study)
 
         this.studyName = this.focus_study.studyName
         this.studyDescription =
@@ -330,15 +398,15 @@ export default {
       try {
         const path = `/get_all_session_info`
         const response = await api.post(path, { study_id: sessionID })
-
-        console.log(response)
+        console.log('Session found:', response)
         if (Array.isArray(response.data)) {
           this.sessions = response.data.map(session => ({
             sessionID: session[0],
             sessionName: `Session ${session[1]}`,
-            dateConducted: session[2],
+            dateCreated: session[2],
             status: session[3],
-            comment: session[4],
+            validity: session[4],
+            comments: session[5],
           }))
         }
       } catch (error) {
@@ -361,33 +429,57 @@ export default {
     },
 
     closeDrawer() {
+      const studyStore = useStudyStore()
+      studyStore.clearDrawerStudyID()
       this.$emit('update:drawer', false)
     },
 
     // Routes to session reporting pg if user selects a specific session to look at
     openSession(item) {
+      const studyStore = useStudyStore()
+      studyStore.setSessionID(item.sessionID)
+      studyStore.setDrawerStudyID(item.sessionID)
       this.$router.push({
-        name: 'SessionReporting',
-        params: { id: item.sessionID },
+        name: 'DataAnalytics',
       })
     },
 
-    // Determines the status color
-    getColor(status) {
-      if (status == 'Invalid') {
-        return 'red'
-      } else {
-        return 'green'
-      }
+    // Route to Session Runner
+    moveToSessionRunner(sessionID) {
+      const studyStore = useStudyStore()
+      studyStore.setSessionID(sessionID)
+      studyStore.setDrawerStudyID(this.studyID) // So we can reopen it on return
+      this.$router.push({ name: 'SessionRunner' })
     },
 
-    // Route to view for session setup
-    startNewSession() {
+    // Route to Session Setup, either creating new or editing existing session
+    setupSession(sessionID = null) {
       const studyStore = useStudyStore()
       studyStore.setStudyID(this.studyID) // Needed for SessionSetup
       studyStore.setDrawerStudyID(this.studyID) // So we can reopen it on return
-      console.log('study id after set', this.studyID)
+
+      if (sessionID) {
+        studyStore.setSessionID(sessionID) // Edit mode
+      } else {
+        studyStore.clearSessionID() // New mode
+      }
+
       this.$router.push({ name: 'SessionSetup' })
+    },
+
+    // Delete a session (only available for sessions with status "New" for now)
+    async deleteSession(sessionID) {
+      try {
+        const response = await api.post(`/delete_participant_session`, {
+          participant_session_id: sessionID,
+        })
+
+        if (response.status == 200) {
+          this.sessions = this.sessions.filter(s => s.sessionID != sessionID)
+        }
+      } catch (error) {
+        console.error('Error:', error.response?.data || error.message)
+      }
     },
   },
 }
