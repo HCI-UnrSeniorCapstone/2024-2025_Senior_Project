@@ -121,7 +121,7 @@ def get_zip(results_with_size, study_id, conn, mode):
 
             with open(results_path, "rb") as file:
                 zipf.writestr(zip_file_path, file.read())
-        
+
         # Are we looking at the study-level (many sessions) or looking at a single session
         if mode == "participant_session":
             participant_session_ids = {row[-1] for row in results_with_size}
@@ -131,9 +131,12 @@ def get_zip(results_with_size, study_id, conn, mode):
             }
         else:
             participant_sessions_filtered = participant_sessions
-        
+
         # Grab pre/post survey responses
-        for participant_session_id, participant_number in participant_sessions_filtered.items():
+        for (
+            participant_session_id,
+            participant_number,
+        ) in participant_sessions_filtered.items():
             survey_query = """
                 SELECT
                     survey_results.file_path,
@@ -145,18 +148,18 @@ def get_zip(results_with_size, study_id, conn, mode):
             """
             cur.execute(survey_query, (participant_session_id,))
             survey_results = cur.fetchall()
-            
+
             for file_path, form_type in survey_results:
                 if os.path.exists(file_path):
                     filename = os.path.basename(file_path)
-                    
+
                     if mode == "participant_session":
                         survey_folder = f"{form_type}_survey"
                     else:
                         folder = f"{participant_number}_participant_session"
                         survey_folder = f"{folder}/{form_type}_survey"
                     zip_path = f"{survey_folder}/{filename}"
-                    
+
                     with open(file_path, "rb") as f:
                         zipf.writestr(zip_path, f.read())
 
