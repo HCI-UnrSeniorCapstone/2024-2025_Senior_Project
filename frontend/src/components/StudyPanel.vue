@@ -2,23 +2,28 @@
   <v-navigation-drawer
     v-model="drawerProxy"
     location="right"
-    temporary
-    :width="1250"
+    :temporary="true"
+    :scrim="true"
+    :width="drawerWidth"
+    style="max-width: 850px"
   >
+    <!-- Toolbar -->
     <v-toolbar flat dense color="white">
-      <v-toolbar-title> {{ studyName }}</v-toolbar-title>
+      <v-toolbar-title>{{ studyName }}</v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-btn v-tooltip="'Close'" icon @click="closeDrawer">
+      <v-btn icon @click="closeDrawer">
         <v-icon color="secondary">mdi-close</v-icon>
       </v-btn>
     </v-toolbar>
 
     <v-divider class="mb-2"></v-divider>
 
+    <!-- Study Description -->
     <v-container class="py-2 px-4">
       <p class="study-description">{{ studyDescription }}</p>
     </v-container>
 
+    <!-- Tabs -->
     <v-container>
       <v-tabs
         v-model="tab"
@@ -35,7 +40,7 @@
 
       <v-card-text>
         <v-tabs-window v-model="tab">
-          <!-- Overview Tab -->
+          <!-- Overview -->
           <v-tabs-window-item value="one">
             <v-row>
               <v-col>
@@ -58,12 +63,11 @@
                   <v-icon color="primary">mdi-vector-combine</v-icon>
                   {{ factors.length + ' factors' }}
                 </v-card>
-                <v-divider class="mb-2"></v-divider>
               </v-col>
             </v-row>
           </v-tabs-window-item>
 
-          <!-- Tasks Tab -->
+          <!-- Tasks -->
           <v-tabs-window-item value="two">
             <h4>Tasks</h4>
             <v-list>
@@ -84,12 +88,12 @@
                   Measurements Selected:
                   <template v-if="task.measurementOptions.length > 0">
                     <v-chip
+                      v-for="(option, i) in task.measurementOptions"
+                      :key="i"
                       size="xsmall"
                       variant="tonal"
                       color="primary"
                       rounded
-                      v-for="(option, i) in task.measurementOptions"
-                      :key="i"
                     >
                       {{ option }}
                     </v-chip>
@@ -101,7 +105,7 @@
             </v-list>
           </v-tabs-window-item>
 
-          <!-- Factors Tab -->
+          <!-- Factors -->
           <v-tabs-window-item value="three">
             <h4>Factors</h4>
             <v-list>
@@ -118,7 +122,7 @@
       </v-card-text>
     </v-container>
 
-    <!-- Sessions Tbl -->
+    <!-- Sessions Table -->
     <v-container>
       <v-row class="mb-3">
         <v-col cols="12">
@@ -131,18 +135,14 @@
               class="elevation-2"
             >
               <template v-slot:item.sessionName="{ item }">
-                <div class="study-name">
-                  {{ item.sessionName }}
-                </div>
+                <div class="study-name">{{ item.sessionName }}</div>
               </template>
               <template v-slot:item.status="{ value }">
                 <v-chip
                   :color="
-                    {
-                      complete: 'green',
-                      in_progress: 'orange',
-                      new: 'blue',
-                    }[value]
+                    { complete: 'green', in_progress: 'orange', new: 'blue' }[
+                      value
+                    ]
                   "
                   dark
                 >
@@ -154,9 +154,9 @@
                 </v-chip>
               </template>
               <template v-slot:item.validity="{ item }">
-                <div v-if="item.status == 'complete'">
+                <div v-if="item.status === 'complete'">
                   <v-chip
-                    :color="item.validity == 'Valid' ? 'green' : 'red'"
+                    :color="item.validity === 'Valid' ? 'green' : 'red'"
                     dark
                   >
                     {{ item.validity }}
@@ -165,7 +165,7 @@
                 <span v-else class="text-disabled">- -</span>
               </template>
               <template v-slot:item.comments="{ item }">
-                <div v-if="item.comments != 'No comments'">
+                <div v-if="item.comments !== 'No comments'">
                   {{
                     item.comments.length > 100
                       ? item.comments.substring(0, 100) + '...'
@@ -175,60 +175,67 @@
                 <span v-else class="text-disabled">- -</span>
               </template>
               <template v-slot:item.actions="{ item }">
-                <template v-if="item.status == 'complete'">
+                <template v-if="item.status === 'complete'">
                   <v-icon
                     v-tooltip="'Download Results'"
                     class="me-2"
                     size="small"
                     @click.stop="downloadParticipantSessionData(item.sessionID)"
-                    >mdi-download</v-icon
                   >
+                    mdi-download
+                  </v-icon>
                   <v-icon
                     v-tooltip="'Open'"
                     class="me-2"
                     size="small"
                     @click.stop="openSession(item)"
-                    >mdi-arrow-expand</v-icon
                   >
+                    mdi-arrow-expand
+                  </v-icon>
                 </template>
-                <template v-else-if="item.status == 'new'">
+                <template v-else-if="item.status === 'new'">
                   <v-icon
                     v-tooltip="'Start Session'"
                     class="me-2"
                     size="small"
                     @click.stop="moveToSessionRunner(item.sessionID)"
-                    >mdi-rocket-launch</v-icon
                   >
+                    mdi-rocket-launch
+                  </v-icon>
                   <v-icon
                     v-tooltip="'Edit'"
                     class="me-2"
                     size="small"
                     @click.stop="setupSession(item.sessionID)"
-                    >mdi-pencil</v-icon
                   >
+                    mdi-pencil
+                  </v-icon>
                   <v-icon
                     v-tooltip="'Delete'"
                     class="me-2"
                     size="small"
                     @click.stop="deleteSession(item.sessionID)"
-                    >mdi-delete</v-icon
                   >
+                    mdi-delete
+                  </v-icon>
                 </template>
-                <template v-else-if="item.status == 'in_progress'">
+                <template v-else-if="item.status === 'in_progress'">
                   <v-icon
                     v-tooltip="'Download Results'"
                     class="me-2"
                     size="small"
                     @click.stop="downloadParticipantSessionData(item.sessionID)"
-                    >mdi-download</v-icon
                   >
+                    mdi-download
+                  </v-icon>
                   <v-icon
                     v-tooltip="'Resume Session'"
                     class="me-2"
                     size="small"
                     @click.stop="moveToSessionRunner(item.sessionID)"
-                    >mdi-play-pause</v-icon
                   >
+                    mdi-play-pause
+                  </v-icon>
                 </template>
               </template>
             </v-data-table>
@@ -236,8 +243,9 @@
         </v-col>
       </v-row>
     </v-container>
+
+    <!-- Trial Coverage Heatmap -->
     <v-container class="d-flex flex-column align-center">
-      <!-- <h4>Trial Coverage</h4> -->
       <v-card flat style="width: 75%; margin-left: 6%">
         <coverage-heatmap
           :tasks="heatmapTasks"
@@ -248,9 +256,12 @@
       </v-card>
     </v-container>
 
+    <!-- Setup Button -->
     <v-row justify="center">
       <v-col cols="auto">
-        <v-btn @click="setupSession()" color="primary">Setup New Session</v-btn>
+        <v-btn @click="setupSession()" color="primary">
+          Setup New Session
+        </v-btn>
       </v-col>
     </v-row>
   </v-navigation-drawer>
@@ -318,6 +329,10 @@ export default {
     studyID() {
       return useStudyStore().drawerStudyID
     },
+    drawerWidth() {
+      const screenWidth = window.innerWidth
+      return Math.min(850, Math.floor(screenWidth * 0.5))
+    },
   },
 
   // Watching for dynamic changes to the studyID and calls fetch route when it changes
@@ -340,8 +355,17 @@ export default {
     const studyStore = useStudyStore()
     studyStore.clearDrawerStudyID()
   },
+  mounted() {
+    window.addEventListener('resize', this.handleResize)
+  },
+  beforeUnmount() {
+    window.removeEventListener('resize', this.handleResize)
+  },
 
   methods: {
+    handleResize() {
+      this.$forceUpdate()
+    },
     // Retrieving all information on the study
     async fetchStudyDetails(studyID) {
       if (!studyID) {

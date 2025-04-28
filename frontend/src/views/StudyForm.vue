@@ -1,6 +1,6 @@
 <template>
   <v-main>
-    <v-container class="mt-5">
+    <v-container fluid class="pa-4">
       <v-row>
         <v-col cols="12" md="10">
           <form @submit.prevent="submit">

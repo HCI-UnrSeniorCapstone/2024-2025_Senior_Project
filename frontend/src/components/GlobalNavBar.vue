@@ -1,6 +1,12 @@
 <template>
   <!-- Only render the drawer if the user is authenticated -->
-  <v-navigation-drawer v-if="auth.isAuthenticated" expand-on-hover rail>
+  <v-navigation-drawer
+    v-if="auth.isAuthenticated"
+    v-model="drawer"
+    app
+    :permanent="isLargeScreen"
+    :temporary="!isLargeScreen"
+  >
     <v-list density="compact" nav>
       <!-- User Studies Workspace -->
       <v-list-item
@@ -30,10 +36,15 @@
 import { useRouter } from 'vue-router'
 import { useStudyStore } from '@/stores/study'
 import { auth } from '@/stores/auth'
-
+import { ref, computed } from 'vue'
+import { useDisplay } from 'vuetify'
 export default {
   name: 'GlobalNavBar',
   setup() {
+    const { mdAndUp } = useDisplay()
+    const drawer = ref(mdAndUp.value)
+
+    const isLargeScreen = computed(() => mdAndUp.value)
     const router = useRouter()
     const studyStore = useStudyStore()
 
@@ -49,6 +60,8 @@ export default {
     return {
       auth,
       handleCreateNewStudy,
+      drawer,
+      isLargeScreen,
     }
   },
 }

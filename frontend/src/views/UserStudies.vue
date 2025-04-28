@@ -1,269 +1,241 @@
 <template>
-  <v-main>
-    <v-container class="mt-5">
-      <v-row>
-        <v-col cols="12">
-          <h2>Studies</h2>
-        </v-col>
-      </v-row>
+  <v-container fluid>
+    <!-- Page Title -->
+    <v-row class="mt-4 mb-2">
+      <v-col cols="12">
+        <h2 class="page-title">Studies</h2>
+      </v-col>
+    </v-row>
 
-      <v-row justify="space-between" class="mb-4">
-        <v-col cols="12" md="8" lg="9">
-          <SearchBar v-model="search" />
-        </v-col>
-        <v-col cols="12" md="4" lg="3" class="d-flex justify-end">
-          <v-btn class="create-study" color="primary" @click="openNewStudy">
-            + Create New Study
-          </v-btn>
-        </v-col>
-      </v-row>
+    <v-divider class="mb-4" />
 
-      <v-row>
-        <v-col cols="12">
-          <v-card flat>
-            <v-data-table
-              :headers="headers"
-              :items="studies"
-              :search="search"
-              class="table-background"
+    <!-- Search and Create Button -->
+    <v-row class="mb-4">
+      <v-col cols="12" md="8">
+        <SearchBar v-model="search" />
+      </v-col>
+      <v-col cols="12" md="4" class="d-flex justify-end">
+        <v-btn color="primary" class="create-study" @click="openNewStudy">
+          + Create New Study
+        </v-btn>
+      </v-col>
+    </v-row>
+
+    <!-- Studies Table -->
+    <v-row>
+      <v-col cols="12">
+        <v-data-table
+          :headers="headers"
+          :items="studies"
+          :search="search"
+          density="comfortable"
+          class="elevation-1 full-width-table"
+        >
+          <template v-slot:item.studyName="{ item }">
+            <div class="study-name">{{ item.studyName }}</div>
+          </template>
+
+          <template v-slot:item.studyDesc="{ item }">
+            <div>
+              {{
+                item.studyDesc.length > 100
+                  ? item.studyDesc.substring(0, 100) + '...'
+                  : item.studyDesc
+              }}
+            </div>
+          </template>
+
+          <template v-slot:item.sessionCount="{ item }">
+            <div>{{ item.sessionCount }}</div>
+          </template>
+
+          <template v-slot:item.progress="{ item }">
+            <v-progress-linear
+              :model-value="calculateProgress(item.sessionCount)"
+              height="15"
+              color="primary"
+            />
+          </template>
+
+          <template v-slot:item.actions="{ item }">
+            <v-icon
+              v-tooltip="'Download Results'"
+              class="me-2"
+              size="small"
+              @click.stop="downloadStudyData(item.studyID)"
+              >mdi-download</v-icon
             >
-              <template v-slot:item.studyName="{ item }">
-                <div class="study-name">
-                  {{ item.studyName }}
-                </div>
-              </template>
-              <template v-slot:item.studyDesc="{ item }">
-                <div>
-                  {{
-                    item.studyDesc.length > 100
-                      ? item.studyDesc.substring(0, 100) + '...'
-                      : item.studyDesc
-                  }}
-                </div>
-              </template>
-              <template v-slot:item.sessionCount="{ item }">
-                <div>
-                  {{ item.sessionCount }}
-                </div>
-              </template>
-              <template v-slot:item.progress="{ item }">
-                <v-progress-linear
-                  :model-value="calculateProgress(item.sessionCount)"
-                  height="15"
-                  color="primary"
-                >
-                </v-progress-linear>
-              </template>
-              <template v-slot:item.actions="{ item }">
-                <v-icon
-                  v-tooltip="'Download Results'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="downloadStudyData(item.studyID)"
-                >
-                  mdi-download
-                </v-icon>
+            <v-icon
+              v-tooltip="'Open'"
+              class="me-2"
+              size="small"
+              @click.stop="openDrawer(item.studyID)"
+              >mdi-arrow-expand</v-icon
+            >
+            <v-icon
+              v-if="['Owner', 'Editor', 'Viewer'].includes(item.role)"
+              v-tooltip="'Share'"
+              class="me-2"
+              size="small"
+              @click.stop="openShareDialog(item)"
+              >mdi-share-variant</v-icon
+            >
+            <v-icon
+              v-if="['Owner', 'Editor'].includes(item.role) && item.canEdit"
+              v-tooltip="'Edit'"
+              class="me-2"
+              size="small"
+              @click.stop="editExistingStudy(item.studyID)"
+              >mdi-pencil</v-icon
+            >
+            <v-icon
+              v-tooltip="'Duplicate'"
+              class="me-2"
+              size="small"
+              @click.stop="duplicateStudy(item.studyID)"
+              >mdi-content-copy</v-icon
+            >
+            <v-icon
+              v-if="item.role === 'Owner'"
+              v-tooltip="'Delete'"
+              size="small"
+              @click="openDeleteConfirmation(item.studyID)"
+              >mdi-delete</v-icon
+            >
+          </template>
+        </v-data-table>
+      </v-col>
+    </v-row>
 
-                <v-icon
-                  v-tooltip="'Open'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="openDrawer(item.studyID)"
-                >
-                  mdi-arrow-expand
-                </v-icon>
+    <v-divider class="my-6" />
 
-                <!-- Only Owner and Editor can Share -->
-                <v-icon
-                  v-if="['Owner', 'Editor', 'Viewer'].includes(item.role)"
-                  v-tooltip="'Share'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="openShareDialog(item)"
-                >
-                  mdi-share-variant
-                </v-icon>
+    <!-- Study Drawer -->
+    <StudyPanel
+      v-if="drawer && studyStore.drawerStudyID"
+      :drawer="drawer"
+      @update:drawer="handleDrawerUpdate"
+      @close="drawer = false"
+    />
 
-                <!-- Only Owner and Editor can Edit -->
-                <v-icon
-                  v-if="['Owner', 'Editor'].includes(item.role) && item.canEdit"
-                  v-tooltip="'Edit'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="editExistingStudy(item.studyID)"
-                >
-                  mdi-pencil
-                </v-icon>
+    <!-- Share Dialog -->
+    <v-dialog v-model="shareDialog" persistent width="640">
+      <v-slide-y-transition mode="in-out">
+        <v-card v-if="shareDialog" elevation="4" class="pa-6 share-card">
+          <v-card-title class="d-flex justify-space-between align-center">
+            <span class="share-title">Share "{{ sharingStudyName }}"</span>
+          </v-card-title>
+          <v-card-text>
+            <div
+              v-if="['Owner', 'Editor'].includes(requestingUserRole)"
+              class="d-flex align-center mb-4"
+            >
+              <v-text-field
+                v-model="newShareEmail"
+                label="Add people, groups, or emails"
+                prepend-inner-icon="mdi-account-plus"
+                class="flex-grow-1 mr-4"
+                density="comfortable"
+                hide-details="auto"
+                outlined
+                @keyup.enter="handleEnter"
+              />
+              <v-select
+                v-if="showRoleSelector"
+                v-model="newUserRole"
+                :items="['Viewer', 'Editor']"
+                label="Role"
+                hide-details
+                dense
+                outlined
+                style="width: 130px"
+                @change="confirmAddUser"
+              />
+            </div>
 
-                <v-icon
-                  v-tooltip="'Duplicate'"
-                  class="me-2"
-                  size="small"
-                  @click.stop="duplicateStudy(item.studyID)"
-                >
-                  mdi-content-copy
-                </v-icon>
+            <p class="people-access-label mb-2">People with access</p>
 
-                <!-- Only Owner can Delete -->
-                <v-icon
-                  v-if="item.role === 'Owner'"
-                  v-tooltip="'Delete'"
-                  size="small"
-                  @click="openDeleteConfirmation(item.studyID)"
-                >
-                  mdi-delete
-                </v-icon>
-              </template>
-            </v-data-table>
-          </v-card>
-        </v-col>
-      </v-row>
-
-      <StudyPanel
-        v-if="drawer && studyStore.drawerStudyID"
-        :drawer="drawer"
-        @update:drawer="handleDrawerUpdate"
-        @close="drawer = false"
-      />
-      <v-dialog v-model="shareDialog" persistent width="640">
-        <v-slide-y-transition mode="in-out">
-          <v-card v-if="shareDialog" elevation="4" class="pa-6 share-card">
-            <!-- Top Bar -->
-            <v-card-title class="d-flex justify-space-between align-center">
-              <span class="share-title">Share "{{ sharingStudyName }}"</span>
-            </v-card-title>
-            <v-card-text>
-              <!-- Only show add user form if user has permission -->
+            <v-list class="pa-0" elevation="0">
               <div
-                class="d-flex align-center mb-4"
-                v-if="['Owner', 'Editor'].includes(requestingUserRole)"
+                v-for="user in sortedUsers"
+                :key="user.email"
+                class="d-flex align-center justify-space-between user-row px-2 py-2"
               >
-                <v-text-field
-                  v-model="newShareEmail"
-                  label="Add people, groups, or emails"
-                  prepend-inner-icon="mdi-account-plus"
-                  class="flex-grow-1 mr-4"
-                  density="comfortable"
-                  hide-details="auto"
-                  outlined
-                  @keyup.enter="handleEnter"
-                />
-
-                <v-select
-                  v-if="showRoleSelector"
-                  v-model="newUserRole"
-                  :items="['Viewer', 'Editor']"
-                  label="Role"
-                  hide-details
-                  dense
-                  outlined
-                  style="width: 130px"
-                  @change="confirmAddUser"
-                />
-              </div>
-
-              <!-- People With Access Label -->
-              <p class="people-access-label mb-2">People with access</p>
-
-              <!-- User Rows -->
-              <v-list class="pa-0" elevation="0">
+                <v-avatar size="36" class="mr-4">
+                  <img src="/images/unr n.jpg" alt="pfp" />
+                </v-avatar>
                 <div
-                  v-for="(user, index) in sortedUsers"
-                  :key="index"
-                  class="d-flex align-center justify-space-between user-row px-2 py-2"
+                  class="d-flex align-center flex-grow-1 justify-space-between"
                 >
-                  <!-- Avatar -->
-                  <v-avatar size="36" class="mr-4">
-                    <img src="/images/unr n.jpg" alt="pfp" />
-                  </v-avatar>
-
-                  <!-- Email + Role (flex grow) -->
-                  <div
-                    class="d-flex align-center flex-grow-1 justify-space-between"
-                  >
-                    <!-- Email -->
-                    <span class="user-email">{{ user.email }}</span>
-
-                    <!-- Role -->
-                    <v-select
-                      v-if="canChangeRole(user)"
-                      v-model="user.role"
-                      :items="['Viewer', 'Editor']"
-                      dense
-                      hide-details
-                      class="role-select"
-                      @update:modelValue="val => changeUserAccess(user, val)"
-                    />
-
-                    <span v-else class="user-role ml-4">
-                      {{ user.role }}
-                    </span>
-                  </div>
-
-                  <!-- Trash icon for Owners removing others -->
-                  <v-btn
-                    v-if="
-                      requestingUserRole === 'Owner' &&
-                      user.role !== 'Owner' &&
-                      user.email !== currentUserEmail
-                    "
-                    icon
-                    @click="removeSharedUser(user.email)"
-                    class="ml-2"
-                    color="transparent"
-                  >
-                    <v-icon>mdi-trash-can-outline</v-icon>
-                  </v-btn>
+                  <span class="user-email">{{ user.email }}</span>
+                  <v-select
+                    v-if="canChangeRole(user)"
+                    v-model="user.role"
+                    :items="['Viewer', 'Editor']"
+                    dense
+                    hide-details
+                    class="role-select"
+                    @update:modelValue="val => changeUserAccess(user, val)"
+                  />
+                  <span v-else class="user-role ml-4">{{ user.role }}</span>
                 </div>
-              </v-list>
-              <v-alert
-                v-if="errorMessage"
-                type="error"
-                class="mt-4 text-center"
-                variant="outlined"
-              >
-                {{ errorMessage }}
-              </v-alert>
-
-              <v-alert
-                v-if="successMessage"
-                type="success"
-                class="mt-4 text-center"
-                variant="outlined"
-              >
-                {{ successMessage }}
-              </v-alert>
-
-              <!-- Done and Leave Buttons -->
-              <v-row justify="end" class="mt-4" align="center" no-gutters>
                 <v-btn
                   v-if="
-                    requestingUserRole === 'Editor' ||
-                    requestingUserRole === 'Viewer'
+                    requestingUserRole === 'Owner' &&
+                    user.role !== 'Owner' &&
+                    user.email !== currentUserEmail
                   "
-                  color="error"
-                  class="mr-4"
-                  @click="openLeaveConfirmation"
+                  icon
+                  @click="removeSharedUser(user.email)"
+                  class="ml-2"
+                  color="transparent"
                 >
-                  <v-icon left>mdi-exit-run</v-icon> Leave Study
+                  <v-icon>mdi-trash-can-outline</v-icon>
                 </v-btn>
+              </div>
+            </v-list>
 
-                <v-btn color="primary" @click="shareDialog = false">
-                  Done
-                </v-btn>
-              </v-row>
-            </v-card-text>
-          </v-card>
-        </v-slide-y-transition>
-      </v-dialog>
-      <ConfirmationDialog
-        v-model="confirmLeaveDialog"
-        :dialogDetails="leaveDialogDetails"
-        @confirm="performLeaveStudy"
-        @cancel="confirmLeaveDialog = false"
-      />
-    </v-container>
-  </v-main>
+            <v-alert
+              v-if="errorMessage"
+              type="error"
+              class="mt-4 text-center"
+              variant="outlined"
+            >
+              {{ errorMessage }}
+            </v-alert>
+
+            <v-alert
+              v-if="successMessage"
+              type="success"
+              class="mt-4 text-center"
+              variant="outlined"
+            >
+              {{ successMessage }}
+            </v-alert>
+
+            <v-row justify="end" class="mt-4" align="center" no-gutters>
+              <v-btn
+                v-if="['Editor', 'Viewer'].includes(requestingUserRole)"
+                color="error"
+                class="mr-4"
+                @click="openLeaveConfirmation"
+              >
+                <v-icon left>mdi-exit-run</v-icon> Leave Study
+              </v-btn>
+              <v-btn color="primary" @click="shareDialog = false"> Done </v-btn>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </v-slide-y-transition>
+    </v-dialog>
+
+    <!-- Confirmation Dialog -->
+    <ConfirmationDialog
+      v-model="confirmLeaveDialog"
+      :dialogDetails="leaveDialogDetails"
+      @confirm="performLeaveStudy"
+      @cancel="confirmLeaveDialog = false"
+    />
+  </v-container>
 </template>
 
 <script>
@@ -702,6 +674,13 @@ export default {
 </script>
 
 <style scoped>
+/* Main Layout */
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+/* Buttons */
 .create-study {
   font-size: 16px;
   font-weight: bold;
@@ -709,43 +688,20 @@ export default {
   text-transform: none;
 }
 
+/* Table */
+.full-width-table {
+  width: 100%;
+  background-color: #ffffff !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 .study-name {
   display: flex;
   align-items: center;
 }
 
-.table-background {
-  background-color: #ffffff !important;
-}
-
-.v-text-field {
-  width: 100%;
-}
-
-.v-btn.block {
-  width: 100%;
-}
-
-h2 {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 16px;
-}
-
-.mb-4 {
-  margin-bottom: 16px !important;
-}
-
-.d-flex {
-  display: flex !important;
-}
-
-.justify-end {
-  justify-content: flex-end !important;
-}
-.v-dialog .v-text-field {
-  margin-bottom: 16px;
-}
+/* Share Dialog */
 .share-card {
   max-width: 640px;
   width: 100%;
@@ -765,33 +721,18 @@ h2 {
   margin-top: 10px;
 }
 
+/* Shared Users List */
 .user-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+  padding: 4px 8px;
 }
 
-.truncate-email {
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.role-display {
-  min-width: 80px;
-  text-align: right;
-  font-weight: 500;
-  color: #444;
-}
-.role-select {
-  min-width: 120px;
-  max-width: 140px;
-}
-
-.v-avatar {
-  flex-shrink: 0;
-  margin-right: 12px;
+.user-row:hover {
+  background-color: #f5f5f5;
 }
 
 .user-email {
@@ -811,23 +752,54 @@ h2 {
   color: #444;
 }
 
-.user-row {
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
-  padding: 4px 8px;
+.role-select {
+  min-width: 120px;
+  max-width: 140px;
 }
 
-.user-row:hover {
-  background-color: #f5f5f5;
+/* Avatar */
+.v-avatar {
+  flex-shrink: 0;
+  margin-right: 12px;
 }
-/* maybe ditch this below idk */
-.v-text-field,
-.v-select {
-  max-height: 44px;
-}
+
 .v-avatar img {
   object-fit: cover;
   width: 100%;
   height: 100%;
+}
+
+/* Form Inputs */
+.v-text-field,
+.v-select {
+  max-height: 44px;
+  width: 100%;
+}
+
+/* Utility Classes */
+.d-flex {
+  display: flex !important;
+}
+
+.justify-end {
+  justify-content: flex-end !important;
+}
+
+.mb-4 {
+  margin-bottom: 16px !important;
+}
+
+.mt-4 {
+  margin-top: 16px !important;
+}
+
+.my-4 {
+  margin-top: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+.my-6 {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
 }
 </style>
