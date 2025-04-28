@@ -1,214 +1,209 @@
 <template>
-  <v-main>
-    <v-container fluid class="pa-4">
-      <v-row>
-        <v-col cols="12" md="10">
-          <form @submit.prevent="submit">
-            <!-- Study Details in a card -->
-            <h2 class="text-h6 font-weight-bold mb-2">Study Details</h2>
-            <v-card class="pa-4 mb-6">
-              <StudyDetails
-                v-model:studyName="studyName"
-                v-model:studyDescription="studyDescription"
-                v-model:studyDesignType="studyDesignType"
-                v-model:participantCount="participantCount"
-                :studyNameRules="studyNameRules"
-                :studyDescriptionRules="studyDescriptionRules"
-                :studyDesignTypeRules="studyDesignTypeRules"
-                :participantCountRules="participantCountRules"
-              />
-            </v-card>
-            <h3>Tasks</h3>
-            <v-expansion-panels multiple v-model="expandedTPanels">
-              <v-expansion-panel v-for="(task, index) in tasks" :key="index">
-                <v-expansion-panel-title @click="toggleTaskPanel(index)">
-                  <template v-slot:default="{}">
-                    <div
-                      style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        width: 100%;
-                      "
-                    >
-                      <span>{{ 'Task ' + (index + 1) }}</span>
-                    </div>
-                  </template>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <Task
-                    :ref="el => (taskRefs[index] = el)"
-                    :task="tasks[index]"
-                    @update:task="updateTask(index, $event)"
-                  />
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
+  <v-container fluid>
+    <!-- Page Title -->
+    <v-row class="mt-4 mb-6" justify="center">
+      <v-col cols="12" md="8">
+        <v-card class="page-title-card pa-6 d-flex flex-column align-center">
+          <h2 class="page-title">
+            {{ editMode ? 'Edit Study' : 'Create New Study' }}
+          </h2>
+          <div class="page-subtitle mt-2">
+            {{
+              editMode
+                ? 'Update your study details below'
+                : 'Fill out the information to create your new study'
+            }}
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
 
-            <div class="action-btns">
-              <v-btn
-                @click="addTaskFactor('task')"
-                color="grey"
-                class="add-rmv-btn"
-                >+</v-btn
-              >
-              <v-btn
-                @click="
-                  displayDialog({
-                    title: 'Remove Confirmation',
-                    text: 'Are you sure you want to remove this task?',
-                    source: 'task',
-                  })
-                "
-                :disabled="!canRemoveTask"
-                color="grey"
-                class="add-rmv-btn"
-                >-</v-btn
-              >
-            </div>
+    <v-divider class="my-6" />
 
-            <h3>Factors</h3>
-            <v-expansion-panels multiple v-model="expandedFPanels">
-              <v-expansion-panel
-                v-for="(factor, index) in factors"
-                :key="index"
-              >
-                <v-expansion-panel-title @click="toggleFactorPanel(index)">
-                  <template v-slot:default="{}">
-                    <div
-                      style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        width: 100%;
-                      "
-                    >
-                      <span>{{
-                        'Factor ' + String.fromCharCode(65 + index)
-                      }}</span>
-                    </div>
-                  </template>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                  <Factor
-                    :ref="el => (factorRefs[index] = el)"
-                    :factor="factor"
-                  />
-                </v-expansion-panel-text>
-              </v-expansion-panel>
-            </v-expansion-panels>
-
-            <div class="action-btns">
-              <v-btn
-                @click="addTaskFactor('factor')"
-                color="grey"
-                class="add-rmv-btn"
-                >+</v-btn
-              >
-              <v-btn
-                @click="
-                  displayDialog({
-                    title: 'Remove Confirmation',
-                    text: 'Are you sure you want to remove this factor?',
-                    source: 'factor',
-                  })
-                "
-                :disabled="!canRemoveFactor"
-                color="grey"
-                class="add-rmv-btn"
-                >-</v-btn
-              >
-            </div>
-
-            <!-- Forms/Uploads Section -->
-            <h3 class="text-h6 font-weight-bold mb-2">Forms / Uploads</h3>
-            <div class="text-medium-emphasis">
-              (All file uploads below are optional)
-            </div>
-            <v-card class="pa-4 mb-6">
-              <ConsentUpload
-                v-model:consentUpload="consentUpload"
-                v-model:showConsentPreview="showConsentPreview"
-              />
-              <SurveyUploads
-                v-model:preSurveyUpload="preSurveyUpload"
-                v-model:postSurveyUpload="postSurveyUpload"
-                @update:parsedPreSurveyJson="parsedPreSurveyJson = $event"
-                @update:parsedPostSurveyJson="parsedPostSurveyJson = $event"
-                @update:surveyValidationError="surveyValidationError = $event"
-                @update:surveyValidationErrorMsg="
-                  surveyValidationErrorMsg = $event
-                "
-              />
-            </v-card>
-
-            <!-- Provide a template Survey to help -->
-            <v-btn
-              class="mt-8"
-              variant="text"
-              color="primary"
-              prepend-icon="mdi-download"
-              href="/sample_survey.json"
-              download
-            >
-              Download Template Questionnaire
-            </v-btn>
-
-            <!-- Save & Exit Buttons -->
-            <v-row class="btn-row mt-8" justify="center">
-              <v-btn
-                class="me-4 save-exit-btn"
-                @click="
-                  displayDialog({
-                    title: 'Exit Confirmation',
-                    text: 'Are you sure you want to exit before saving?',
-                    source: 'exit',
-                  })
-                "
-                >Exit</v-btn
-              >
-              <v-btn
-                class="me-4 save-exit-btn"
-                type="submit"
-                :disabled="!isFormValid"
-                >Save</v-btn
-              >
-            </v-row>
-          </form>
-        </v-col>
-      </v-row>
-
-      <!-- Confirmation Dialog Pop-ups -->
-      <div class="text-center pa-4">
-        <v-dialog v-model="dialog" max-width="400" persistent>
-          <v-card
-            prepend-icon="mdi-alert-outline"
-            :text="dialogDetails.text"
-            :title="dialogDetails.title"
-          >
-            <template v-slot:actions>
-              <v-spacer />
-              <v-btn @click="closeDialog()">Cancel</v-btn>
-              <v-btn @click="closeDialog(dialogDetails.source)">Agree</v-btn>
-            </template>
+    <v-row justify="center">
+      <v-col cols="12" md="10">
+        <form @submit.prevent="submit">
+          <!-- Study Details -->
+          <h3 class="section-title mb-2">Study Details</h3>
+          <v-card class="pa-4 mb-6 full-width-table">
+            <StudyDetails
+              v-model:studyName="studyName"
+              v-model:studyDescription="studyDescription"
+              v-model:studyDesignType="studyDesignType"
+              v-model:participantCount="participantCount"
+              :studyNameRules="studyNameRules"
+              :studyDescriptionRules="studyDescriptionRules"
+              :studyDesignTypeRules="studyDesignTypeRules"
+              :participantCountRules="participantCountRules"
+            />
           </v-card>
-        </v-dialog>
-      </div>
 
-      <!-- Top Alert -->
-      <v-alert v-if="saveStatus" :type="alertType" class="top-alert" closable>
-        {{ alertMessage }}
-      </v-alert>
-    </v-container>
-  </v-main>
+          <!-- Tasks -->
+          <h3 class="section-title mb-2">Tasks</h3>
+          <v-expansion-panels multiple v-model="expandedTPanels" class="mb-4">
+            <v-expansion-panel v-for="(task, index) in tasks" :key="index">
+              <v-expansion-panel-title @click="toggleTaskPanel(index)">
+                <div class="d-flex justify-space-between align-center w-100">
+                  <span>Task {{ index + 1 }}</span>
+                </div>
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <Task
+                  :ref="el => (taskRefs[index] = el)"
+                  :task="task"
+                  @update:task="updateTask(index, $event)"
+                />
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
 
-  <v-snackbar v-model="collapseError" :timeout="2000" color="red">
-    {{ collapseErrorMsg }}
-  </v-snackbar>
+          <div class="d-flex justify-end mb-6">
+            <v-btn
+              @click="addTaskFactor('task')"
+              color="grey"
+              class="add-rmv-btn"
+              >+</v-btn
+            >
+            <v-btn
+              @click="
+                displayDialog({
+                  title: 'Remove Task',
+                  text: 'Are you sure you want to remove the last task?',
+                  source: 'task',
+                })
+              "
+              :disabled="!canRemoveTask"
+              color="grey"
+              class="add-rmv-btn"
+              >-</v-btn
+            >
+          </div>
 
-  <v-snackbar v-model="surveyValidationError" :timeout="5000" color="red">
-    {{ surveyValidationErrorMsg }}
-  </v-snackbar>
+          <!-- Factors -->
+          <h3 class="section-title mb-2">Factors</h3>
+          <v-expansion-panels multiple v-model="expandedFPanels" class="mb-4">
+            <v-expansion-panel v-for="(factor, index) in factors" :key="index">
+              <v-expansion-panel-title @click="toggleFactorPanel(index)">
+                <div class="d-flex justify-space-between align-center w-100">
+                  <span>Factor {{ String.fromCharCode(65 + index) }}</span>
+                </div>
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <Factor
+                  :ref="el => (factorRefs[index] = el)"
+                  :factor="factor"
+                />
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
+
+          <div class="d-flex justify-end mb-6">
+            <v-btn
+              @click="addTaskFactor('factor')"
+              color="grey"
+              class="add-rmv-btn"
+              >+</v-btn
+            >
+            <v-btn
+              @click="
+                displayDialog({
+                  title: 'Remove Factor',
+                  text: 'Are you sure you want to remove the last factor?',
+                  source: 'factor',
+                })
+              "
+              :disabled="!canRemoveFactor"
+              color="grey"
+              class="add-rmv-btn"
+              >-</v-btn
+            >
+          </div>
+
+          <!-- Forms / Uploads -->
+          <h3 class="section-title mb-2">Forms / Uploads</h3>
+          <div class="text-medium-emphasis mb-2">
+            (All uploads are optional)
+          </div>
+
+          <v-card class="pa-4 mb-6 full-width-table">
+            <ConsentUpload
+              v-model:consentUpload="consentUpload"
+              v-model:showConsentPreview="showConsentPreview"
+            />
+            <SurveyUploads
+              v-model:preSurveyUpload="preSurveyUpload"
+              v-model:postSurveyUpload="postSurveyUpload"
+              @update:parsedPreSurveyJson="parsedPreSurveyJson = $event"
+              @update:parsedPostSurveyJson="parsedPostSurveyJson = $event"
+              @update:surveyValidationError="surveyValidationError = $event"
+              @update:surveyValidationErrorMsg="
+                surveyValidationErrorMsg = $event
+              "
+            />
+          </v-card>
+
+          <v-btn
+            variant="text"
+            color="primary"
+            prepend-icon="mdi-download"
+            href="/sample_survey.json"
+            download
+            class="mb-8"
+          >
+            Download Template Questionnaire
+          </v-btn>
+
+          <!-- Save & Exit Buttons -->
+          <v-row justify="center" class="my-6">
+            <v-btn
+              class="save-exit-btn me-4"
+              @click="
+                displayDialog({
+                  title: 'Exit Confirmation',
+                  text: 'Exit without saving?',
+                  source: 'exit',
+                })
+              "
+            >
+              Exit
+            </v-btn>
+            <v-btn class="save-exit-btn" type="submit" :disabled="!isFormValid">
+              Save
+            </v-btn>
+          </v-row>
+        </form>
+      </v-col>
+    </v-row>
+
+    <!-- Dialog -->
+    <v-dialog v-model="dialog" max-width="400" persistent>
+      <v-card
+        prepend-icon="mdi-alert-outline"
+        :title="dialogDetails.title"
+        :text="dialogDetails.text"
+      >
+        <template v-slot:actions>
+          <v-spacer />
+          <v-btn @click="closeDialog()">Cancel</v-btn>
+          <v-btn @click="closeDialog(dialogDetails.source)">Agree</v-btn>
+        </template>
+      </v-card>
+    </v-dialog>
+
+    <!-- Top Alert -->
+    <v-alert v-if="saveStatus" :type="alertType" class="top-alert" closable>
+      {{ alertMessage }}
+    </v-alert>
+
+    <!-- Error Snackbars -->
+    <v-snackbar v-model="collapseError" :timeout="2000" color="red">
+      {{ collapseErrorMsg }}
+    </v-snackbar>
+
+    <v-snackbar v-model="surveyValidationError" :timeout="5000" color="red">
+      {{ surveyValidationErrorMsg }}
+    </v-snackbar>
+  </v-container>
 </template>
 
 <script>
@@ -593,5 +588,67 @@ export default {
   z-index: 2000;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #333;
+}
+
+.full-width-table {
+  background-color: #ffffff !important;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.save-exit-btn {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 10px 20px;
+  text-transform: none;
+  min-height: 40px;
+  min-width: 125px;
+}
+
+.add-rmv-btn {
+  max-height: 32px;
+  min-width: 32px;
+  font-size: larger;
+}
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 4px; /* nice breathing between title and subtitle */
+}
+
+.page-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #666;
+}
+.page-title-card {
+  background: linear-gradient(to right, #fefefe, #f8f8f8);
+  border-radius: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #666;
 }
 </style>
