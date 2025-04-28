@@ -3,21 +3,15 @@ import TimeRenderer from './renderers/TimeRenderer'
 import MouseRenderer from './renderers/MouseRenderer'
 import KeyboardRenderer from './renderers/KeyboardRenderer'
 
-/**
- * ChartRenderer handles the D3 rendering for the Learning Curve Chart
- */
+// handles D3 rendering for learning curve chart
 class ChartRenderer {
-  /**
-   * Constructor for the chart renderer
-   * @param {Object} config - Configuration options for the chart
-   */
   constructor(config = {}) {
     this.chart = null
     this.width = 0
     this.height = 0
     this.margin = config.margin || { top: 40, right: 80, bottom: 80, left: 60 }
 
-    // Initialize the metric-specific renderers
+    // metric-specific renderers
     this.renderers = {
       time: new TimeRenderer(),
       mouse: new MouseRenderer(),
@@ -25,29 +19,23 @@ class ChartRenderer {
     }
   }
 
-  /**
-   * Check if the chart has been initialized
-   * @returns {Boolean} - True if chart is initialized
-   */
+  // check if chart is ready
   isInitialized() {
     return this.chart !== null
   }
 
-  /**
-   * Initialize the chart with the container element
-   * @param {HTMLElement} container - The DOM element to contain the chart
-   */
+  // create initial chart structure
   initChart(container) {
     if (!container) return
 
-    // Start fresh by removing any existing chart
+    // clear existing content
     d3.select(container).selectAll('*').remove()
 
-    // Set dimensions based on container size
+    // calculate dimensions
     this.width = container.clientWidth - this.margin.left - this.margin.right
     this.height = 400 - this.margin.top - this.margin.bottom
 
-    // Create SVG with responsive viewBox
+    // create responsive SVG container
     const svg = d3
       .select(container)
       .append('svg')
@@ -59,11 +47,12 @@ class ChartRenderer {
       )
       .attr('preserveAspectRatio', 'xMidYMid meet')
 
+    // create main chart group with margins
     this.chart = svg
       .append('g')
       .attr('transform', `translate(${this.margin.left},${this.margin.top})`)
 
-    // Create axis placeholders
+    // create axes
     this.chart
       .append('g')
       .attr('class', 'x-axis')
@@ -71,7 +60,7 @@ class ChartRenderer {
 
     this.chart.append('g').attr('class', 'y-axis')
 
-    // Add axis labels
+    // add axis labels
     this.chart
       .append('text')
       .attr('class', 'x-label')
@@ -94,53 +83,41 @@ class ChartRenderer {
       .style('font-size', '12px')
       .style('fill', '#666')
 
-    // Placeholder for the legend
+    // add legend container
     this.chart
       .append('g')
       .attr('class', 'legend')
       .attr('transform', `translate(${this.width + 10}, 0)`)
   }
 
-  /**
-   * Handle chart resize
-   * @param {HTMLElement} container - The DOM element containing the chart
-   */
+  // handles window resizing
   resize(container) {
     if (!container || !this.chart) return
 
-    // Remove existing chart and reinitialize
+    // rebuild chart from scratch
     d3.select(container).select('svg').remove()
     this.initChart(container)
   }
 
-  /**
-   * Render the "All Tasks" view with averaged data
-   * @param {Object} options - Rendering options
-   * @param {Array} options.data - The processed data
-   * @param {String} options.metric - The selected metric
-   */
+  // renders aggregate view of all tasks
   renderAllTasksView({ data, metric }) {
     if (!this.chart || data.length === 0) return
 
-    // Update Y-axis label based on metric
+    // update for selected metric
     this.updateYAxisLabel(metric)
 
-    // Get the appropriate renderer for the metric
+    // get appropriate renderer
     const renderer = this.renderers[metric] || this.renderers.time
 
-    // Set up scales
+    // prepare scales & axes
     const scales = this.createScales(data, metric)
-
-    // Update axes
     this.updateAxes(scales)
 
-    // Clear existing elements
+    // clear and prep chart
     this.clearChartElements()
-
-    // Add horizontal grid lines
     this.addGridLines(scales.y)
 
-    // Use the renderer to draw the chart
+    // render data
     renderer.renderAllTasksView({
       chart: this.chart,
       data,
@@ -149,37 +126,28 @@ class ChartRenderer {
     })
   }
 
-  /**
-   * Render the "Individual Tasks" view with task-specific lines
-   * @param {Object} options - Rendering options
-   * @param {Array} options.data - The processed data
-   * @param {String} options.metric - The selected metric
-   */
+  // renders individual view with separate lines for each task
   renderIndividualTasksView({ data, metric }) {
     if (!this.chart || data.length === 0) return
 
-    // Update Y-axis label based on metric
+    // update for selected metric
     this.updateYAxisLabel(metric)
 
-    // Get the appropriate renderer for the metric
+    // get appropriate renderer
     const renderer = this.renderers[metric] || this.renderers.time
 
-    // Prepare scales for multiple tasks
+    // prepare scales & axes
     const scales = this.createScalesForMultipleTasks(data, metric)
-
-    // Update axes
     this.updateAxes(scales)
 
-    // Clear existing elements
+    // clear and prep chart
     this.clearChartElements()
-
-    // Add horizontal grid lines
     this.addGridLines(scales.y)
 
-    // Use color scale for multiple tasks
+    // create color scheme
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
 
-    // Use the renderer to draw the chart
+    // render data
     renderer.renderIndividualTasksView({
       chart: this.chart,
       data,
@@ -188,14 +156,11 @@ class ChartRenderer {
       height: this.height,
     })
 
-    // Update the legend
+    // update chart legend
     this.updateLegend(data, metric, colorScale)
   }
 
-  /**
-   * Update the Y-axis label based on the metric
-   * @param {String} metric - The selected metric (time|mouse|keyboard)
-   */
+  // changes y-axis label based on metric type
   updateYAxisLabel(metric) {
     let yAxisLabel = 'Completion Time (s)'
 
@@ -208,22 +173,18 @@ class ChartRenderer {
     this.chart.select('.y-label').text(yAxisLabel)
   }
 
-  /**
-   * Create scales for the "All Tasks" view
-   * @param {Array} data - The processed data
-   * @param {String} metric - The selected metric
-   * @returns {Object} - x and y scales
-   */
+  // creates scales for aggregated view
   createScales(data, metric) {
-    // Determine which value to use for scaling
+    // get property name based on metric
     const valueKey = this.getValueKeyForMetric(metric)
 
-    // Create scales
+    // create x-scale for attempt numbers
     const x = d3
       .scaleLinear()
       .domain([1, d3.max(data, d => d.attempt)])
       .range([0, this.width])
 
+    // create y-scale for metric values with 10% padding
     const y = d3
       .scaleLinear()
       .domain([0, d3.max(data, d => d[valueKey]) * 1.1])
@@ -232,23 +193,17 @@ class ChartRenderer {
     return { x, y, valueKey }
   }
 
-  /**
-   * Create scales for the "Individual Tasks" view with multiple tasks
-   * @param {Array} data - The processed data grouped by task
-   * @param {String} metric - The selected metric
-   * @returns {Object} - x and y scales
-   */
+  // creates scales for individual tasks view
   createScalesForMultipleTasks(data, metric) {
-    // Determine which value to use for scaling
+    // get property name based on metric
     const valueKey = this.getValueKeyForMetric(metric)
 
-    // Find max values across all tasks
+    // find max values across all tasks
     const maxAttempt = d3.max(data, d => d3.max(d.data, item => item.attempt))
     const maxValue = d3.max(data, d => d3.max(d.data, item => item[valueKey]))
 
-    // Create scales
+    // create scales with common domains
     const x = d3.scaleLinear().domain([1, maxAttempt]).range([0, this.width])
-
     const y = d3
       .scaleLinear()
       .domain([0, maxValue * 1.1])
@@ -257,11 +212,7 @@ class ChartRenderer {
     return { x, y, valueKey }
   }
 
-  /**
-   * Get the data value key based on the selected metric
-   * @param {String} metric - The selected metric
-   * @returns {String} - The key to use in data objects
-   */
+  // maps metric types to data property names
   getValueKeyForMetric(metric) {
     switch (metric) {
       case 'mouse':
@@ -273,12 +224,9 @@ class ChartRenderer {
     }
   }
 
-  /**
-   * Update the axes based on the current scales
-   * @param {Object} scales - The x and y scales
-   */
+  // updates chart axes with animation
   updateAxes({ x, y }) {
-    // Update the x-axis
+    // update x-axis with integer ticks
     this.chart
       .select('.x-axis')
       .transition()
@@ -290,7 +238,7 @@ class ChartRenderer {
           .tickFormat(d3.format('d')),
       )
 
-    // Format x-axis labels
+    // rotate x-axis labels for better readability
     this.chart
       .select('.x-axis')
       .selectAll('text')
@@ -299,14 +247,11 @@ class ChartRenderer {
       .attr('dy', '.15em')
       .attr('transform', 'rotate(-45)')
 
-    // Update the y-axis
+    // update y-axis
     this.chart.select('.y-axis').transition().duration(500).call(d3.axisLeft(y))
   }
 
-  /**
-   * Add horizontal grid lines to the chart
-   * @param {d3.Scale} yScale - The y scale
-   */
+  // adds horizontal grid lines for readability
   addGridLines(yScale) {
     this.chart
       .selectAll('.grid-line-h')
@@ -322,9 +267,7 @@ class ChartRenderer {
       .attr('stroke-dasharray', '3,3')
   }
 
-  /**
-   * Clear existing chart elements before redrawing
-   */
+  // removes all chart elements before redrawing
   clearChartElements() {
     this.chart.selectAll('.line-path').remove()
     this.chart.selectAll('.data-point').remove()
@@ -334,34 +277,31 @@ class ChartRenderer {
     this.chart.selectAll('defs').remove()
   }
 
-  /**
-   * Update the legend for individual tasks view
-   * @param {Array} data - The task data
-   * @param {String} metric - The selected metric
-   * @param {d3.Scale} colorScale - The color scale
-   */
+  // creates or updates chart legend
   updateLegend(data, metric, colorScale) {
-    // Determine prefix based on metric
+    // set prefix based on metric type
     let displayNamePrefix = ''
     if (metric === 'mouse') displayNamePrefix = 'Mouse Movement: '
     if (metric === 'keyboard') displayNamePrefix = 'Key Presses: '
 
-    // Update the legend
+    // clear and rebuild legend
     const legend = this.chart.select('.legend')
     legend.selectAll('*').remove()
 
-    // Add an entry for each task
+    // add entry for each task
     data.forEach((task, i) => {
       const legendItem = legend
         .append('g')
         .attr('transform', `translate(0, ${i * 20})`)
 
+      // color box
       legendItem
         .append('rect')
         .attr('width', 12)
         .attr('height', 12)
         .attr('fill', colorScale(i))
 
+      // task name
       legendItem
         .append('text')
         .attr('x', 18)

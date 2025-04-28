@@ -1,21 +1,12 @@
 import * as d3 from 'd3'
 
-/**
- * MouseRenderer handles the mouse-specific rendering for the Learning Curve Chart
- */
+// renders mouse-specific visuals for learning curve chart
 class MouseRenderer {
-  /**
-   * Render the "All Tasks" view with mouse metrics
-   * @param {Object} options - Rendering options
-   * @param {d3.Selection} options.chart - The chart selection
-   * @param {Array} options.data - The processed data
-   * @param {Object} options.scales - The x and y scales
-   * @param {Number} options.height - The chart height
-   */
+  // renders aggregated view for mouse metrics
   renderAllTasksView({ chart, data, scales, height }) {
     const { x, y, valueKey = 'mouseDistance' } = scales
 
-    // Create gradient for mouse movement visualization
+    // create orange-to-red gradient for line
     const gradient = chart
       .append('defs')
       .append('linearGradient')
@@ -26,17 +17,16 @@ class MouseRenderer {
       .attr('y2', '0%')
 
     gradient.append('stop').attr('offset', '0%').attr('stop-color', '#FF5722')
-
     gradient.append('stop').attr('offset', '100%').attr('stop-color', '#FF9800')
 
-    // Create the line generator
+    // create smooth curved line
     const line = d3
       .line()
       .x(d => x(d.attempt))
       .y(d => y(d[valueKey]))
-      .curve(d3.curveMonotoneX) // Smooth curve
+      .curve(d3.curveMonotoneX)
 
-    // Draw the line with curve and gradient
+    // draw main line with gradient
     chart
       .append('path')
       .datum(data)
@@ -47,7 +37,7 @@ class MouseRenderer {
       .attr('stroke-linecap', 'round')
       .attr('d', line)
 
-    // Add area under the curve with low opacity
+    // add shaded area under curve
     const area = d3
       .area()
       .x(d => x(d.attempt))
@@ -63,7 +53,7 @@ class MouseRenderer {
       .attr('fill-opacity', 0.1)
       .attr('d', area)
 
-    // Add data points
+    // add data point circles
     chart
       .selectAll('.data-point')
       .data(data)
@@ -72,13 +62,13 @@ class MouseRenderer {
       .attr('class', 'data-point')
       .attr('cx', d => x(d.attempt))
       .attr('cy', d => y(d[valueKey]))
-      .attr('r', 7) // Larger points for mouse
+      .attr('r', 7)
       .attr('fill', '#FF9800')
       .attr('stroke', '#fff')
       .attr('stroke-width', 2)
       .attr('filter', 'drop-shadow(0px 1px 2px rgba(0,0,0,0.2))')
 
-    // Add labels on the points
+    // add value labels above points
     chart
       .selectAll('.point-label')
       .data(data)
@@ -92,7 +82,7 @@ class MouseRenderer {
       .style('font-size', '11px')
       .style('fill', '#333')
 
-    // Update the legend
+    // update chart legend
     const legend = chart.select('.legend')
     legend.selectAll('*').remove()
 
@@ -110,35 +100,26 @@ class MouseRenderer {
       .style('font-size', '12px')
   }
 
-  /**
-   * Render the "Individual Tasks" view with mouse metrics
-   * @param {Object} options - Rendering options
-   * @param {d3.Selection} options.chart - The chart selection
-   * @param {Array} options.data - The processed data grouped by task
-   * @param {Object} options.scales - The x and y scales
-   * @param {d3.Scale} options.colorScale - The color scale for tasks
-   * @param {Number} options.height - The chart height
-   */
+  // renders individual task view with separate lines
   renderIndividualTasksView({ chart, data, scales, colorScale, height }) {
     const { x, y, valueKey = 'mouseDistance' } = scales
 
-    // Create the line generator
+    // smooth curved line generator
     const line = d3
       .line()
       .x(d => x(d.attempt))
       .y(d => y(d[valueKey]))
       .curve(d3.curveMonotoneX)
 
-    // Create defs for gradients
+    // container for all gradients
     const defs = chart.append('defs')
 
-    // Draw lines for each task
+    // create line for each task with unique color
     data.forEach((task, i) => {
       const color = colorScale(i)
 
-      // Create a gradient for this task
+      // create task-specific gradient
       const gradientId = `mouse-gradient-${i}`
-
       const gradient = defs
         .append('linearGradient')
         .attr('id', gradientId)
@@ -147,14 +128,17 @@ class MouseRenderer {
         .attr('x2', '0%')
         .attr('y2', '100%')
 
+      // gradient from darker to lighter shade
       gradient
         .append('stop')
         .attr('offset', '0%')
         .attr('stop-color', d3.rgb(color).darker(0.3))
+      gradient
+        .append('stop')
+        .attr('offset', '100%')
+        .attr('stop-color', color)
 
-      gradient.append('stop').attr('offset', '100%').attr('stop-color', color)
-
-      // Add curved line with gradient
+      // draw line with gradient
       chart
         .append('path')
         .datum(task.data)
@@ -166,7 +150,7 @@ class MouseRenderer {
         .attr('stroke-linecap', 'round')
         .attr('d', line)
 
-      // Add data points with glow effect
+      // add data points
       chart
         .selectAll(`.data-point-${i}`)
         .data(task.data)
