@@ -24,7 +24,9 @@ body {
   padding: 24px;
   margin-bottom: 20px;
   color: #333;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 /* Dark mode support */
