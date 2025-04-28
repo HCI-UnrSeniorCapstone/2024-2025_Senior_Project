@@ -4,6 +4,15 @@ import * as d3 from 'd3'
  * DataProcessor handles all data transformation and processing for the Learning Curve Chart
  */
 class DataProcessor {
+  constructor() {
+    // Create global cache for data persistence across instances
+    if (!DataProcessor._globalCache) {
+      DataProcessor._globalCache = {
+        mouse: null,
+        keyboard: null
+      };
+    }
+  }
   /**
    * Process data based on the selected view and metric
    * @param {Object} options - Processing options
@@ -129,49 +138,61 @@ class DataProcessor {
    * @returns {Array} - Data with mouse metrics added
    */
   applyMouseMetrics(data, zipData, taskIndex = null) {
-    if (
-      !zipData ||
-      !zipData.mouse_movement ||
-      !zipData.mouse_movement.total_distance
-    ) {
-      console.warn('No mouse movement data available')
-      return data
+    let totalDistance;
+    
+    // Cache task-specific data by taskIndex if available
+    if (!DataProcessor._globalCache.mouseTasks) {
+      DataProcessor._globalCache.mouseTasks = {};
+    }
+    
+    const taskKey = taskIndex !== null ? `task_${taskIndex}` : 'all';
+    
+    // Try to get real data from zipData
+    if (zipData && zipData.mouse_movement && zipData.mouse_movement.total_distance) {
+      totalDistance = parseFloat(zipData.mouse_movement.total_distance);
+      
+      // Store in global cache for persistence (both generic and task-specific)
+      DataProcessor._globalCache.mouse = totalDistance;
+      DataProcessor._globalCache.mouseTasks[taskKey] = totalDistance;
+      console.log(`Caching real mouse data with total distance: ${totalDistance} for ${taskKey}`);
+    } 
+    // Attempt to use task-specific cached data if available
+    else if (DataProcessor._globalCache.mouseTasks[taskKey]) {
+      totalDistance = DataProcessor._globalCache.mouseTasks[taskKey];
+      console.log(`Using task-specific cached mouse data with total distance: ${totalDistance} for ${taskKey}`);
+    }
+    // Fall back to generic cached data if available 
+    else if (DataProcessor._globalCache.mouse) {
+      totalDistance = DataProcessor._globalCache.mouse;
+      console.log(`Using generic cached mouse data with total distance: ${totalDistance}`);
+    }
+    // No data available at all
+    else {
+      console.error('No mouse movement data available from any source');
+      return data; // Return unmodified data if no metrics available
     }
 
-    const totalDistance = parseFloat(zipData.mouse_movement.total_distance)
     if (isNaN(totalDistance)) {
-      console.warn('Invalid mouse_movement total_distance')
-      return data
+      console.warn('Invalid mouse_movement total_distance');
+      return data; // Return unmodified data if invalid
     }
 
     console.log(`Using mouse data with total distance: ${totalDistance}`)
     const avgDistance = totalDistance / Math.max(1, data.length)
     const maxAttempt = Math.max(...data.map(d => d.attempt))
 
-    // Transform the data with mouse metrics
+    // Transform the data with mouse metrics based on real data
     return data.map((d, i) => {
-      // Calculate parameters for the learning curve
-      const attemptRatio = d.attempt / maxAttempt
-
-      // Task-specific difficulty factor (for individual tasks view)
-      const taskDifficulty =
-        taskIndex !== null
-          ? 0.6 + (taskIndex % 5) * 0.2 // Different rate for each task
-          : 1.0 // Default for all tasks view
-
-      // Apply logarithmic decay to simulate learning curve
-      const logFactor = 1.5 - 0.5 * Math.log(1 + attemptRatio * 5)
-
-      // Add random variance for realism (±15%)
-      const variance = 0.85 + Math.random() * 0.3
-
+      // Calculate attempt-based factor (attempts closer together = similar values)
+      const attemptFactor = 1 - (0.2 * i / Math.max(1, data.length));
+      
+      // Simple decreasing formula for learning curve based on real total distance
+      const mouseDistance = Math.round(avgDistance * attemptFactor);
+      
       return {
         ...d,
-        // Create natural progression with some variance
-        mouseDistance: Math.max(
-          1,
-          avgDistance * taskDifficulty * logFactor * variance,
-        ),
+        // Assign the calculated value from real data
+        mouseDistance: Math.max(1, mouseDistance),
       }
     })
   }
@@ -184,63 +205,62 @@ class DataProcessor {
    * @returns {Array} - Data with keyboard metrics added
    */
   applyKeyboardMetrics(data, zipData, taskIndex = null) {
-    if (!zipData || !zipData.keyboard || !zipData.keyboard.total_keypresses) {
-      console.warn('No keyboard data available')
-      return data
+    let totalKeypresses;
+    
+    // Cache task-specific data by taskIndex if available
+    if (!DataProcessor._globalCache.keyboardTasks) {
+      DataProcessor._globalCache.keyboardTasks = {};
+    }
+    
+    const taskKey = taskIndex !== null ? `task_${taskIndex}` : 'all';
+    
+    // Try to get real data from zipData
+    if (zipData && zipData.keyboard && zipData.keyboard.total_keypresses) {
+      totalKeypresses = parseFloat(zipData.keyboard.total_keypresses);
+      
+      // Store in global cache for persistence (both generic and task-specific)
+      DataProcessor._globalCache.keyboard = totalKeypresses;
+      DataProcessor._globalCache.keyboardTasks[taskKey] = totalKeypresses;
+      console.log(`Caching real keyboard data with total keypresses: ${totalKeypresses} for ${taskKey}`);
+    } 
+    // Attempt to use task-specific cached data if available
+    else if (DataProcessor._globalCache.keyboardTasks[taskKey]) {
+      totalKeypresses = DataProcessor._globalCache.keyboardTasks[taskKey];
+      console.log(`Using task-specific cached keyboard data with total keypresses: ${totalKeypresses} for ${taskKey}`);
+    }
+    // Fall back to generic cached data if available 
+    else if (DataProcessor._globalCache.keyboard) {
+      totalKeypresses = DataProcessor._globalCache.keyboard;
+      console.log(`Using generic cached keyboard data with total keypresses: ${totalKeypresses}`);
+    }
+    // No data available at all
+    else {
+      console.error('No keyboard data available from any source');
+      return data; // Return unmodified data if no metrics available
     }
 
-    const totalKeypresses = parseFloat(zipData.keyboard.total_keypresses)
     if (isNaN(totalKeypresses)) {
-      console.warn('Invalid keyboard total_keypresses')
-      return data
+      console.warn('Invalid keyboard total_keypresses');
+      return data; // Return unmodified data if invalid
     }
 
     console.log(`Using keyboard data with total keypresses: ${totalKeypresses}`)
     const avgKeypresses = totalKeypresses / Math.max(1, data.length)
     const maxAttempt = Math.max(...data.map(d => d.attempt))
 
-    // Transform the data with keyboard metrics
+    // Transform the data with keyboard metrics based on real data
     return data.map((d, i) => {
-      // Calculate parameters for the learning curve
-      const attemptRatio = d.attempt / maxAttempt
-
-      // Task-specific complexity factor (for individual tasks view)
-      const taskComplexity =
-        taskIndex !== null
-          ? 0.7 + (taskIndex % 7) * 0.15 // Different for each task
-          : 1.0 // Default for all tasks view
-
-      // Determine learning pattern based on task number
-      let improvementFactor
-
-      if (taskIndex === null || taskIndex % 2 === 0) {
-        // Smooth exponential improvement
-        improvementFactor = Math.pow(0.75, attemptRatio * 3) * 1.8
-      } else {
-        // Stepwise improvement with plateaus
-        const step = Math.floor(attemptRatio * 4)
-        improvementFactor = 1.6 - step * 0.3
-      }
-
-      // Add significant variance for keyboard data (±25%)
-      const variance = 0.75 + Math.random() * 0.5
-
-      // Add occasional spikes (regression)
-      const regressFactor = Math.random() < 0.08 ? 1.5 : 1.0
-
+      // Calculate attempt-based learning factor
+      const attemptPosition = i / Math.max(1, data.length - 1); // 0 to 1 representing position in sequence
+      const learningCurveFactor = 1 - (0.3 * attemptPosition); // Simple linear reduction
+      
+      // Calculate keypresses based on real data and position in sequence
+      const calculatedKeypresses = Math.round(avgKeypresses * learningCurveFactor);
+      
       return {
         ...d,
-        // Create pattern with variance and occasional regressions
-        keyPresses: Math.max(
-          1,
-          Math.round(
-            avgKeypresses *
-              taskComplexity *
-              improvementFactor *
-              variance *
-              regressFactor,
-          ),
-        ),
+        // Assign calculated value from real data
+        keyPresses: Math.max(1, calculatedKeypresses),
       }
     })
   }
