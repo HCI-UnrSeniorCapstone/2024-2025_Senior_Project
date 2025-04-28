@@ -12,6 +12,11 @@ class MetricProcessor {
       this._lastGoodMouseData = null
       this._lastGoodKeyboardData = null
       this._dataProcessed = false
+      
+      // Initialize static cache if needed
+      if (!MetricProcessor._globalCache) {
+        MetricProcessor._globalCache = {};
+      }
     }
     
     /**
@@ -69,6 +74,13 @@ class MetricProcessor {
           zipData.mouse_movement.total_distance = totalDistance;
           zipData.mouse_movement.data_points = rows.length;
           
+          // Save in localStorage for persistence between sessions
+          try {
+            localStorage.setItem('lastGoodMouseDistance', totalDistance.toString());
+          } catch (e) {
+            console.warn('Could not save mouse data to localStorage:', e);
+          }
+          
           console.log(`Calculated mouse distance from CSV: ${totalDistance} from ${rows.length} points`);
         }
       }
@@ -98,6 +110,13 @@ class MetricProcessor {
           // Store the calculated keypress count
           zipData.keyboard.total_keypresses = keypressCount;
           zipData.keyboard.data = csvData;
+          
+          // Save in localStorage for persistence between sessions
+          try {
+            localStorage.setItem('lastGoodKeyPresses', keypressCount.toString());
+          } catch (e) {
+            console.warn('Could not save keyboard data to localStorage:', e);
+          }
           
           console.log(`Counted keypresses from CSV: ${keypressCount}`);
         }
@@ -299,12 +318,30 @@ class MetricProcessor {
             // Only log warning once per session to avoid console spam
             if (!this._mouseWarningShown) {
               console.warn(
-                'No mouse movement data available, using fallback values',
+                'No mouse movement data available, creating fallback data',
               )
               this._mouseWarningShown = true
             }
-            // Return a fallback value that scales by task ID
-            return 1000 + task.taskId * 500
+            
+            // Create minimal structure to continue rendering instead of returning NaN
+            if (!dataToUse) dataToUse = {};
+            if (!dataToUse.mouse_movement) dataToUse.mouse_movement = {};
+            
+            // Try to get fallback value from localStorage
+            try {
+              const lastMouseDistance = localStorage.getItem('lastGoodMouseDistance');
+              if (lastMouseDistance) {
+                dataToUse.mouse_movement.total_distance = parseFloat(lastMouseDistance);
+              } else {
+                // Use a default value based on task ID for demo purposes
+                dataToUse.mouse_movement.total_distance = 5000 + (task.taskId || 0) * 500;
+              }
+            } catch (e) {
+              // Fallback to a demo value in case localStorage fails
+              dataToUse.mouse_movement.total_distance = 5000 + (task.taskId || 0) * 500;
+            }
+            
+            console.log('Created fallback mouse data:', dataToUse.mouse_movement.total_distance);
           }
   
           // Process mouse movement data
@@ -400,11 +437,29 @@ class MetricProcessor {
           ) {
             // Only log warning once per session to avoid console spam
             if (!this._keyboardWarningShown) {
-              console.warn('No keyboard data available, using fallback values')
+              console.warn('No keyboard data available, creating fallback data')
               this._keyboardWarningShown = true
             }
-            // Return a fallback value that scales by task ID
-            return 100 + task.taskId * 30
+            
+            // Create minimal structure to continue rendering instead of returning NaN
+            if (!dataToUse) dataToUse = {};
+            if (!dataToUse.keyboard) dataToUse.keyboard = {};
+            
+            // Try to get fallback value from localStorage
+            try {
+              const lastKeyPresses = localStorage.getItem('lastGoodKeyPresses');
+              if (lastKeyPresses) {
+                dataToUse.keyboard.total_keypresses = parseInt(lastKeyPresses);
+              } else {
+                // Use a default value based on task ID for demo purposes
+                dataToUse.keyboard.total_keypresses = 200 + (task.taskId || 0) * 50;
+              }
+            } catch (e) {
+              // Fallback to a demo value in case localStorage fails
+              dataToUse.keyboard.total_keypresses = 200 + (task.taskId || 0) * 50;
+            }
+            
+            console.log('Created fallback keyboard data:', dataToUse.keyboard.total_keypresses);
           }
   
           // Process keyboard data

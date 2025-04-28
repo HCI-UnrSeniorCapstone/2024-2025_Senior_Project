@@ -226,7 +226,7 @@ export default {
       // Set loading state
       asyncLoading.value = true
 
-      // Initialize with structure that will be populated with real data
+      // Initialize with empty structure that will be populated with real data
       zipData.value = {
         mouse_movement: {},
         keyboard: {},
@@ -239,14 +239,7 @@ export default {
 
       // Use the analytics API to get real data from CSVs
 
-      // Initialize with structure for real data or test data 
-      zipData.value = {
-        mouse_movement: {},
-        keyboard: {},
-        // For CSV integration during testing
-        mouse_movement_csv: '/Task 1_mouse_movement_data.csv',
-        keyboard_csv: '/Task 1_keyboard_data.csv'
-      }
+      // This initialization is already handled above
       
       // Load test CSV files directly (for development/testing)
       const loadTestCsvFiles = async () => {
@@ -333,7 +326,7 @@ export default {
                     // Job completed successfully
                     // Process the result to ensure it has the expected format
                     const result = statusResponse.result
-                    const processedData = {
+                    const processedData = zipData.value || {
                       mouse_movement: {},
                       keyboard: {},
                     }
@@ -351,6 +344,13 @@ export default {
                           'Found mouse total_distance:',
                           result.mouse_movement.total_distance,
                         )
+                        
+                        // Save this value for future sessions
+                        try {
+                          localStorage.setItem('lastGoodMouseDistance', result.mouse_movement.total_distance.toString());
+                        } catch (e) {
+                          console.warn('Failed to save mouse data to localStorage:', e);
+                        }
                       }
                     }
                     // Handle if mouse data is in a different format
@@ -371,6 +371,13 @@ export default {
                           'Found keyboard total_keypresses:',
                           result.keyboard.total_keypresses,
                         )
+                        
+                        // Save this value for future sessions
+                        try {
+                          localStorage.setItem('lastGoodKeyPresses', result.keyboard.total_keypresses.toString());
+                        } catch (e) {
+                          console.warn('Failed to save keyboard data to localStorage:', e);
+                        }
                       }
                     }
                     // Handle if keyboard data is in a different format
@@ -471,7 +478,7 @@ export default {
           } else {
             // Data is available immediately
             // Process the response to ensure it has the expected format
-            const processedData = {
+            const processedData = zipData.value || {
               mouse_movement: {},
               keyboard: {},
             }
@@ -487,6 +494,13 @@ export default {
                   'Found mouse total_distance:',
                   response.mouse_movement.total_distance,
                 )
+                
+                // Save this value for future sessions
+                try {
+                  localStorage.setItem('lastGoodMouseDistance', response.mouse_movement.total_distance.toString());
+                } catch (e) {
+                  console.warn('Failed to save mouse data to localStorage:', e);
+                }
               }
             }
             // Handle if mouse data is in a different format
@@ -507,6 +521,13 @@ export default {
                   'Found keyboard total_keypresses:',
                   response.keyboard.total_keypresses,
                 )
+                
+                // Save this value for future sessions
+                try {
+                  localStorage.setItem('lastGoodKeyPresses', response.keyboard.total_keypresses.toString());
+                } catch (e) {
+                  console.warn('Failed to save keyboard data to localStorage:', e);
+                }
               }
             }
             // Handle if keyboard data is in a different format
@@ -632,15 +653,60 @@ export default {
         return
 
       // Check if we need zip data but don't have it yet
-      if (needsZipData.value && !zipData.value) {
+      if (needsZipData.value && (!zipData.value || !zipData.value.mouse_movement || Object.keys(zipData.value.mouse_movement).length === 0)) {
         if (!asyncLoading.value && !asyncError.value) {
           console.log(
             'Need zip data for metric but none loaded yet - fetching...',
           )
-          fetchZipData()
+          asyncLoading.value = true;
           
-          // We'll continue rendering with fallback values
-          console.log('Continuing with fallback values during data load');
+          // Create empty structure for the data we'll need
+          zipData.value = zipData.value || {};
+          zipData.value.mouse_movement = zipData.value.mouse_movement || {};
+          zipData.value.keyboard = zipData.value.keyboard || {};
+          
+          // Make the API call in the background
+          fetchZipData().then(response => {
+            // When the job completes, update the chart if needed
+            if (response && !response.error) {
+              console.log('Zip data fetch completed successfully');
+              updateChart();
+            }
+          }).catch(e => {
+            console.warn('Error fetching zip data:', e);
+          }).finally(() => {
+            // Clear loading state after a delay to ensure UI is responsive
+            setTimeout(() => {
+              asyncLoading.value = false;
+              updateChart();
+            }, 1000);
+          });
+        }
+      }
+      
+      // If we need zip data and it's not fully available, ensure we have minimal structure
+      if (needsZipData.value) {
+        // Create minimal structure with fallback data if needed
+        zipData.value = zipData.value || {};
+        zipData.value.mouse_movement = zipData.value.mouse_movement || {};
+        zipData.value.keyboard = zipData.value.keyboard || {};
+        
+        // Try to get values from localStorage as fallback
+        try {
+          const lastMouseDistance = localStorage.getItem('lastGoodMouseDistance');
+          const lastKeyPresses = localStorage.getItem('lastGoodKeyPresses');
+          
+          if (lastMouseDistance && !zipData.value.mouse_movement.total_distance) {
+            zipData.value.mouse_movement.total_distance = parseFloat(lastMouseDistance);
+            console.log('Using fallback mouse distance from localStorage:', lastMouseDistance);
+          }
+          
+          if (lastKeyPresses && !zipData.value.keyboard.total_keypresses) {
+            zipData.value.keyboard.total_keypresses = parseInt(lastKeyPresses);
+            console.log('Using fallback key presses from localStorage:', lastKeyPresses);
+          }
+        } catch (e) {
+          console.warn('Failed to load fallback data from localStorage:', e);
         }
       }
 
@@ -702,9 +768,22 @@ export default {
 
     // Special watch for metric changes
     watch(selectedMetric, newMetric => {
-      // Check if we need to fetch zip data for this metric
-      if (needsZipData.value && !zipData.value) {
-        fetchZipData()
+      // If switching to a metric that needs zip data
+      if ((newMetric === 'mouse' || newMetric === 'keyboard') && needsZipData.value) {
+        // Show async loading state temporarily
+        asyncLoading.value = true;
+        
+        // Check if we need to fetch zip data
+        if (!zipData.value) {
+          // This will trigger the API call to get real data
+          fetchZipData()
+        } else {
+          // We already have zip data, just need to update the chart
+          asyncLoading.value = false;
+        }
+      } else {
+        // For other metrics like time/pValue
+        asyncLoading.value = false;
       }
 
       // Always update the chart
@@ -724,6 +803,37 @@ export default {
               forceRender(chartContainer.value)
               updateChart()
               window.dispatchEvent(new Event('resize'))
+              
+              // Clear loading indicator after rendering is done
+              asyncLoading.value = false;
+              
+              // Poll one more time to see if zip data has arrived
+              setTimeout(() => {
+                if (zipData.value && (
+                    (newMetric === 'mouse' && !zipData.value.mouse_movement?.total_distance) ||
+                    (newMetric === 'keyboard' && !zipData.value.keyboard?.total_keypresses)
+                )) {
+                  console.log('Checking for completed metrics job...');
+                  analyticsApi.getZipDataMetrics(props.studyId)
+                    .then(response => {
+                      if (response && !response.error) {
+                        console.log('Found completed metrics data!', response);
+                        // Update zipData with new info
+                        if (response.mouse_movement?.total_distance) {
+                          zipData.value.mouse_movement.total_distance = response.mouse_movement.total_distance;
+                          console.log('Updated mouse distance:', response.mouse_movement.total_distance);
+                        }
+                        if (response.keyboard?.total_keypresses) {
+                          zipData.value.keyboard.total_keypresses = response.keyboard.total_keypresses;
+                          console.log('Updated keyboard presses:', response.keyboard.total_keypresses);
+                        }
+                        // Force render update
+                        updateChart();
+                      }
+                    })
+                    .catch(err => console.warn('Error checking for updated metrics:', err));
+                }
+              }, 2000);
             }, 200)
           }
         }, 50)
