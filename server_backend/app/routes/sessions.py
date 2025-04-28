@@ -24,7 +24,7 @@ from flask_security import auth_required
 bp = Blueprint("sessions", __name__)
 
 
-# Saving participant session from the local script
+# Saving participant session results
 # Excpects a JSON and a zip file with PRECISE naming standards
 @bp.route("/api/save_participant_session", methods=["POST"])
 @auth_required()
@@ -548,10 +548,10 @@ def get_all_session_data_instance_zip():
         return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
 
 
-# When a new session is started we must create a participant session instance and retrieve that newly created id for later user inserting data properly
-@bp.route("/api/create_participant_session", methods=["POST"])
+# Reserve and return next participant session id for the session we are about to create
+@bp.route("/api/get_next_participant_session_id", methods=["POST"])
 @auth_required()
-def create_participant_session():
+def get_next_participant_session_id():
     # Get request and convert to json
     data = request.get_json()
 
@@ -561,7 +561,444 @@ def create_participant_session():
             jsonify({"error": "Missing study_id in request body"}),
             400,
         )
+
     study_id = data["study_id"]
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Reserve next participant session id by creating a mostly-empty participant session
+        find_participant_session_id = """
+        INSERT INTO participant_session (study_id, status, current_step_index)
+        VALUES (%s, %s, %s)
+        """
+        cur.execute(find_participant_session_id, (study_id, "new", 0))
+
+        # Get newly auto incremented participant session id
+        participant_session_id = cur.lastrowid
+
+        # Commit changes to the database
+        conn.commit()
+        cur.close()
+
+        return jsonify({"participant_session_id": participant_session_id}), 201
+
+    except Exception as e:
+        conn.rollback()
+
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Creating a participant session, including setup details in the provided JSON
+@bp.route("/api/create_participant_session", methods=["POST"])
+@auth_required()
+def create_participant_session():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check if needed params are provided
+    if (
+        not data
+        or "participant_session_id" not in data
+        or "session_setup_json" not in data
+    ):
+        return (
+            jsonify({"error": "Missing necessary parameters in request body"}),
+            400,
+        )
+    participant_session_id = data["participant_session_id"]
+    session_setup_json = data["session_setup_json"]
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Need to find the study_id first
+        study_id_query = """
+        SELECT study_id
+        FROM participant_session
+        WHERE participant_session_id = %s
+        """
+        cur.execute(study_id_query, (participant_session_id,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify({"error": "Failed finding associated study id"}), 400
+        study_id = result[0]
+
+        # Insert JSON into filesystem
+        base_dir = current_app.config.get("RESULTS_BASE_DIR_PATH")
+        study_dir_path = os.path.join(base_dir, f"{study_id}_study_id")
+        session_dir_path = os.path.join(
+            study_dir_path, f"{participant_session_id}_participant_session_id"
+        )
+        os.makedirs(session_dir_path, exist_ok=True)
+
+        file_path = os.path.join(session_dir_path, f"session_setup.json")
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(session_setup_json, f, ensure_ascii=False, indent=2)
+
+        update_session_setup_path_query = """
+        UPDATE participant_session SET session_setup_json_path = %s WHERE participant_session_id = %s;
+        """
+        cur.execute(
+            update_session_setup_path_query, (file_path, participant_session_id)
+        )
+
+        # Commit changes to the database
+        conn.commit()
+        cur.close()
+
+        return jsonify({"message": "Successfully saved session setup JSON"}), 200
+
+    except Exception as e:
+        conn.rollback()
+
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Retrieve the JSON containing the parameters for conducting the session
+@bp.route("/api/get_session_setup_json", methods=["POST"])
+@auth_required()
+def get_session_setup_json():
+    try:
+        data = request.get_json()
+
+        # Check if participant_session_id is provided
+        if not data or "participant_session_id" not in data:
+            return (
+                jsonify(
+                    {
+                        "error": "Missing participant_session_id needed for JSON retrieval"
+                    }
+                ),
+                400,
+            )
+
+        participant_session_id = data["participant_session_id"]
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        session_setup_path_query = """
+        SELECT
+            session_setup_json_path
+        FROM participant_session
+        WHERE participant_session_id = %s
+        """
+        cur.execute(session_setup_path_query, (participant_session_id,))
+        result = cur.fetchone()
+        cur.close()
+
+        if not result:
+            return jsonify({"error": "Session setup json path not found"}), 404
+
+        file_path = result[0]
+        if not os.path.exists(file_path):
+            return (
+                jsonify({"error": f"Session setup JSON not found at {file_path}"}),
+                404,
+            )
+        with open(file_path, "r", encoding="utf-8") as f:
+            session_setup_json = json.load(f)
+
+        return jsonify(session_setup_json), 200
+
+    except Exception as e:
+        return jsonify({"error_type": type(e).__name__, "error_message": str(e)}), 500
+
+
+# Replacing session setup JSON with most recent version when user makes edits
+@bp.route("/api/overwrite_session_setup_json", methods=["POST"])
+@auth_required()
+def overwrite_session_setup_json():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check if needed params are provided
+    if (
+        not data
+        or "participant_session_id" not in data
+        or "session_setup_json" not in data
+    ):
+        return (
+            jsonify({"error": "Missing necessary parameters in request body"}),
+            400,
+        )
+    participant_session_id = data["participant_session_id"]
+    new_session_setup_json = data["session_setup_json"]
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Need to find the filepath of the existing JSON
+        session_setup_filepath_query = """
+        SELECT session_setup_json_path
+        FROM participant_session
+        WHERE participant_session_id = %s
+        """
+        cur.execute(session_setup_filepath_query, (participant_session_id,))
+        result = cur.fetchone()
+
+        if result is None or result[0] is None:
+            return jsonify({"error": "Session or JSON path not found"}), 400
+        json_path = result[0]
+
+        # Replacing JSON in filesystem with newest version
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(new_session_setup_json, f, ensure_ascii=False, indent=2)
+
+        return jsonify({"message": "Successfully updated session setup JSON"}), 200
+
+    except Exception as e:
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Only works for deleting sessions with status "new" for now, so in_progress and complete will be functionality later
+@bp.route("/api/delete_participant_session", methods=["POST"])
+@auth_required()
+def delete_participant_session():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check participant_session_id for deletion are provided
+    if not data or "participant_session_id" not in data:
+        return (
+            jsonify(
+                {
+                    "error": "Missing participant_session_id for session deletion in request body"
+                }
+            ),
+            400,
+        )
+    participant_session_id = data["participant_session_id"]
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        check_deletion_query = """
+        SELECT session_setup_json_path, status
+        FROM participant_session
+        WHERE participant_session_id = %s
+        """
+        cur.execute(check_deletion_query, (participant_session_id,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify({"error": "Session not found"}), 404
+
+        json_path, session_status = result
+
+        if session_status == "new":
+            # Delete tbl entry
+            delete_new_session_query = """
+            DELETE FROM participant_session WHERE participant_session_id = %s
+            """
+            cur.execute(delete_new_session_query, (participant_session_id,))
+            conn.commit()
+            cur.close()
+
+            # Remove JSON
+            if json_path and os.path.exists(json_path):
+                os.remove(json_path)
+
+            return jsonify({"message": "Session deleted successfully"}), 200
+
+        else:  # Do nothing for now for in_progress and completed sessions
+            return (
+                jsonify(
+                    {
+                        "error": "Session deletion not supported for in_progress or completed sessions"
+                    }
+                ),
+                400,
+            )
+
+    except Exception as e:
+        conn.rollback()
+
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Find position in session workflow
+@bp.route("/api/get_current_session_step", methods=["POST"])
+@auth_required()
+def get_current_session_step():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check if participant_session_id is provided
+    if not data or "participant_session_id" not in data:
+        return (
+            jsonify({"error": "Missing participant_session_id in request body"}),
+            400,
+        )
+
+    participant_session_id = data["participant_session_id"]
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Find current step
+        find_step_query = """
+        SELECT current_step_index
+        FROM participant_session
+        WHERE participant_session_id = %s;
+        """
+        cur.execute(find_step_query, (participant_session_id,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify({"error": "Session not found"}), 404
+
+        curr_step_index = result[0]
+
+        # Commit changes to the database
+        conn.commit()
+        cur.close()
+
+        return (
+            jsonify(
+                {
+                    "message": "Session step updated",
+                    "current_step_index": curr_step_index,
+                }
+            ),
+            201,
+        )
+
+    except Exception as e:
+        conn.rollback()
+
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Used to update & track where we are at within a session workflow
+@bp.route("/api/update_current_session_step", methods=["POST"])
+@auth_required()
+def update_current_session_step():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check if study_id is provided
+    if not data or "participant_session_id" not in data:
+        return (
+            jsonify({"error": "Missing participant_session_id in request body"}),
+            400,
+        )
+
+    participant_session_id = data["participant_session_id"]
+
+    try:
+        # Connect to the database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Find current step
+        find_step_query = """
+        SELECT current_step_index
+        FROM participant_session
+        WHERE participant_session_id = %s;
+        """
+        cur.execute(find_step_query, (participant_session_id,))
+        result = cur.fetchone()
+
+        if result is None:
+            return jsonify({"error": "Session not found"}), 404
+
+        current_step_index = result[0]
+        new_step_index = current_step_index + 1
+
+        if current_step_index == 0:
+            update_step_query = """
+            UPDATE participant_session
+            SET current_step_index = %s,
+                started_at = CURRENT_TIMESTAMP,
+                status = 'in_progress'
+            WHERE participant_session_id = %s
+            """
+        else:
+            update_step_query = """
+            UPDATE participant_session
+            SET current_step_index = %s,
+                status = 'in_progress'
+            WHERE participant_session_id = %s
+            """
+
+        cur.execute(update_step_query, (new_step_index, participant_session_id))
+
+        # Commit changes to the database
+        conn.commit()
+        cur.close()
+
+        return (
+            jsonify(
+                {
+                    "message": "Session step updated",
+                    "current_step_index": new_step_index,
+                }
+            ),
+            201,
+        )
+
+    except Exception as e:
+        conn.rollback()
+
+        # Error message
+        error_type = type(e).__name__
+        error_message = str(e)
+
+        # 500 means internal error, AKA the database probably broke
+        return jsonify({"error_type": error_type, "error_message": error_message}), 500
+
+
+# Saving the participant-entered demographic details from the DemographicForm.vue
+@bp.route("/api/save_participant_demographics", methods=["POST"])
+@auth_required()
+def save_participant_demographics():
+    # Get request and convert to json
+    data = request.get_json()
+
+    # Check if study_id is provided
+    if not data or "participant_session_id" not in data:
+        return (
+            jsonify({"error": "Missing participant_session_id in request body"}),
+            400,
+        )
+    participant_session_id = data["participant_session_id"]
     try:
         # Connect to the database
         conn = get_db_connection()
@@ -625,21 +1062,19 @@ def create_participant_session():
                 ),
             )
 
-        # Insert participant session data into the participant_session table
-        insert_into_participant_session = """
-        INSERT INTO participant_session (participant_id, study_id)
-        VALUES (%s, %s)
+        # Update existing participant session row
+        update_participant_session = """
+        UPDATE participant_session SET participant_id = %s WHERE participant_session_id = %s;
         """
-        cur.execute(insert_into_participant_session, (participant_id, study_id))
-
-        # session id needed back on the vue side to pass to local script so we can save csv data properly
-        participant_session_id = cur.lastrowid
+        cur.execute(
+            update_participant_session, (participant_id, participant_session_id)
+        )
 
         # Commit changes to the database
         conn.commit()
         cur.close()
 
-        return jsonify({"participant_session_id": participant_session_id}), 201
+        return jsonify({"participant_id": participant_id}), 200
 
     except Exception as e:
         conn.rollback()
@@ -666,20 +1101,22 @@ def get_all_session_info():
                 400,
             )
         study_id = data["study_id"]
+
         # Connect to the database
         conn = get_db_connection()
         cur = conn.cursor()
 
         select_session_info_query = """
-        SELECT participant_session_id,
-        ROW_NUMBER() OVER (ORDER BY created_at) AS 'Session Name',
-        created_at AS 'Date Conducted',
-        CASE
-            WHEN is_valid = 1 THEN 'Valid'
-            WHEN is_valid = 0 THEN 'Invalid'
-        END AS 'Status',
-        IFNULL(comments, '') AS 'Comments',  -- If comments is null, return an empty string
-        IFNULL(ended_at, 'N/A') AS 'Ended At'  -- If ended_at is null, return 'N/A'
+        SELECT
+            participant_session_id,
+            ROW_NUMBER() OVER (ORDER BY created_at) AS 'Session Number',
+            created_at AS 'Date Created',
+            status AS 'Status', 
+            CASE
+                WHEN is_valid = 1 THEN 'Valid'
+                WHEN is_valid = 0 THEN 'Invalid'
+            END AS 'Validity',
+            IFNULL(comments, 'No comments') AS 'Comments'  -- If comments is null, return an empty string
         FROM participant_session
         WHERE study_id = %s
         """
@@ -781,10 +1218,10 @@ def save_facilitator_session_notes():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Update participant sess tbl
+        # Get consent form id
         update_participant_session_query = """
         UPDATE participant_session
-        SET ended_at=CURRENT_TIMESTAMP, comments=%s, is_valid=%s
+        SET ended_at=CURRENT_TIMESTAMP, comments=%s, is_valid=%s, status='complete'
         WHERE participant_session_id=%s;
         """
         cur.execute(

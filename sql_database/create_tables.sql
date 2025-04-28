@@ -180,6 +180,10 @@ CREATE TABLE participant_session (
     ended_at TIMESTAMP NULL,
     comments VARCHAR(255) NULL,
     is_valid TINYINT(1) NOT NULL DEFAULT 1,
+    status ENUM('new', 'in_progress', 'complete') NOT NULL DEFAULT 'new',
+    session_setup_json_path VARCHAR(255),
+    current_step_index TINYINT DEFAULT 0,
+    started_at TIMESTAMP NULL,
     FOREIGN KEY (participant_id) REFERENCES participant(participant_id),
     FOREIGN KEY (study_id) REFERENCES study(study_id),
     CHECK (is_valid IN (0, 1))

@@ -3,7 +3,7 @@
     <FileUploadAndPreview
       :modelValue="consentUpload"
       :preview-disabled="!consentUpload"
-      @update:modelValue="$emit('update:consentUpload', $event)"
+      @update:modelValue="$emit('update:consentUpload', $event ?? null)"
       label="Consent Form (PDF)"
       accept=".pdf"
       @preview="previewConsentForm"

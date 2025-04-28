@@ -109,13 +109,7 @@
                   v-if="item.role === 'Owner'"
                   v-tooltip="'Delete'"
                   size="small"
-                  @click="
-                    displayDialog({
-                      title: 'Delete Study?',
-                      text: 'Are you sure you want to delete this study?',
-                      studyID: item.studyID,
-                    })
-                  "
+                  @click="openDeleteConfirmation(item.studyID)"
                 >
                   mdi-delete
                 </v-icon>
@@ -128,148 +122,146 @@
       <StudyPanel
         v-if="drawer && studyStore.drawerStudyID"
         :drawer="drawer"
-        @update:drawer="drawer = $event"
+        @update:drawer="handleDrawerUpdate"
         @close="drawer = false"
       />
+      <v-dialog v-model="shareDialog" persistent width="640">
+        <v-slide-y-transition mode="in-out">
+          <v-card v-if="shareDialog" elevation="4" class="pa-6 share-card">
+            <!-- Top Bar -->
+            <v-card-title class="d-flex justify-space-between align-center">
+              <span class="share-title">Share "{{ sharingStudyName }}"</span>
+            </v-card-title>
+            <v-card-text>
+              <!-- Only show add user form if user has permission -->
+              <div
+                class="d-flex align-center mb-4"
+                v-if="['Owner', 'Editor'].includes(requestingUserRole)"
+              >
+                <v-text-field
+                  v-model="newShareEmail"
+                  label="Add people, groups, or emails"
+                  prepend-inner-icon="mdi-account-plus"
+                  class="flex-grow-1 mr-4"
+                  density="comfortable"
+                  hide-details="auto"
+                  outlined
+                  @keyup.enter="handleEnter"
+                />
 
-      <div class="text-center pa-4">
-        <v-dialog v-model="dialog" max-width="400" persistent>
-          <v-card
-            prepend-icon="mdi-alert-outline"
-            :text="dialogDetails.text"
-            :title="dialogDetails.title"
-          >
-            <template v-slot:actions>
-              <v-spacer></v-spacer>
+                <v-select
+                  v-if="showRoleSelector"
+                  v-model="newUserRole"
+                  :items="['Viewer', 'Editor']"
+                  label="Role"
+                  hide-details
+                  dense
+                  outlined
+                  style="width: 130px"
+                  @change="confirmAddUser"
+                />
+              </div>
 
-              <v-btn @click="closeDialog()"> Cancel </v-btn>
+              <!-- People With Access Label -->
+              <p class="people-access-label mb-2">People with access</p>
 
-              <v-btn @click="closeDialog('yes')"> Agree </v-btn>
-            </template>
-          </v-card>
-        </v-dialog>
-        <v-dialog v-model="shareDialog" persistent width="640">
-          <v-slide-y-transition mode="in-out">
-            <v-card v-if="shareDialog" elevation="4" class="pa-6 share-card">
-              <!-- Top Bar -->
-              <v-card-title class="d-flex justify-space-between align-center">
-                <span class="share-title">Share "{{ sharingStudyName }}"</span>
-              </v-card-title>
-              <v-card-text>
-                <!-- Only show add user form if user has permission -->
+              <!-- User Rows -->
+              <v-list class="pa-0" elevation="0">
                 <div
-                  class="d-flex align-center mb-4"
-                  v-if="['Owner', 'Editor'].includes(requestingUserRole)"
+                  v-for="(user, index) in sortedUsers"
+                  :key="index"
+                  class="d-flex align-center justify-space-between user-row px-2 py-2"
                 >
-                  <v-text-field
-                    v-model="newShareEmail"
-                    label="Add people, groups, or emails"
-                    prepend-inner-icon="mdi-account-plus"
-                    class="flex-grow-1 mr-4"
-                    density="comfortable"
-                    hide-details="auto"
-                    outlined
-                    @keyup.enter="handleEnter"
-                  />
+                  <!-- Avatar -->
+                  <v-avatar size="36" class="mr-4">
+                    <img src="/images/unr n.jpg" alt="pfp" />
+                  </v-avatar>
 
-                  <v-select
-                    v-if="showRoleSelector"
-                    v-model="newUserRole"
-                    :items="['Viewer', 'Editor']"
-                    label="Role"
-                    hide-details
-                    dense
-                    outlined
-                    style="width: 130px"
-                    @change="confirmAddUser"
-                  />
-                </div>
-
-                <!-- People With Access Label -->
-                <p class="people-access-label mb-2">People with access</p>
-
-                <!-- User Rows -->
-                <v-list class="pa-0" elevation="0">
+                  <!-- Email + Role (flex grow) -->
                   <div
-                    v-for="(user, index) in sortedUsers"
-                    :key="index"
-                    class="d-flex align-center justify-space-between user-row px-2 py-2"
+                    class="d-flex align-center flex-grow-1 justify-space-between"
                   >
-                    <!-- Avatar -->
-                    <v-avatar size="36" class="mr-4">
-                      <img
-                        src="/images/Nevada-Wolf-Pack-football-logo.jpg"
-                        alt="pfp"
-                      />
-                    </v-avatar>
+                    <!-- Email -->
+                    <span class="user-email">{{ user.email }}</span>
 
-                    <!-- Email + Role (flex grow) -->
-                    <div
-                      class="d-flex align-center flex-grow-1 justify-space-between"
-                    >
-                      <!-- Email -->
-                      <span class="user-email">{{ user.email }}</span>
+                    <!-- Role -->
+                    <v-select
+                      v-if="canChangeRole(user)"
+                      v-model="user.role"
+                      :items="['Viewer', 'Editor']"
+                      dense
+                      hide-details
+                      class="role-select"
+                      @update:modelValue="val => changeUserAccess(user, val)"
+                    />
 
-                      <!-- Role -->
-                      <v-select
-                        v-if="canChangeRole(user)"
-                        v-model="user.role"
-                        :items="['Viewer', 'Editor']"
-                        dense
-                        hide-details
-                        class="role-select"
-                        @update:modelValue="val => changeUserAccess(user, val)"
-                      />
-
-                      <span v-else class="user-role ml-4">
-                        {{ user.role }}
-                      </span>
-                    </div>
-
-                    <!-- Trash icon -->
-                    <v-btn
-                      v-if="
-                        requestingUserRole === 'Owner' &&
-                        user.role !== 'Owner' &&
-                        user.email !== currentUserEmail
-                      "
-                      icon
-                      @click="removeSharedUser(index)"
-                      class="ml-2"
-                    >
-                      <v-icon color="red">mdi-trash-can-outline</v-icon>
-                    </v-btn>
+                    <span v-else class="user-role ml-4">
+                      {{ user.role }}
+                    </span>
                   </div>
-                </v-list>
-                <v-alert
-                  v-if="errorMessage"
-                  type="error"
-                  class="mt-4 text-center"
-                  variant="outlined"
-                >
-                  {{ errorMessage }}
-                </v-alert>
 
-                <v-alert
-                  v-if="successMessage"
-                  type="success"
-                  class="mt-4 text-center"
-                  variant="outlined"
-                >
-                  {{ successMessage }}
-                </v-alert>
-
-                <!-- Done Button -->
-                <v-row justify="end" class="mt-4">
-                  <v-btn color="primary" @click="shareDialog = false"
-                    >Done</v-btn
+                  <!-- Trash icon for Owners removing others -->
+                  <v-btn
+                    v-if="
+                      requestingUserRole === 'Owner' &&
+                      user.role !== 'Owner' &&
+                      user.email !== currentUserEmail
+                    "
+                    icon
+                    @click="removeSharedUser(user.email)"
+                    class="ml-2"
+                    color="transparent"
                   >
-                </v-row>
-              </v-card-text>
-            </v-card>
-          </v-slide-y-transition>
-        </v-dialog>
-      </div>
+                    <v-icon>mdi-trash-can-outline</v-icon>
+                  </v-btn>
+                </div>
+              </v-list>
+              <v-alert
+                v-if="errorMessage"
+                type="error"
+                class="mt-4 text-center"
+                variant="outlined"
+              >
+                {{ errorMessage }}
+              </v-alert>
+
+              <v-alert
+                v-if="successMessage"
+                type="success"
+                class="mt-4 text-center"
+                variant="outlined"
+              >
+                {{ successMessage }}
+              </v-alert>
+
+              <!-- Done and Leave Buttons -->
+              <v-row justify="end" class="mt-4" align="center" no-gutters>
+                <v-btn
+                  v-if="
+                    requestingUserRole === 'Editor' ||
+                    requestingUserRole === 'Viewer'
+                  "
+                  color="error"
+                  class="mr-4"
+                  @click="openLeaveConfirmation"
+                >
+                  <v-icon left>mdi-exit-run</v-icon> Leave Study
+                </v-btn>
+
+                <v-btn color="primary" @click="shareDialog = false">
+                  Done
+                </v-btn>
+              </v-row>
+            </v-card-text>
+          </v-card>
+        </v-slide-y-transition>
+      </v-dialog>
+      <ConfirmationDialog
+        v-model="confirmLeaveDialog"
+        :dialogDetails="leaveDialogDetails"
+        @confirm="performLeaveStudy"
+        @cancel="confirmLeaveDialog = false"
+      />
     </v-container>
   </v-main>
 </template>
@@ -277,16 +269,23 @@
 <script>
 import StudyPanel from '@/components/StudyPanel.vue'
 import SearchBar from '@/components/SearchBar.vue'
+import ConfirmationDialog from '@/components/ConfirmationDialog.vue'
 import api from '@/axiosInstance'
 import { useStudyStore } from '@/stores/study'
 export default {
-  components: { StudyPanel, SearchBar },
+  components: { StudyPanel, SearchBar, ConfirmationDialog },
   setup() {
     const studyStore = useStudyStore()
     return { studyStore }
   },
   data() {
     return {
+      confirmLeaveDialog: false,
+      leaveDialogDetails: {
+        title: '',
+        text: '',
+        source: '',
+      },
       errorMessage: '',
       successMessage: '',
       showRoleSelector: false,
@@ -319,8 +318,6 @@ export default {
         { key: 'role', title: 'Role', sortable: false },
         { key: 'actions', title: 'Actions', sortable: false },
       ],
-      dialog: false,
-      dialogDetails: { title: '', text: '', study: '' },
       studies: [],
     }
   },
@@ -337,28 +334,100 @@ export default {
   },
   async mounted() {
     const studyStore = useStudyStore()
-    studyStore.clearSessionJson() // Incase we quit during a session, we reset this
+    studyStore.clearSessionID()
+    await this.populateStudies()
+
     if (studyStore.drawerStudyID) {
       this.openDrawer(studyStore.drawerStudyID)
     }
-    await this.populateStudies()
-    const studyID = this.$route.query.studyID
-    if (studyID) {
-      this.openDrawer(Number(studyID))
-    }
   },
-
-  watch: {
-    drawer(newVal) {
-      if (!newVal && this.$route.query.studyID) {
-        this.$router.replace({
-          query: { ...this.$route.query, studyID: undefined },
-        })
-      }
-    },
+  confirmLeaveStudy() {
+    this.displayDialog({
+      title: 'Leave Study?',
+      text: 'Are you sure you want to leave this study?',
+      action: 'leave', // custom field to distinguish
+    })
   },
 
   methods: {
+    handleDrawerUpdate(newVal) {
+      this.drawer = newVal
+      if (!newVal) {
+        const studyStore = useStudyStore()
+        studyStore.clearDrawerStudyID()
+      }
+    },
+    openLeaveConfirmation() {
+      this.leaveDialogDetails = {
+        title: 'Leave Study?',
+        text: 'You will lose access to this study. Are you sure you want to leave?',
+        source: 'leave',
+      }
+      this.confirmLeaveDialog = true
+    },
+    openDeleteConfirmation(studyID) {
+      this.leaveDialogDetails = {
+        title: 'Delete Study?',
+        text: 'Are you sure you want to delete this study?',
+        source: 'delete',
+        studyID: studyID,
+      }
+      this.confirmLeaveDialog = true
+    },
+
+    async performLeaveStudy() {
+      try {
+        if (this.leaveDialogDetails.source === 'leave') {
+          const res = await api.post('/leave_user_study_access', {
+            studyID: this.currentStudyForSharing.studyID,
+            desiredUserEmail: this.currentUserEmail,
+          })
+
+          if (res.status === 200) {
+            this.successMessage = 'You have left the study.'
+            this.shareDialog = false
+            await this.populateStudies()
+          } else {
+            this.errorMessage = 'Failed to leave the study.'
+          }
+        } else if (this.leaveDialogDetails.source === 'delete') {
+          const res = await api.post('/delete_study', {
+            studyID: this.leaveDialogDetails.studyID,
+          })
+
+          if (res.status === 200) {
+            this.successMessage = 'Study deleted successfully.'
+            await this.populateStudies()
+          } else {
+            this.errorMessage = 'Failed to delete study.'
+          }
+        }
+      } catch (error) {
+        console.error('Error performing action:', error)
+        this.errorMessage = 'Error trying to perform the action.'
+      }
+    },
+    async removeMyselfFromStudy() {
+      if (!this.currentStudyForSharing) return
+
+      try {
+        const res = await api.post('/leave_user_study_access', {
+          studyID: this.currentStudyForSharing.studyID,
+          desiredUserEmail: this.currentUserEmail,
+        })
+
+        if (res.status === 200) {
+          this.successMessage = 'You have left the study.'
+          this.shareDialog = false
+          await this.populateStudies() // Refresh the studies list
+        } else {
+          this.errorMessage = 'Failed to leave the study.'
+        }
+      } catch (err) {
+        console.error('Error leaving study:', err)
+        this.errorMessage = 'Error trying to leave the study.'
+      }
+    },
     canChangeRole(user) {
       if (this.requestingUserRole === 'Owner') {
         return user.role !== 'Owner'
@@ -471,11 +540,9 @@ export default {
         this.errorMessage = 'Could not fetch sharing info.'
       }
     },
-    async removeSharedUser(index) {
+    async removeSharedUser(userEmail) {
       this.successMessage = ''
       this.errorMessage = ''
-
-      const userEmail = this.sharedUsers[index].email
 
       if (this.requestingUserRole !== 'Owner') {
         this.errorMessage = 'Only owners can remove users.'
@@ -550,10 +617,8 @@ export default {
     openNewStudy() {
       const studyStore = useStudyStore()
       studyStore.clearStudyID()
-      // studyStore.clearDrawerStudyID?.() // optional: in case drawer was open
       sessionStorage.removeItem('currentStudyID')
       studyStore.incrementFormResetKey()
-
       this.$router.push({ name: 'StudyForm' })
     },
 
@@ -572,11 +637,6 @@ export default {
         this.drawer = true
         studyStore.setDrawerStudyID(match.studyID)
       }
-    },
-
-    displayDialog(details) {
-      this.dialogDetails = { ...details }
-      this.dialog = true
     },
 
     async downloadStudyData(studyID) {
@@ -636,20 +696,6 @@ export default {
       studyStore.setStudyID(studyID)
       studyStore.incrementFormResetKey()
       this.$router.push({ name: 'StudyForm' })
-    },
-
-    async closeDialog(choice) {
-      if (choice == 'yes') {
-        const studyID = this.dialogDetails.studyID
-
-        try {
-          const response = await api.post(`/delete_study`, { studyID })
-          this.studies = this.studies.filter(study => study.studyID !== studyID)
-        } catch (error) {
-          console.error('Error:', error.response?.data || error.message)
-        }
-      }
-      this.dialog = false
     },
   },
 }
@@ -778,5 +824,10 @@ h2 {
 .v-text-field,
 .v-select {
   max-height: 44px;
+}
+.v-avatar img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 </style>

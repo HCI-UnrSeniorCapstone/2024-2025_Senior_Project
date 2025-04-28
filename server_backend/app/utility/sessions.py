@@ -71,6 +71,7 @@ def get_zip(results_with_size, study_id, conn, mode):
     participant_sessions = get_participant_session_name_for_folder(
         study_id, conn.cursor()
     )
+    cur = conn.cursor()
 
     # Create an in-memory ZIP file
     memory_file = io.BytesIO()
@@ -142,6 +143,47 @@ def get_zip(results_with_size, study_id, conn, mode):
                     logger.warning(f"Skipping inaccessible MP4 file: {results_path}")
                 else:
                     logger.warning(f"Skipping unknown file type: {results_path}")
+
+        # Are we looking at the study-level (many sessions) or looking at a single session
+        if mode == "participant_session":
+            participant_session_ids = {row[-1] for row in results_with_size}
+            participant_sessions_filtered = {
+                pid: participant_sessions.get(pid, "UnknownSession")
+                for pid in participant_session_ids
+            }
+        else:
+            participant_sessions_filtered = participant_sessions
+
+        # Grab pre/post survey responses
+        for (
+            participant_session_id,
+            participant_number,
+        ) in participant_sessions_filtered.items():
+            survey_query = """
+                SELECT
+                    survey_results.file_path,
+                    survey_form.form_type
+                FROM survey_results
+                INNER JOIN survey_form
+                ON survey_results.survey_form_id = survey_form.survey_form_id
+                WHERE survey_results.participant_session_id = %s
+            """
+            cur.execute(survey_query, (participant_session_id,))
+            survey_results = cur.fetchall()
+
+            for file_path, form_type in survey_results:
+                if os.path.exists(file_path):
+                    filename = os.path.basename(file_path)
+
+                    if mode == "participant_session":
+                        survey_folder = f"{form_type}_survey"
+                    else:
+                        folder = f"{participant_number}_participant_session"
+                        survey_folder = f"{folder}/{form_type}_survey"
+                    zip_path = f"{survey_folder}/{filename}"
+
+                    with open(file_path, "rb") as f:
+                        zipf.writestr(zip_path, f.read())
 
     memory_file.seek(0)
     return memory_file

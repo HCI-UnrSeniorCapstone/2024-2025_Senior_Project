@@ -45,7 +45,7 @@ def write_to_csv(measurement_type, feature, arr_data, is_used, task, dir_trial):
     # Prevent writing values that exceeded task duration due to delay between signaling task end and stopping tracking threads
     task_dur = task.get("taskDuration")
     if task_dur is not None:
-        time_cutoff = float(task_dur)
+        time_cutoff = float(task_dur) * 60
     else:
         time_cutoff = float("inf")
     updated_data = [row for row in arr_data if float(row[1]) <= time_cutoff]

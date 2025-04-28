@@ -1,18 +1,28 @@
-# Purpose: Holds all UI and functionality related to Global Toolbar
-
+# Purpose: Holds all UI and functionality related to Global Toolbar with an integrated Flask for external communication
 
 import sys
 import json
 import threading
 import os
+import shutil
 import time
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
 # PyQt libraries
-from PyQt6.QtCore import Qt, QSize, QTimer, pyqtSignal, pyqtSlot, QObject
+from PyQt6.QtCore import (
+    Qt,
+    QSize,
+    QTimer,
+    pyqtSignal,
+    pyqtSlot,
+    QObject,
+    QPropertyAnimation,
+    QPoint,
+)
 from PyQt6.QtGui import QIcon
+from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
     QApplication,
     QPushButton,
@@ -23,6 +33,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QDialog,
     QFileDialog,
+    QStackedLayout,
 )
 from tracking.tracking import conduct_trial
 from tracking.utility.file_management import package_session_results, get_save_dir
@@ -37,11 +48,18 @@ from tracking.utility.screenrecording import (
     adjustments_finished,
 )
 from tracking.utility.heatmap import heatmap_generation_complete
-from routes.send_server import send_to_server
+
+
+# Need for import paths to work for icons when creating the executable
+def resource_path(relative_path):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 
 class SignalBridge(QObject):
     session_data_received = pyqtSignal(dict)
+    shutdown_requested = pyqtSignal()
 
 
 # Ref https://www.pythonguis.com/tutorials/pyqt6-widgets/
@@ -50,10 +68,11 @@ class GlobalToolbar(QWidget):
         super().__init__()
         self.signal_bridge = signal_bridge
         self.signal_bridge.session_data_received.connect(self.on_session_data_received)
+        self.signal_bridge.shutdown_requested.connect(self.shutdown_app)
 
         self.session_json = {}
         self.setup_ui()
-        self.facilitator_setup()  # so facilitator can specify output path beforehand rather than during the session (cleaner)
+        self.initial_setup()  # so facilitator can specify output path beforehand rather than during the session (cleaner)
         self.trial_index = 0
         self.oldPos = None  # track toolbar pos on screen
         self.session_paused = False
@@ -61,6 +80,9 @@ class GlobalToolbar(QWidget):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_countdown)
+
+        # Toolbar orientation
+        self.minimized_mode = False
 
     @pyqtSlot(dict)
     def on_session_data_received(self, session_data):
@@ -74,6 +96,34 @@ class GlobalToolbar(QWidget):
 
         self.start_btn.setEnabled(True)
 
+    # Handle shutdown cleanly based on different cases
+    @pyqtSlot()
+    def shutdown_app(self):
+        print("Shutdown occuring...")
+
+        # Case 1: Shutting down having never started
+        if self.trial_index == 0:
+            self.force_shutdown()
+        # Case 2: Shutting down after having closed the toolbar (flask waiting for shutdown signal)
+        elif not self.isVisible():
+            self.force_shutdown()
+        # Case 3: Mid-trial, requires safely stopping current trial before closing flask
+        else:
+            print("Cleaning up current trial before shutting down...")
+            try:
+                stop_event.set()
+                pause_event.clear()
+                recording_stop.set()
+                self.wait_trial_save()
+            except Exception as e:
+                print(f"Error shutting down cleanly: {e}")
+            self.force_shutdown()
+
+    def force_shutdown(self):
+        self.close()
+        QApplication.quit()
+        os._exit(0)
+
     # All UI related
     def setup_ui(self):
         self.setWindowFlags(
@@ -84,10 +134,33 @@ class GlobalToolbar(QWidget):
         toolbar_width = self.frameGeometry().width()
         self.move((screen_width - toolbar_width) // 2, 0)
 
-        layout = QHBoxLayout()
-        layout.setSpacing(25)
-        layout.setContentsMargins(5, 5, 5, 5)
-        self.setLayout(layout)
+        self.stacked_layout = QStackedLayout()
+        self.setLayout(self.stacked_layout)
+
+        # Full toolbar view
+        self.full_toolbar = QWidget()
+        full_layout = QHBoxLayout()
+        full_layout.setSpacing(25)
+        full_layout.setContentsMargins(5, 5, 20, 5)
+        self.full_toolbar.setLayout(full_layout)
+
+        # Minimize button
+        self.minimize_btn = QPushButton(self.full_toolbar)
+        self.minimize_btn.setIcon(QIcon(resource_path("icons/minimize.svg")))
+        self.minimize_btn.setIconSize(QSize(12, 12))
+        self.minimize_btn.setFixedSize(24, 24)
+        self.minimize_btn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #36383b;
+            }
+        """
+        )
+        self.minimize_btn.clicked.connect(self.toggle_minimized_mode)
 
         # Format all buttons
         btn_style = """
@@ -131,23 +204,23 @@ class GlobalToolbar(QWidget):
 
         # Start button
         start_layout, self.start_btn, self.start_label = create_btn(
-            "./icons/start.svg", "Start", self.start_session
+            resource_path("icons/start.svg"), "Start", self.start_session
         )
-        layout.addLayout(start_layout)
+        full_layout.addLayout(start_layout)
         self.start_btn.setEnabled(False)
 
         # Pause/Resume button
         pause_layout, self.pause_btn, self.pause_label = create_btn(
-            "./icons/resume.svg", "Resume", self.pause_session
+            resource_path("icons/resume.svg"), "Resume", self.pause_session
         )
-        layout.addLayout(pause_layout)
+        full_layout.addLayout(pause_layout)
         self.pause_btn.setEnabled(False)  # starts disabled
 
         # Next button
         next_layout, self.next_btn, self.next_label = create_btn(
-            "./icons/next.svg", "Next Task", self.move_next_task
+            resource_path("icons/next.svg"), "Next Task", self.move_next_task
         )
-        layout.addLayout(next_layout)
+        full_layout.addLayout(next_layout)
         self.next_btn.setEnabled(False)  # starts disabled
 
         # Timer countdown
@@ -155,35 +228,86 @@ class GlobalToolbar(QWidget):
         self.timer_label.setStyleSheet(
             "color: white; font-size: 16px; padding: 5px 10px; border-radius: 12px; border: 1px solid #444"
         )
-        layout.addWidget(self.timer_label)
+        full_layout.addWidget(self.timer_label)
 
         # Participant's progress
         self.progress = QLabel("           ")
         self.progress.setStyleSheet(
             "color: white; font-size: 16px; padding: 5px 10px; border-radius: 12px; border: 1px solid #444"
         )
-        layout.addWidget(self.progress)
+        full_layout.addWidget(self.progress)
 
         # Recording status (button but does nothing, however, making it this ways makes it consistent with the rest of the ui)
         recording_layout, self.recording_btn, self.recording_label = create_btn(
-            "./icons/not_recording.svg", "Recording", None
+            resource_path("icons/not_recording.svg"), "Not Recording", None
         )
-        layout.addLayout(recording_layout)
+        full_layout.addLayout(recording_layout)
         self.recording_timer = QTimer()
         self.recording_timer.timeout.connect(self.update_recording_status)
         self.recording_timer.start(500)
 
         # Help button
         help_layout, self.help_btn, self.help_label = create_btn(
-            "./icons/help.svg", "Help", self.open_help_menu
+            resource_path("icons/help.svg"), "Help", self.open_help_menu
         )
-        layout.addLayout(help_layout)
+        full_layout.addLayout(help_layout)
 
         # Quit button
         quit_layout, self.quit_btn, self.quit_label = create_btn(
-            "./icons/quit.svg", "Quit", self.leave_session
+            resource_path("icons/quit.svg"), "Quit", self.leave_session
         )
-        layout.addLayout(quit_layout)
+        full_layout.addLayout(quit_layout)
+
+        self.minimize_btn.move(self.full_toolbar.width() - 22, 3)
+        self.minimize_btn.raise_()
+
+        def on_resize(event):
+            self.minimize_btn.move(self.full_toolbar.width() - 22, 3)
+
+        self.full_toolbar.resizeEvent = on_resize
+
+        # Minimized toolbar view
+        self.minimized_toolbar = QWidget()
+        self.minimized_toolbar.setFixedSize(50, 50)
+        self.minimized_toolbar.setStyleSheet(
+            """
+            background-color: #36383B;
+            border-radius: 25px;
+        """
+        )
+
+        mini_layout = QVBoxLayout()
+        mini_layout.setContentsMargins(1, 1, 1, 1)
+        mini_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.minimized_toolbar.setLayout(mini_layout)
+
+        mini_wrapper = QWidget()
+        mini_wrapper.setStyleSheet(
+            """
+            background-color: transparent;
+        """
+        )
+        mini_wrapper_layout = QHBoxLayout()
+        mini_wrapper_layout.setContentsMargins(0, 0, 0, 0)
+        mini_wrapper.setLayout(mini_wrapper_layout)
+
+        self.minimal_icon = QSvgWidget(resource_path("icons/fulcrum.svg"))
+        self.minimal_icon.setFixedSize(40, 40)
+        self.minimal_icon.setStyleSheet(
+            """
+            background-color: transparent;
+            border: none;
+        """
+        )
+        mini_wrapper_layout.addWidget(self.minimal_icon)
+        mini_layout.addWidget(mini_wrapper)
+
+        # Add both to stacked layout
+        self.stacked_layout.addWidget(self.full_toolbar)
+        self.stacked_layout.addWidget(self.minimized_toolbar)
+
+        # Start with full toolbar view
+        self.stacked_layout.setCurrentWidget(self.full_toolbar)
 
     # Getting all study info parsed
     def parse_study_details(self, data):
@@ -193,7 +317,7 @@ class GlobalToolbar(QWidget):
         trials = data.get("trials", [])
         return session_id, tasks, factors, trials
 
-    def facilitator_setup(self):
+    def initial_setup(self):
         welcome_msg = QDialog(self)
         welcome_msg.setWindowTitle("Facilitator Use Only")
         welcome_msg.setWindowFlags(
@@ -259,9 +383,7 @@ class GlobalToolbar(QWidget):
         checkmark_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         checkmark_label.setStyleSheet("font-size: 48pt")
 
-        instructions_label = QLabel(
-            "Once the Participant is ready,\n click Continue to begin"
-        )
+        instructions_label = QLabel("When ready to begin,\n click Continue")
         instructions_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         instructions_label.setStyleSheet("color: white; font-size: 14pt;")
 
@@ -303,35 +425,47 @@ class GlobalToolbar(QWidget):
                 return storage_dir
 
     # Some locations like OneDrive are currently problematic so avoid accepting those until I can figure out a way to validate paths better
-    def validate_storage_loc(self, output_path):
+    def validate_storage_loc(self, output_path, session_id=None, clean_existing=False):
         if not output_path or not os.path.exists(output_path):
             return False
 
+        # Do not allow selection of places that often have write/remove permission issues
         unsupported_locations = ["OneDrive", "Google Drive", "Dropbox"]
         if any(
             keyword.lower() in output_path.lower() for keyword in unsupported_locations
         ):
             return False
 
+        # Ensure no naming collisions
+        if session_id and clean_existing:
+            session_dir = os.path.join(output_path, f"Session_{session_id}")
+            session_zip = os.path.join(output_path, f"session_results_{session_id}.zip")
+
+            # Check & handle Session Folder collisions
+            if os.path.exists(session_dir):
+                index = 1
+                while True:
+                    new_dir = os.path.join(
+                        output_path, f"Session_{session_id}_invalid_{index}"
+                    )
+                    if not os.path.exists(new_dir):
+                        shutil.move(session_dir, new_dir)
+                        break
+                    index += 1
+
+            # Check & handle Session zip collisions
+            if os.path.exists(session_zip):
+                index = 1
+                while True:
+                    new_zip = os.path.join(
+                        output_path, f"session_results_{session_id}_invalid_{index}.zip"
+                    )
+                    if not os.path.exists(new_zip):
+                        shutil.move(session_zip, new_zip)
+                        break
+                    index += 1
+
         return True
-
-        # temp_dir = os.path.join(output_path, "temp_folder")
-        # temp_file = os.path.join(temp_dir, "temp_file.txt")
-
-        # try:
-        #     os.makedirs(temp_dir, exist_ok=True)
-        #     with open(temp_file, "w") as f:
-        #         f.write("X" * 1024)
-        #     os.remove(temp_file)
-        #     os.rmdir(temp_dir)
-        #     return True
-
-        # except PermissionError:
-        #     return False
-
-        # except Exception as e:
-        #     print(f"Error trying to validate storage directory: {e}")
-        #     return False
 
     def start_session(self):
         self.move_next_task()  # start btn treated same way as moving to next task essentially
@@ -340,10 +474,10 @@ class GlobalToolbar(QWidget):
         # Confirm user wants to move on
         trial_end_msg = QMessageBox()
         if self.trial_index > 0:
-            trial_end_msg.setWindowTitle(f"End Task {self.trial_index}?")
+            trial_end_msg.setWindowTitle(f"End Trial {self.trial_index}?")
         else:
             trial_end_msg.setWindowTitle(f"Begin")
-        trial_end_msg.setText(f"Are you ready to start Task {self.trial_index + 1}?")
+        trial_end_msg.setText(f"Begin Trial {self.trial_index + 1}?")
         trial_end_msg.setStandardButtons(
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
         )
@@ -354,6 +488,10 @@ class GlobalToolbar(QWidget):
                 sess_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 self.session_json["sessionStartTime"] = sess_start_time
                 print(f"Session start time: {sess_start_time}")
+                # Check & resolve naming collisions before we start trials
+                self.validate_storage_loc(
+                    self.storage_dir, self.session_id, clean_existing=True
+                )
             if self.trial_index > 0:
                 # Make sure prior trial's details are saved before moving fwd
                 stop_event.set()
@@ -365,13 +503,19 @@ class GlobalToolbar(QWidget):
             trial = self.trials[self.trial_index]
             task_id = str(trial["taskID"])
             task = self.tasks[task_id]
+            task_name = task["taskName"]
             task_dirs = task["taskDirections"]
             task_dur = task.get("taskDuration", None)
+            if task_dur is not None:
+                task_dur = f"{float(task_dur):.2f}"
             factor_id = str(trial["factorID"])
             factor = self.factors[factor_id]
+            factor_name = factor["factorName"]
 
             # Display info for new trial
-            self.display_new_trial_info(task_dur, task_dirs)
+            self.display_new_trial_info(
+                self.trial_index + 1, task_name, task_dur, task_dirs, factor_name
+            )
 
             # Get trial start timestamp here for JSON
             trial_start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -385,7 +529,7 @@ class GlobalToolbar(QWidget):
             self.session_paused = False
 
             self.pause_btn.setEnabled(True)
-            self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
+            self.pause_btn.setIcon(QIcon(resource_path("icons/pause.svg")))
             self.pause_label.setText("Pause")
 
             pause_event.set()  # start tracking
@@ -406,12 +550,12 @@ class GlobalToolbar(QWidget):
             trial_thread.start()
 
             if task_dur:
-                self.initiate_countdown(int(float(task_dur) * 1))
+                self.initiate_countdown(int(float(task_dur) * 60))
             else:
                 self.timer_label.setText("No Time Limit")
                 self.next_btn.setEnabled(True)
                 self.pause_btn.setEnabled(True)
-                self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
+                self.pause_btn.setIcon(QIcon(resource_path("icons/pause.svg")))
                 self.pause_label.setText("Pause")
 
             if (
@@ -420,21 +564,23 @@ class GlobalToolbar(QWidget):
                 self.next_btn.setEnabled(False)
 
             self.trial_index += 1
-            self.progress.setText(f"Task {self.trial_index} of {len(self.trials)}")
+            self.progress.setText(f"Trial {self.trial_index} of {len(self.trials)}")
 
     # Show details of current trial in pop-up
-    def display_new_trial_info(self, dur, dir):
+    def display_new_trial_info(self, trial_num, t_name, t_dur, t_dir, f_name):
         trial_start_msg = QMessageBox()
-        trial_start_msg.setWindowTitle(f"Task {self.trial_index + 1}")
+        trial_start_msg.setWindowTitle(f"Trial {trial_num}")
 
         contents = ""
-        if dir:
-            contents += f"Directions: {dir}\n"
-        if dur:
-            contents += f"Duration: {dur} minutes"
+        if t_dir:
+            contents += f"<b>Directions:</b> {t_dir}<br><br>"
+        if t_dur:
+            contents += f"<b>Duration:</b> {t_dur} minutes<br><br>"
         else:
-            contents += f"Duration: No time limit"
+            contents += f"<b>Duration:</b> No time limit<br><br>"
+        contents += f"<span style='font-size:10pt; color:gray;'>(Task: {t_name} | Factor: {f_name})</span>"
 
+        trial_start_msg.setTextFormat(Qt.TextFormat.RichText)
         trial_start_msg.setText(contents)
 
         trial_start_msg.setStandardButtons(QMessageBox.StandardButton.Ok)
@@ -464,13 +610,16 @@ class GlobalToolbar(QWidget):
             self.pause_btn.setEnabled(
                 False
             )  # disable pause when task is at its end since no tracking occuring
-            self.pause_btn.setIcon(QIcon("./icons/resume.svg"))
+            self.pause_btn.setIcon(QIcon(resource_path("icons/resume.svg")))
             self.pause_label.setText("Resume")
         if self.countdown > 0 and not self.session_paused:
             self.countdown -= 1
             self.format_countdown()
         else:
             self.timer.stop()
+            # Automatically expand when duration hits zero for timed tasks
+            if self.minimized_mode:
+                self.expand_toolbar()
 
             if self.trial_index < len(self.trials):
                 self.next_btn.setEnabled(
@@ -496,13 +645,13 @@ class GlobalToolbar(QWidget):
 
         if self.session_paused:
             print("session paused")
-            self.pause_btn.setIcon(QIcon("./icons/resume.svg"))
+            self.pause_btn.setIcon(QIcon(resource_path("icons/resume.svg")))
             self.pause_label.setText("Resume")
             pause_event.clear()
             self.timer.stop()
         else:
             print("session resumed")
-            self.pause_btn.setIcon(QIcon("./icons/pause.svg"))
+            self.pause_btn.setIcon(QIcon(resource_path("icons/pause.svg")))
             self.pause_label.setText("Pause")
             pause_event.set()
             if self.countdown > 0:
@@ -512,9 +661,11 @@ class GlobalToolbar(QWidget):
 
     def update_recording_status(self):
         if recording_active.is_set():
-            self.recording_btn.setIcon(QIcon("./icons/recording.svg"))
+            self.recording_btn.setIcon(QIcon(resource_path("icons/recording.svg")))
+            self.recording_label.setText("Recording")
         else:
-            self.recording_btn.setIcon(QIcon("./icons/not_recording.svg"))
+            self.recording_btn.setIcon(QIcon(resource_path("icons/not_recording.svg")))
+            self.recording_label.setText("Not Recording")
 
     def open_help_menu(self):
         help_msg = QMessageBox()
@@ -526,18 +677,27 @@ class GlobalToolbar(QWidget):
             ]  # -1 (unlike move_next_task) because we want info for current task not the next one
             task_id = str(curr_trial["taskID"])
             task = self.tasks[task_id]
+            task_name = task["taskName"]
             task_dirs = task["taskDirections"]
+            factor_id = str(curr_trial["factorID"])
+            factor = self.factors[factor_id]
+            factor_name = factor["factorName"]
+
             if not task_dirs:
-                task_dirs = "Ask facilitator for directions if needed"
+                task_dirs = "No directions provided for this trial"
+
+            help_msg.setTextFormat(Qt.TextFormat.RichText)
             help_msg.setText(
-                f"<b>Directions:</b>\n"
+                f"<b>Directions:</b>"
                 f"<ul><li>{task_dirs}</li></ul>"
-                f"<b>Toolbar Guide:</b>\n"
+                f"<b>Current Trial Info:</b>"
+                f"<ul><li><b>Task:</b> {task_name}</li><li><b>Factor:</b> {factor_name}</li></ul>"
+                f"<b>Toolbar Guide:</b>"
                 "<ul>"
-                "<li><b>Start:</b> Begins a new session (<b>NOT</b> a new task). This is only available at the start of a session</li>"
-                "<li><b>Pause/Resume:</b> Will pause the current task if needed. Clicking again will resume the current task</li>"
-                "<li><b>Next Task:</b> Will advance the session to the next task. For timed tasks, this action is disabled until the timer hits zero. <b>WARNING -</b> For non-timed tasks please confirm with the facilitator before moving forward</li>"
-                "<li><b>Quit:</b> Ends the session and closes the application. <b>WARNING -</b> Quitting the session before completing all tasks may invalidate results. Please confirm with the facilitator before exiting</li>"
+                "<li><b>Start:</b> Begins a new session</li>"
+                "<li><b>Pause/Resume:</b> Pauses the current trial. Clicking again will resume the current trial</li>"
+                "<li><b>Next Task:</b> Advances the session to the next trial. For timed trials, this action is disabled until the countdown hits zero. <b>WARNING -</b> For non-timed trials, please confirm before moving forward</li>"
+                "<li><b>Quit:</b> Ends the session and closes the application. <b>WARNING -</b> Quitting the session before completing all trials may invalidate results. Please confirm before exiting</li>"
                 "</ul>"
             )
         else:  # have not started a task yet, aka still on start screen
@@ -567,9 +727,11 @@ class GlobalToolbar(QWidget):
         if is_last_task and is_task_finished:
             confirmation_msg = "Are you sure you want to exit?"
         elif is_last_task and task_dur is None:  # untimed last task
-            confirmation_msg = "Are you sure you want to exit? Please confirm with facilitator before exiting."
+            confirmation_msg = (
+                "Are you sure you want to exit? Please confirm before exiting."
+            )
         else:  # quitting early
-            confirmation_msg = "Are you sure you want to exit before completing the session? Ending early may invalidate results. Please confirm with facilitator before exiting."
+            confirmation_msg = "Are you sure you want to exit before completing the session? Ending early may invalidate results. Proceed?"
 
         confirm_quit = QMessageBox.question(
             self,
@@ -596,25 +758,14 @@ class GlobalToolbar(QWidget):
                     except Exception as e:
                         print(f"Error packaging data: {e}")
 
-                zip_path = os.path.join(
-                    self.storage_dir, f"session_results_{self.session_id}.zip"
-                )
-
-                if os.path.exists(zip_path):
-                    try:
-                        send_to_server(zip_path, self.session_json)
-                        # print(self.session_json)
-
-                    except Exception as e:
-                        print(f"Error sending json: {e}")
-
-            QApplication.quit()
+            print("Tracking complete. Waiting for shutdown signal...")
+            self.hide()
 
     # Used to make sure the current trial's data saved before advancing to avoid race conditions and data loss of fatter prior trials
     def wait_trial_save(self):
         # Add pop-up in case local saving results (mp4, heatmap, csv's) takes a while before the app can close so user doesn't mistake for frozen
         save_msg = QDialog(self)
-        save_msg.setWindowTitle("Task Complete!")
+        save_msg.setWindowTitle("Trial Complete!")
         save_msg.setWindowFlags(
             Qt.WindowType.Dialog
             | Qt.WindowType.WindowStaysOnTopHint
@@ -686,10 +837,59 @@ class GlobalToolbar(QWidget):
     def mousePressEvent(self, evt):
         self.oldPos = evt.globalPosition().toPoint()
 
+    def mouseDoubleClickEvent(self, evt):
+        if self.minimized_mode:
+            self.expand_toolbar()
+
     def mouseMoveEvent(self, evt):
+        if self.oldPos is None:
+            return
         delta = evt.globalPosition().toPoint() - self.oldPos
         self.move(self.x() + delta.x(), self.y() + delta.y())
         self.oldPos = evt.globalPosition().toPoint()
+
+    def mouseReleaseEvent(self, evt):
+        self.snap_to_edge()
+
+    # Toolbar snapping to screen border behavior
+    def snap_to_edge(self):
+        screen_geo = QApplication.primaryScreen().geometry()
+        toolbar_geo = self.geometry()
+
+        # Full toolbar snaps top center always
+        if not self.minimized_mode:
+            x = (screen_geo.width() - toolbar_geo.width()) // 2
+            y = 0
+            self.move(x, y)
+
+        # Mini toolbar snaps anywhere to the closest edge
+        else:
+            center = toolbar_geo.center()
+            distances = {
+                "top": center.y(),
+                "bottom": screen_geo.height() - center.y(),
+                "left": center.x(),
+                "right": screen_geo.width() - center.x(),
+            }
+            nearest_edge = min(distances, key=distances.get)
+
+            x, y = toolbar_geo.topLeft().x(), toolbar_geo.topLeft().y()
+
+            if nearest_edge == "top":
+                y = 0
+            elif nearest_edge == "bottom":
+                y = screen_geo.height() - toolbar_geo.height()
+            elif nearest_edge == "left":
+                x = 0
+            elif nearest_edge == "right":
+                x = screen_geo.width() - toolbar_geo.width()
+
+            # Animate snap
+            animation = QPropertyAnimation(self, b"pos")
+            animation.setDuration(200)
+            animation.setEndValue(QPoint(x, y))
+            animation.start()
+            self.snap_animation = animation
 
     def get_dialog_placement_pos(self, box):
         screen = QApplication.primaryScreen().geometry()
@@ -698,23 +898,105 @@ class GlobalToolbar(QWidget):
 
         return x_pos, y_pos
 
+    def toggle_minimized_mode(self):
+        if self.minimized_mode:  # Expand
+            self.expand_toolbar()
+        else:  # Minimize
+            self.minimize_toolbar()
+
+    def minimize_toolbar(self):
+        self.minimized_mode = True
+        self.setFixedSize(50, 50)
+        self.stacked_layout.setCurrentWidget(self.minimized_toolbar)
+
+    def expand_toolbar(self):
+        self.minimized_mode = False
+        self.setFixedSize(800, 50)
+        self.stacked_layout.setCurrentWidget(self.full_toolbar)
+        QTimer.singleShot(250, self.snap_to_edge)
+
 
 class FlaskWrapper:
-    def __init__(self, signal_bridge):
+    def __init__(self, signal_bridge, toolbar_ref):
         self.app = Flask(__name__)
         self.app.config.from_object(__name__)
         self.signal_bridge = signal_bridge
+        self.toolbar_ref = toolbar_ref
 
         # enable CORS w/ specific routes
-        CORS(self.app, resources={r"/*": {"origins": "*"}})
+        CORS(
+            self.app,
+            supports_credentials=True,
+            resources={r"/*": {"origins": "http://localhost:5173"}},
+        )
 
         self.app.route("/run_study", methods=["POST"])(self.run_study)
+
+        # Allow retrieval of ZIP results
+        @self.app.route("/get_session_zip_results", methods=["GET"])
+        def get_session_zip_results():
+            try:
+                # Get session id and zip path from PyQt toolbar
+                session_id = self.toolbar_ref.session_id
+                zip_path = os.path.join(
+                    self.toolbar_ref.storage_dir, f"session_results_{session_id}.zip"
+                )
+
+                # Check if zip results can be found
+                if not os.path.exists(zip_path):
+                    return jsonify({"error": "local tracking ZIP not found"}), 404
+
+                return send_file(
+                    zip_path,
+                    as_attachment=True,
+                    download_name=f"session_results_{session_id}.zip",
+                    mimetype="application/zip",
+                )
+
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        # Allow retrieval of JSON results
+        @self.app.route("/get_session_json_results", methods=["GET"])
+        def get_session_json_results():
+            try:
+                # Get session id and json from PyQt toolbar
+                session_json = self.toolbar_ref.session_json
+
+                if not session_json:
+                    return jsonify({"error": "local tracking JSON not foud"}), 404
+
+                return jsonify(session_json), 200
+
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        # Reports status to website so it knows if there is a disconnect
+        @self.app.route("/check_local_tracking_running", methods=["GET"])
+        def check_local_tracking_running():
+            return jsonify({"message": "Local tracking is running"}), 200
+
+        # Initiates shutting down .exe upon receiving a signal from the website
+        @self.app.route("/shutdown_local_tracking", methods=["POST"])
+        def shutdown_local_tracking():
+            print("Shutdown request from frontend...")
+            data = request.get_json(force=True)
+
+            if data.get("auth_key") != "shutdownOK":
+                return jsonify({"error": "Unauthorized shutdown attempt"}), 403
+
+            # Close everything gracefully
+            def shutdown_process():
+                print("Emitting shutdown signal request...")
+                self.signal_bridge.shutdown_requested.emit()
+
+            threading.Thread(target=shutdown_process, daemon=True).start()
+
+            return jsonify({"message": "Shutting down local tracking server..."}), 200
 
     def run_study(self):
         try:
             session_data = request.get_json()
-            # with open("../frontend/public/sample_study.json", "r") as file:
-            #     session_data = json.load(file)
             if not session_data:
                 return jsonify({"error": "No JSON payload received"}), 400
 
@@ -746,7 +1028,7 @@ if __name__ == "__main__":
 
     toolbar = GlobalToolbar(bridge)
 
-    flask_app = FlaskWrapper(bridge)
+    flask_app = FlaskWrapper(bridge, toolbar)
 
     server_thread = threading.Thread(target=start_flask, args=(flask_app,), daemon=True)
     server_thread.start()

@@ -1,7 +1,9 @@
 <template>
   <v-main>
     <v-container class="mt-5 d-flex flex-column align-left">
-      <h2 class="mb-6">Session Setup</h2>
+      <h2 class="mb-6">
+        {{ isEditMode ? 'Edit Session Setup' : 'New Session Setup' }}
+      </h2>
       <v-row class="d-flex align-start" no-gutters>
         <!-- Trial Config Panel -->
         <v-col cols="12" md="5" class="pr-2">
@@ -106,6 +108,7 @@
               <v-col cols="6">
                 <!-- Task dropdown -->
                 <v-select
+                  v-if="study"
                   v-model="trial.taskID"
                   :items="taskOptions"
                   item-title="name"
@@ -118,6 +121,7 @@
               <v-col cols="6">
                 <!-- Factor dropdown -->
                 <v-select
+                  v-if="study"
                   v-model="trial.factorID"
                   :items="factorOptions"
                   item-title="name"
@@ -157,10 +161,10 @@
         ><strong>+ Add Another Trial</strong></v-btn
       >
 
-      <!-- Begin and Cancel btns-->
+      <!-- Save and Cancel btns-->
       <v-row justify="center" class="btn-row">
         <v-btn
-          class="me-4 cancel-begin-btn"
+          class="me-4 cancel-save-btn"
           color="error"
           @click="
             displayDialog({
@@ -172,10 +176,10 @@
           >Cancel</v-btn
         >
         <v-btn
-          class="me-4 cancel-begin-btn"
-          @click="attemptToAdvance"
+          class="me-4 cancel-save-btn"
+          @click="attemptToSave"
           :color="isFormIncomplete ? '#b7ccb2' : 'success'"
-          >Begin</v-btn
+          >Save</v-btn
         >
       </v-row>
 
@@ -217,13 +221,15 @@ export default {
       chartReady: false,
       studyId: null,
       study: null,
+      participantSessionID: null,
+      isEditMode: false,
       sessionJson: null,
       // Options that populate the dropdowns
       taskOptions: [],
       factorOptions: [],
       // Stores the currently defined trials
       trials: [],
-      // Used for populating dialog pop-ups under diff conditions (ex. cancel vs begin)
+      // Used for populating dialog pop-ups under diff conditions (ex. cancel vs save)
       dialog: false,
       dialogDetails: {
         title: '',
@@ -243,16 +249,16 @@ export default {
   },
 
   async mounted() {
-    console.log('mounted: SessionSetup')
     this.studyId = useStudyStore().currentStudyID
-    console.log('study id in session setup' + this.studyId)
+    this.participantSessionID = useStudyStore().sessionID
+    console.log('Mounted session id:', this.participantSessionID)
+    this.isEditMode = !!this.participantSessionID
     await this.getStudyInfo()
     await this.getRecPermLength()
-    // Dynamically add trial cards to the pg immediately based on recommended count
-    for (let i = 0; i < this.recommendedPermLength; i++) {
-      this.addTrial()
+    if (this.isEditMode) {
+      await this.fetchSessionSetupJson()
     }
-    this.selectedPermLength = this.recommendedPermLength
+    this.prePopulateTrialCards()
     // Another endpoint call, used to populate the trial coverage heatmap immediately
     this.getTrialOccurrences()
   },
@@ -290,17 +296,21 @@ export default {
   },
 
   methods: {
-    // Dynamic confirmation for canceling or beginning session
+    // Dynamic confirmation for canceling or saving session setup details
     displayDialog(details) {
       this.dialogDetails = details
       this.dialog = true
     },
 
     // If they agree to canceling we route elsewhere & if they click continue we route to demographics form
-    closeDialog(source) {
-      if (source == 'begin') {
-        this.createSessionJson()
-        this.goToSessionRunner()
+    async closeDialog(source) {
+      const studyStore = useStudyStore()
+      studyStore.setDrawerStudyID(this.studyId)
+      if (source == 'save') {
+        await this.saveSessionJson()
+        this.$router.push({
+          name: 'UserStudies',
+        })
       } else if (source == 'cancel') {
         this.$router.push({
           name: 'UserStudies',
@@ -367,52 +377,6 @@ export default {
       }
     },
 
-    // Outputs the session json needed by local scripts to run the session (study json + trial perms + formatting = session json)
-    createSessionJson() {
-      this.sessionJson = {
-        participantSessId: null,
-        study_id: this.studyId,
-        studyName: this.study.studyName,
-        studyDescription: this.study.studyDescription,
-        studyDesignType: this.study.studyDesignType,
-        participantCount: this.study.participantCount,
-
-        //Add trials array
-        trials: this.trials.map(trial => ({
-          taskID: trial.taskID,
-          factorID: trial.factorID,
-          startedAt: null,
-        })),
-
-        // Reformat tasks array to dict
-        tasks: Object.fromEntries(
-          this.study.tasks.map(task => [
-            task.taskID.toString(),
-            {
-              measurementOptions: task.measurementOptions,
-              taskDescription: task.taskDescription,
-              taskDirections: task.taskDirections,
-              taskDuration: task.taskDuration,
-              taskName: task.taskName,
-            },
-          ]),
-        ),
-
-        // Reformat the same way for factors
-        factors: Object.fromEntries(
-          this.study.factors.map(factor => [
-            factor.factorID.toString(),
-            {
-              factorDescription: factor.factorDescription,
-              factorName: factor.factorName,
-            },
-          ]),
-        ),
-      }
-
-      console.log('Formatted session JSON:', this.sessionJson)
-    },
-
     // Retrieves all study details using passed study ID at page mount
     async getStudyInfo() {
       try {
@@ -467,6 +431,37 @@ export default {
       }
     },
 
+    // Handles trial card population behavior on pg mount depending on new/edit mode
+    prePopulateTrialCards() {
+      if (this.isEditMode) {
+        // Populating trial cards with existing task-factor pairs previously set during initial session setup
+        this.trials = this.sessionJson.trials.map(trial => ({
+          id: Date.now() + Math.random(),
+          taskID: trial.taskID,
+          factorID: trial.factorID,
+        }))
+        this.selectedPermLength = this.trials.length
+      } else {
+        // Dynamically render empty trial cards based on length recommendation
+        for (let i = 0; i < this.recommendedPermLength; i++) {
+          this.addTrial()
+        }
+        this.selectedPermLength = this.recommendedPermLength
+      }
+    },
+
+    // Grabbing prior session setup json when we are in edit mode
+    async fetchSessionSetupJson() {
+      try {
+        const response = await api.post('/get_session_setup_json', {
+          participant_session_id: this.participantSessionID,
+        })
+        this.sessionJson = response.data
+      } catch (err) {
+        console.error('Error retrieving existing session setup JSON:', err)
+      }
+    },
+
     // Generates a random set of trials for the user that is unique, "random", & balanced
     async getPermutation() {
       try {
@@ -509,28 +504,95 @@ export default {
       }
     },
 
-    // Logic for whether the user clicking "Begin" should work or not
-    attemptToAdvance() {
+    // Logic for whether the user clicking "Save" should work or not
+    attemptToSave() {
       this.formValidated = true
 
       if (this.isFormIncomplete) {
         return
       } else {
         this.displayDialog({
-          title: 'Begin Session',
-          text: 'Are you sure you want to start the session?',
-          source: 'begin',
+          title: 'Save Session Setup',
+          text: 'Are you sure you want to save your current session setup?',
+          source: 'save',
         })
       }
     },
 
-    // Route to the next pg
-    goToSessionRunner() {
-      const studyStore = useStudyStore()
-      studyStore.setSessionJson(this.sessionJson)
-      this.$router.push({
-        name: 'SessionRunner',
-      })
+    // Outputs the session json needed by local scripts to run the session (study json + trial perms + session id = session json)
+    createSessionJson() {
+      this.sessionJson = {
+        participantSessId: this.participantSessionID,
+        study_id: this.studyId,
+        studyName: this.study.studyName,
+        studyDescription: this.study.studyDescription,
+        studyDesignType: this.study.studyDesignType,
+        participantCount: this.study.participantCount,
+
+        //Add trials array
+        trials: this.trials.map(trial => ({
+          taskID: trial.taskID,
+          factorID: trial.factorID,
+          startedAt: null,
+        })),
+
+        // Reformat tasks array to dict
+        tasks: Object.fromEntries(
+          this.study.tasks.map(task => [
+            task.taskID.toString(),
+            {
+              measurementOptions: task.measurementOptions,
+              taskDescription: task.taskDescription,
+              taskDirections: task.taskDirections,
+              taskDuration: task.taskDuration,
+              taskName: task.taskName,
+            },
+          ]),
+        ),
+
+        // Reformat the same way for factors
+        factors: Object.fromEntries(
+          this.study.factors.map(factor => [
+            factor.factorID.toString(),
+            {
+              factorDescription: factor.factorDescription,
+              factorName: factor.factorName,
+            },
+          ]),
+        ),
+      }
+
+      console.log('Formatted session JSON:', this.sessionJson)
+    },
+
+    async saveSessionJson() {
+      try {
+        if (this.isEditMode) {
+          this.createSessionJson() // Formatting the JSON
+          await api.post('/overwrite_session_setup_json', {
+            participant_session_id: this.participantSessionID,
+            session_setup_json: this.sessionJson,
+          })
+        } else {
+          // Reserving the next available participant session id in db ahead of time
+          const sessResponse = await api.post(
+            '/get_next_participant_session_id',
+            { study_id: this.studyId },
+          )
+          this.participantSessionID = sessResponse.data.participant_session_id
+          this.createSessionJson() // Formatting the JSON now that we have the participant session id
+          await api.post('/create_participant_session', {
+            study_id: this.studyId,
+            participant_session_id: this.participantSessionID,
+            session_setup_json: this.sessionJson,
+          })
+        }
+
+        // Clean up session ID after save to avoid issues later
+        useStudyStore().clearSessionID()
+      } catch (err) {
+        console.error('Error saving session setup details', err)
+      }
     },
   },
 }
@@ -560,7 +622,7 @@ export default {
   display: flex;
   margin-top: 50px;
 }
-.cancel-begin-btn {
+.cancel-save-btn {
   min-height: 40px;
   min-width: 200px;
 }
