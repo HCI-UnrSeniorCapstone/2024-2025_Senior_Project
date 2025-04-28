@@ -6,6 +6,7 @@
     app
     :permanent="isLargeScreen"
     :temporary="!isLargeScreen"
+    :width="220"
   >
     <v-list density="compact" nav>
       <!-- User Studies Workspace -->
