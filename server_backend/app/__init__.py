@@ -180,6 +180,7 @@ def create_app(testing=False):
 
     # Import analytics blueprint and init functions
     from app.routes.analytics import analytics_bp
+
     # Import analytics surveys blueprint
     from app.routes.analytics_surveys import analytics_surveys_bp
 
