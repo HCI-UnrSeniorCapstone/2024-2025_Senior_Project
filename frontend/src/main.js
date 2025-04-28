@@ -19,7 +19,7 @@ const vuetify = createVuetify({
     themes: {
       light: {
         colors: {
-          primary: '#091366', // We can change this to something else
+          primary: '#003466', // We can change this to something else
           background: '#f8f8f8',
           surface: '#ffffff',
         },
