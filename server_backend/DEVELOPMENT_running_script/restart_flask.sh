@@ -14,15 +14,16 @@ GUNICORN_PORT=$(echo "$VITE_APP_PRODUCTION_BACKEND_PORT" | tr -d '\r')
 echo "Running in $ENV_MODE mode..."
 
 if [ "$ENV_MODE" == "production" ]; then
-  # Kill existing Gunicorn process if any
-  GUNICORN_PID=$(lsof -t -i :$GUNICORN_PORT)
-  if [ -n "$GUNICORN_PID" ]; then
-    echo "Killing existing Gunicorn process on port $GUNICORN_PORT..."
-    kill -9 $GUNICORN_PID
+  # Kill existing Gunicorn process if any (on port 5000)
+  FLASK_BACKEND_PID=$(lsof -t -i :5000)
+  if [ -n "$FLASK_BACKEND_PID" ]; then
+    echo "Killing existing Gunicorn (Flask backend) process on port 5000..."
+    kill -9 $FLASK_BACKEND_PID
   fi
 
-  echo "PRODUCTION: Starting Gunicorn on port $GUNICORN_PORT..."
-  gunicorn -w 4 -b 0.0.0.0:$GUNICORN_PORT wsgi:app
+  echo "PRODUCTION: Starting Gunicorn for Flask backend on localhost:5000..."
+  gunicorn -w 4 -b 127.0.0.1:5000 wsgi:app
+
 
 elif [ "$ENV_MODE" == "development" ]; then
   # Kill existing Flask dev process if any
