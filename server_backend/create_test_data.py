@@ -285,6 +285,171 @@ def create_test_participants(connection, study_id, num_participants=5):
         return []
 
 
+def generate_mouse_movement_data(duration_seconds, frequency=10):
+    """Generate synthetic mouse movement data for a trial.
+
+    Args:
+        duration_seconds: Length of the trial in seconds
+        frequency: Number of data points per second
+
+    Returns:
+        List of (time, running_time, x, y) data points
+    """
+    data = []
+
+    # Start time (just use a dummy time)
+    start_time = datetime.datetime.now().replace(microsecond=0)
+
+    # Current position
+    current_x = random.randint(500, 1500)
+    current_y = random.randint(300, 700)
+
+    # Generate data points
+    total_points = int(duration_seconds * frequency)
+    for i in range(total_points):
+        running_time = i / frequency
+
+        # Update time
+        point_time = start_time + timedelta(seconds=running_time)
+
+        # Move the mouse in a somewhat realistic way (small movements with occasional jumps)
+        if random.random() < 0.1:  # 10% chance of a bigger jump
+            current_x += random.randint(-200, 200)
+            current_y += random.randint(-100, 100)
+        else:
+            current_x += random.randint(-20, 20)
+            current_y += random.randint(-15, 15)
+
+        # Keep within screen bounds
+        current_x = max(0, min(current_x, 1920))
+        current_y = max(0, min(current_y, 1080))
+
+        # Add to dataset
+        data.append(
+            (
+                point_time.strftime("%H:%M:%S"),
+                f"{running_time:.2f}",
+                current_x,
+                current_y,
+            )
+        )
+
+    return data
+
+
+def generate_keyboard_data(duration_seconds, typing_speed=2):
+    """Generate synthetic keyboard input data.
+
+    Args:
+        duration_seconds: Length of the trial in seconds
+        typing_speed: Average keypresses per second
+
+    Returns:
+        List of (time, running_time, key) data points
+    """
+    data = []
+
+    # Start time
+    start_time = datetime.datetime.now().replace(microsecond=0)
+
+    # Generate data points
+    total_keypresses = int(duration_seconds * typing_speed)
+
+    # Possible keys (simplified)
+    alphabet = list("abcdefghijklmnopqrstuvwxyz")
+    special_keys = ["Key.space", "Key.backspace", "Key.shift", "Key.enter"]
+    all_keys = alphabet + special_keys
+
+    for i in range(total_keypresses):
+        # Randomize timing slightly
+        running_time = i / typing_speed + random.uniform(-0.1, 0.3)
+        running_time = max(0, running_time)  # Ensure not negative
+
+        # Update time
+        point_time = start_time + timedelta(seconds=running_time)
+
+        # Pick a random key with weighted probability
+        if random.random() < 0.2:  # 20% chance of special key
+            key = random.choice(special_keys)
+        else:
+            key = random.choice(alphabet)
+
+        # Add to dataset
+        data.append((point_time.strftime("%H:%M:%S"), f"{running_time:.2f}", key))
+
+    # Sort by running time to ensure proper time ordering
+    data.sort(key=lambda x: float(x[1]))
+
+    return data
+
+
+def generate_mouse_clicks_data(duration_seconds, click_frequency=0.5):
+    """Generate synthetic mouse click data.
+
+    Args:
+        duration_seconds: Length of the trial in seconds
+        click_frequency: Average clicks per second
+
+    Returns:
+        List of (time, running_time, x, y) data points
+    """
+    data = []
+
+    # Start time
+    start_time = datetime.datetime.now().replace(microsecond=0)
+
+    # Generate data points
+    total_clicks = int(duration_seconds * click_frequency)
+
+    for i in range(total_clicks):
+        # Distribute clicks throughout the duration
+        running_time = random.uniform(0, duration_seconds)
+
+        # Update time
+        point_time = start_time + timedelta(seconds=running_time)
+
+        # Random screen position
+        x = random.randint(0, 1920)
+        y = random.randint(0, 1080)
+
+        # Add to dataset
+        data.append((point_time.strftime("%H:%M:%S"), f"{running_time:.2f}", x, y))
+
+    # Sort by running time to ensure proper time ordering
+    data.sort(key=lambda x: float(x[1]))
+
+    return data
+
+
+def write_csv_file(data, headers, filepath):
+    """Write data to a CSV file, creating directories as needed.
+
+    Args:
+        data: List of data tuples
+        headers: List of column headers
+        filepath: Path to write the file
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        with open(filepath, "w") as f:
+            # Write headers
+            f.write(",".join(headers) + "\n")
+
+            # Write data
+            for row in data:
+                f.write(",".join(str(val) for val in row) + "\n")
+
+        return True
+    except Exception as e:
+        print(f"Error writing CSV file {filepath}: {e}")
+        return False
+
+
 def create_test_trials(
     connection, participant_session_ids, task_ids, factor_ids, measurement_option_ids
 ):
@@ -292,14 +457,35 @@ def create_test_trials(
     cursor = connection.cursor()
     trial_count = 0
 
+    # Directory for test data files
+    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "test_data"))
+    os.makedirs(data_dir, exist_ok=True)
+    print(f"Storing test data files in: {data_dir}")
+
+    # Get measurement option names
+    cursor.execute(
+        "SELECT measurement_option_id, measurement_option_name FROM measurement_option"
+    )
+    measurement_options = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # Get task names
+    cursor.execute("SELECT task_id, task_name FROM task")
+    task_names = {row[0]: row[1] for row in cursor.fetchall()}
+
+    # Get factor names
+    cursor.execute("SELECT factor_id, factor_name FROM factor")
+    factor_names = {row[0]: row[1] for row in cursor.fetchall()}
+
+    created_data_files = []
+
     try:
         for session_id in participant_session_ids:
             # Get session timestamp to base trial times on
             cursor.execute(
-                "SELECT created_at, ended_at FROM participant_session WHERE participant_session_id = %s",
+                "SELECT created_at, ended_at, study_id FROM participant_session WHERE participant_session_id = %s",
                 (session_id,),
             )
-            session_start, session_end = cursor.fetchone()
+            session_start, session_end, study_id = cursor.fetchone()
 
             # Calculate time range for trials
             if session_end:
@@ -308,6 +494,12 @@ def create_test_trials(
                 session_length = 3600  # Default 1 hour if no end time
 
             time_per_trial = session_length / (len(task_ids) * len(factor_ids))
+
+            # Create session directory
+            session_dir = os.path.join(
+                data_dir, f"{study_id}_study_id", f"{session_id}_participant_session_id"
+            )
+            os.makedirs(session_dir, exist_ok=True)
 
             # Create trials for each task and factor combination
             for task_id in task_ids:
@@ -322,8 +514,12 @@ def create_test_trials(
                         trial_end = trial_start + timedelta(
                             seconds=random.uniform(30, time_per_trial)
                         )
+                        trial_duration = (trial_end - trial_start).total_seconds()
                     else:
                         trial_end = None
+                        trial_duration = random.uniform(
+                            30, 120
+                        )  # Assume some activity before abandonment
 
                     cursor.execute(
                         """
@@ -336,21 +532,74 @@ def create_test_trials(
                     trial_id = cursor.lastrowid
                     trial_count += 1
 
+                    # Create trial directory
+                    trial_dir = os.path.join(session_dir, f"{trial_id}_trial_id")
+                    os.makedirs(trial_dir, exist_ok=True)
+
+                    # Generate data files for this trial
+                    task_name = task_names.get(task_id, f"Task_{task_id}")
+                    factor_name = factor_names.get(factor_id, f"Factor_{factor_id}")
+
                     # Create session data instances for selected measurement options
                     for option_id in measurement_option_ids:
-                        # Use a dummy file path that would point to where data would be stored
-                        results_path = f"/tmp/test_data/session_{session_id}/trial_{trial_id}/data_{option_id}.csv"
+                        option_name = measurement_options.get(
+                            option_id, f"Option_{option_id}"
+                        )
 
+                        # Insert the session data instance record first to get the ID
                         cursor.execute(
                             """
-                            INSERT INTO session_data_instance (trial_id, measurement_option_id, results_path)
-                            VALUES (%s, %s, %s)
+                            INSERT INTO session_data_instance (trial_id, measurement_option_id)
+                            VALUES (%s, %s)
                         """,
-                            (trial_id, option_id, results_path),
+                            (trial_id, option_id),
+                        )
+
+                        # Get the session data instance ID
+                        session_data_instance_id = cursor.lastrowid
+
+                        # Create the file with the right name
+                        file_name = f"{session_data_instance_id}.csv"
+                        filepath = os.path.join(trial_dir, file_name)
+
+                        # Generate appropriate data based on measurement type
+                        if "Mouse Movement" in option_name:
+                            headers = ["Time", "running_time", "x", "y"]
+                            data = generate_mouse_movement_data(trial_duration)
+                            success = write_csv_file(data, headers, filepath)
+
+                        elif "Keyboard" in option_name:
+                            headers = ["Time", "running_time", "keys"]
+                            data = generate_keyboard_data(trial_duration)
+                            success = write_csv_file(data, headers, filepath)
+
+                        elif "Mouse Clicks" in option_name:
+                            headers = ["Time", "running_time", "x", "y"]
+                            data = generate_mouse_clicks_data(trial_duration)
+                            success = write_csv_file(data, headers, filepath)
+
+                        else:
+                            # For other types, create an empty file as placeholder
+                            with open(filepath, "w") as f:
+                                f.write(f"# Test data for {option_name}\n")
+                            success = True
+
+                        if success:
+                            created_data_files.append(filepath)
+
+                        # Update the database with the file path
+                        cursor.execute(
+                            """
+                            UPDATE session_data_instance 
+                            SET results_path = %s
+                            WHERE session_data_instance_id = %s
+                        """,
+                            (filepath, session_data_instance_id),
                         )
 
         connection.commit()
         print(f"Created {trial_count} trials with data instances")
+        print(f"Generated {len(created_data_files)} data files")
         return trial_count
 
     except Exception as e:

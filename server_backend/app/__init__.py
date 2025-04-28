@@ -181,6 +181,9 @@ def create_app(testing=False):
     # Import analytics blueprint and init functions
     from app.routes.analytics import analytics_bp
 
+    # Import analytics surveys blueprint
+    from app.routes.analytics_surveys import analytics_surveys_bp
+
     app.register_blueprint(general_bp)
     app.register_blueprint(studies_bp)
     app.register_blueprint(sessions_bp)
@@ -191,8 +194,11 @@ def create_app(testing=False):
 
     # Register analytics blueprint last so initialization has already happened
     app.register_blueprint(analytics_bp)
+    # Register analytics surveys blueprint
+    app.register_blueprint(analytics_surveys_bp)
 
     # Log that analytics blueprint was registered
     app.logger.info("Analytics API routes registered")
+    app.logger.info("Analytics surveys API routes registered")
 
     return app
