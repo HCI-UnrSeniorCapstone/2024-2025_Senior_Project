@@ -174,10 +174,7 @@
                 >
                   <!-- Avatar -->
                   <v-avatar size="36" class="mr-4">
-                    <img
-                      src="/images/Nevada-Wolf-Pack-football-logo.jpg"
-                      alt="pfp"
-                    />
+                    <img src="/images/unr n.jpg" alt="pfp" />
                   </v-avatar>
 
                   <!-- Email + Role (flex grow) -->
@@ -827,5 +824,10 @@ h2 {
 .v-text-field,
 .v-select {
   max-height: 44px;
+}
+.v-avatar img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 </style>
