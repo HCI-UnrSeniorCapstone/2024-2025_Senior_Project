@@ -181,8 +181,25 @@ class ChartRenderer {
         break
 
       case 'pValue':
-        // For p-values, use fixed scale from 0 to 1
-        yMax = 1.0
+        // For p-values, find the actual min and max p-values
+        const pValues = data
+          .map(d => this.metricProcessor.getMetricValue(d, metric))
+          .filter(v => !isNaN(v))
+        
+        if (pValues.length > 0) {
+          // Get the actual max value
+          const maxPValue = d3.max(pValues)
+          // Add 20% padding for readability
+          yMax = Math.min(maxPValue * 1.2, 1.0)
+          
+          // Ensure yMax is at least 0.05 for visibility, unless all values are smaller
+          if (maxPValue < 0.05) {
+            yMax = Math.min(0.05, yMax * 3) // Ensure we can see small p-values
+          }
+        } else {
+          // Default to standard 0-1 scale if no data
+          yMax = 1.0
+        }
         break
 
       case 'mouse':
@@ -200,10 +217,10 @@ class ChartRenderer {
           1.1
     }
 
-    // Create y-scale with padding
+    // Create y-scale with padding (capping p-values at 1.0)
     const y = d3
       .scaleLinear()
-      .domain([0, yMax * 1.2])
+      .domain([0, metric === 'pValue' ? Math.min(yMax, 1.0) : yMax * 1.2])
       .range([this.height, 0])
       .nice()
 
@@ -222,7 +239,7 @@ class ChartRenderer {
         yAxisLabel = 'Avg Time (s)'
         break
       case 'pValue':
-        yAxisLabel = 'P-Value'
+        yAxisLabel = 'Raw P-Value'
         break
       case 'mouse':
         yAxisLabel = 'Mouse Movement (pixels)'

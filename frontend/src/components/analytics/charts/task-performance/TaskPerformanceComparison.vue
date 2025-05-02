@@ -186,7 +186,7 @@ export default {
         case 'time':
           return 'Avg Time (s)'
         case 'pValue':
-          return 'P-Value'
+          return 'Raw P-Value'
         case 'mouse':
           return 'Mouse Movement (px)'
         case 'keyboard':

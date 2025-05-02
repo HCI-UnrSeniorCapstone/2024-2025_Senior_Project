@@ -120,7 +120,7 @@ class PValueRenderer {
         metricProcessor.getMetricValue(d, metric) < 0.05 ? 'bold' : 'normal',
       )
       .style('opacity', 0) // Start invisible for animation
-      .text(d =>
+      .text(d => 
         metricProcessor.formatValue(
           metricProcessor.getMetricValue(d, metric),
           metric,

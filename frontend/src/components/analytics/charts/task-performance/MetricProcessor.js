@@ -557,10 +557,7 @@ class MetricProcessor {
             return `${numValue.toFixed(1)}s`
   
           case 'pValue':
-            // Format p-value as confidence percentage with significance indicator
-            // (1 - p) * 100 = confidence percentage
-            const pct = (1 - numValue) * 100
-  
+            // Format p-value as raw value with significance indicator
             // Add stars for different significance levels
             let stars = ''
             if (numValue < 0.01) {
@@ -571,7 +568,7 @@ class MetricProcessor {
               stars = '★' // Marginally significant (p < 0.1)
             }
   
-            return `${pct.toFixed(1)}% ${stars}`
+            return `${numValue.toFixed(3)} ${stars}`
   
           case 'mouse':
             // Format mouse movement data (typically in pixels)

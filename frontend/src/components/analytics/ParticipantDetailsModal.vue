@@ -4,10 +4,10 @@
       <v-card-title class="d-flex justify-space-between align-center">
         <div class="d-flex align-center">
           <span class="text-h5"
-            >Participant {{ participant.participantId }} Details</span
+            >Participant {{ participant.sequentialNumber || participant.participantId }} Details</span
           >
         </div>
-        <v-btn icon color="purple" @click="close" class="close-button">
+        <v-btn icon color="primary" @click="close" class="close-button">
           <v-icon>mdi-close</v-icon>
         </v-btn>
       </v-card-title>
@@ -20,12 +20,12 @@
           <v-col cols="12" md="4">
             <v-card outlined class="metric-card">
               <v-card-text class="d-flex align-center">
-                <v-avatar color="purple lighten-4" size="48" class="mr-3">
-                  <v-icon color="purple darken-2">mdi-account</v-icon>
-                </v-avatar>
+                <div class="avatar-circle mr-3">
+                  <v-icon icon="mdi-account-circle" color="primary" size="large"></v-icon>
+                </div>
                 <div>
-                  <div class="text-caption text-grey">Participant ID</div>
-                  <div class="text-h6">{{ participant.participantId }}</div>
+                  <div class="text-caption text-grey">Participant #</div>
+                  <div class="text-h6">{{ participant.sequentialNumber || participant.participantId }}</div>
                 </div>
               </v-card-text>
             </v-card>
@@ -34,9 +34,9 @@
           <v-col cols="12" md="4">
             <v-card outlined class="metric-card">
               <v-card-text class="d-flex align-center">
-                <v-avatar color="purple lighten-4" size="48" class="mr-3">
-                  <v-icon color="purple darken-2">mdi-clock-outline</v-icon>
-                </v-avatar>
+                <div class="avatar-circle mr-3">
+                  <v-icon icon="mdi-timer" color="primary" size="large"></v-icon>
+                </div>
                 <div>
                   <div class="text-caption text-grey">
                     Average Completion Time
@@ -52,13 +52,11 @@
           <v-col cols="12" md="4">
             <v-card outlined class="metric-card">
               <v-card-text class="d-flex align-center">
-                <v-avatar color="purple lighten-4" size="48" class="mr-3">
-                  <v-icon color="purple darken-2"
-                    >mdi-check-circle-outline</v-icon
-                  >
-                </v-avatar>
+                <div class="avatar-circle mr-3">
+                  <v-icon icon="mdi-clipboard-list" color="primary" size="large"></v-icon>
+                </div>
                 <div>
-                  <div class="text-caption text-grey">Sessions Completed</div>
+                  <div class="text-caption text-grey">Tasks Completed</div>
                   <div class="text-h6">{{ participant.trialCount || 0 }}</div>
                 </div>
               </v-card-text>
@@ -215,7 +213,7 @@
         <div v-else-if="mediaError" class="mt-6 text-center">
           <v-icon color="error" size="64">mdi-alert-circle</v-icon>
           <p class="mt-2 text-body-1">{{ mediaError }}</p>
-          <v-btn color="primary" @click="loadParticipantMedia" class="mt-4">
+          <v-btn color="primary" size="small" @click="loadParticipantMedia" class="mt-4">
             <v-icon start>mdi-refresh</v-icon>
             Try Again
           </v-btn>
@@ -551,6 +549,16 @@ export default {
 
 .task-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.avatar-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #E3F2FD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .close-button {
