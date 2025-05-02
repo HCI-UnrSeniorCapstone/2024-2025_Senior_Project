@@ -91,7 +91,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in filteredParticipants" :key="item.participantId">
+            <tr v-for="(item, index) in filteredParticipants" :key="item.participantId">
               <td>
                 <v-checkbox
                   v-model="selected"
@@ -101,7 +101,7 @@
                   @change="onSelectionChange"
                 ></v-checkbox>
               </td>
-              <td>{{ item.participantId }}</td>
+              <td>{{ (page - 1) * itemsPerPage + index + 1 }}</td>
               <td>{{ item.trialCount }}</td>
               <td>{{ formatTime(item.completionTime) }}</td>
               <td>
@@ -118,12 +118,12 @@
               <td class="text-center">
                 <v-btn
                   icon
-                  color="purple"
-                  size="small"
-                  @click="showDetails(item)"
+                  color="primary"
+                  size="x-small"
+                  @click="showDetails(item, index)"
                   aria-label="View participant details"
                 >
-                  <v-icon>mdi-information-outline</v-icon>
+                  <v-icon size="small">mdi-eye</v-icon>
                 </v-btn>
               </td>
             </tr>
@@ -135,7 +135,7 @@
           <span class="text-caption mr-3">Rows per page:</span>
           <v-select
             v-model="itemsPerPage"
-            :items="[5, 10, 15, 20]"
+            :items="[10, 25, 50, 100]"
             density="compact"
             variant="outlined"
             hide-details
@@ -206,18 +206,18 @@ export default {
       selected: [], // Array of selected participant IDs
       selectAll: false,
       page: 1,
-      itemsPerPage: 10,
+      itemsPerPage: 25,
       showModal: false,
       selectedParticipant: {},
       headers: [
         {
-          title: 'Participant ID',
-          key: 'participantId',
+          title: 'Participant #',
+          key: 'participantNumber',
           width: '20%',
           align: 'start',
         },
         {
-          title: 'Session Count',
+          title: 'Task Count',
           key: 'trialCount',
           width: '15%',
           align: 'start',
@@ -229,7 +229,7 @@ export default {
           align: 'start',
         },
         {
-          title: 'P-Value',
+          title: 'Confidence Level (%)',
           key: 'pValue',
           width: '25%',
           align: 'start',
@@ -403,11 +403,13 @@ export default {
     },
 
     // Show participant details modal
-    showDetails(participant) {
-      // Add studyId to the participant object
+    showDetails(participant, index) {
+      // Add studyId and sequential number to the participant object
+      const sequentialNumber = (this.page - 1) * this.itemsPerPage + index + 1
       this.selectedParticipant = {
         ...participant,
         studyId: this.studyId,
+        sequentialNumber: sequentialNumber
       }
       this.showModal = true
     },

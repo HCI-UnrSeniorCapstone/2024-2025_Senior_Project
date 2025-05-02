@@ -2142,7 +2142,7 @@ def export_data_route(study_id):
                         "taskName": task_name,
                         "description": task_description,
                         "avgCompletionTime": avg_time,
-                        "successRate": completion_rate,
+                        "completionRate": completion_rate,
                         "totalTrials": total_trials,
                     }
                 )
@@ -2212,7 +2212,7 @@ def export_data_route(study_id):
                 "participantCount": participant_count,
                 "expectedParticipants": expected_participants,
                 "avgCompletionTime": 0,
-                "successRate": 0,
+                "completionRate": 0,
             }
 
             # Calculate overall metrics
@@ -2223,12 +2223,12 @@ def export_data_route(study_id):
             for task in tasks:
                 if task["totalTrials"] > 0:
                     total_time += task["avgCompletionTime"] * task["totalTrials"]
-                    total_completed += (task["successRate"] / 100) * task["totalTrials"]
+                    total_completed += (task["completionRate"] / 100) * task["totalTrials"]
                     total_trials += task["totalTrials"]
 
             if total_trials > 0:
                 summary["avgCompletionTime"] = total_time / total_trials
-                summary["successRate"] = (total_completed / total_trials) * 100
+                summary["completionRate"] = (total_completed / total_trials) * 100
 
             # Generate timestamp and filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -2251,7 +2251,7 @@ def export_data_route(study_id):
                 writer.writerow(
                     ["Average Completion Time (seconds)", summary["avgCompletionTime"]]
                 )
-                writer.writerow(["Overall Success Rate (%)", summary["successRate"]])
+                writer.writerow(["Overall Completion Rate (%)", summary["completionRate"]])
                 writer.writerow([])
 
                 # Write task performance
@@ -2262,7 +2262,7 @@ def export_data_route(study_id):
                         "Task Name",
                         "Description",
                         "Avg Completion Time (seconds)",
-                        "Success Rate (%)",
+                        "Completion Rate (%)",
                         "Total Trials",
                     ]
                 )
@@ -2273,7 +2273,7 @@ def export_data_route(study_id):
                             task["taskName"],
                             task["description"],
                             task["avgCompletionTime"],
-                            task["successRate"],
+                            task["completionRate"],
                             task["totalTrials"],
                         ]
                     )

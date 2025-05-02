@@ -74,7 +74,7 @@ class TimeRenderer {
       .append('text')
       .attr('x', 20)
       .attr('y', 12)
-      .text('Average Completion Time')
+      .text('All Tasks')
       .style('font-size', '12px')
   }
 

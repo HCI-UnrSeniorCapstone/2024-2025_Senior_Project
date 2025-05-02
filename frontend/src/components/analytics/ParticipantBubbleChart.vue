@@ -392,6 +392,7 @@ function initChart() {
       y: yValue,
       r: baseSize * sizeMultiplier,
       participantId: participant.participantId,
+      sequentialNumber: participant.sequentialNumber,
       // Add more data for tooltips
       sessionCount: participant.sessionCount || 1,
       completionTime: participant.completionTime || 0,
@@ -430,7 +431,7 @@ function initChart() {
             label: context => {
               const data = context.raw
               return [
-                `Participant: ${data.participantId}`,
+                `Participant: ${data.sequentialNumber || data.participantId}`,
                 `${formatAxisLabel(xAxisMetric.value)}: ${formatTooltipValue(data.x, xAxisMetric.value)}`,
                 `${formatAxisLabel(yAxisMetric.value)}: ${formatTooltipValue(data.y, yAxisMetric.value)}`,
               ]

@@ -178,10 +178,10 @@ class ChartRenderer {
     // get property name based on metric
     const valueKey = this.getValueKeyForMetric(metric)
 
-    // create x-scale for attempt numbers
+    // create x-scale for attempt numbers (starting at 0)
     const x = d3
       .scaleLinear()
-      .domain([1, d3.max(data, d => d.attempt)])
+      .domain([0, d3.max(data, d => d.attempt)])
       .range([0, this.width])
 
     // create y-scale for metric values with 10% padding
@@ -202,8 +202,8 @@ class ChartRenderer {
     const maxAttempt = d3.max(data, d => d3.max(d.data, item => item.attempt))
     const maxValue = d3.max(data, d => d3.max(d.data, item => item[valueKey]))
 
-    // create scales with common domains
-    const x = d3.scaleLinear().domain([1, maxAttempt]).range([0, this.width])
+    // create scales with common domains (x-axis starting at 0)
+    const x = d3.scaleLinear().domain([0, maxAttempt]).range([0, this.width])
     const y = d3
       .scaleLinear()
       .domain([0, maxValue * 1.1])
@@ -279,11 +279,6 @@ class ChartRenderer {
 
   // creates or updates chart legend
   updateLegend(data, metric, colorScale) {
-    // set prefix based on metric type
-    let displayNamePrefix = ''
-    if (metric === 'mouse') displayNamePrefix = 'Mouse Movement: '
-    if (metric === 'keyboard') displayNamePrefix = 'Key Presses: '
-
     // clear and rebuild legend
     const legend = this.chart.select('.legend')
     legend.selectAll('*').remove()
@@ -301,12 +296,12 @@ class ChartRenderer {
         .attr('height', 12)
         .attr('fill', colorScale(i))
 
-      // task name
+      // task name - without prefixes since they're redundant with the toggle
       legendItem
         .append('text')
         .attr('x', 18)
         .attr('y', 10)
-        .text(`${displayNamePrefix}${task.taskName}`)
+        .text(task.taskName)
         .style('font-size', '12px')
     })
   }

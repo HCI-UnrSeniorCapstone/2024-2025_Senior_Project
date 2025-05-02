@@ -250,7 +250,14 @@ export default {
     )
 
     const participantData = computed(
-      () => analyticsStore.getParticipantData?.data || [],
+      () => {
+        const participants = analyticsStore.getParticipantData?.data || [];
+        // Add sequential numbers to all participants
+        return participants.map((participant, index) => ({
+          ...participant,
+          sequentialNumber: index + 1
+        }));
+      }
     )
     const loadingParticipants = computed(
       () => analyticsStore.isLoadingParticipants,
@@ -361,7 +368,13 @@ export default {
         })),
       )
 
-      selectedParticipants.value = participants
+      // Add sequential numbering to the participants data
+      const participantsWithSequentialNumbers = participants.map((p, index) => ({
+        ...p,
+        sequentialNumber: index + 1
+      }))
+
+      selectedParticipants.value = participantsWithSequentialNumbers
 
       // Force a refresh of the computed properties that depend on selected participants
       // by making a shallow copy of the array
