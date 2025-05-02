@@ -2223,7 +2223,9 @@ def export_data_route(study_id):
             for task in tasks:
                 if task["totalTrials"] > 0:
                     total_time += task["avgCompletionTime"] * task["totalTrials"]
-                    total_completed += (task["completionRate"] / 100) * task["totalTrials"]
+                    total_completed += (task["completionRate"] / 100) * task[
+                        "totalTrials"
+                    ]
                     total_trials += task["totalTrials"]
 
             if total_trials > 0:
@@ -2251,7 +2253,9 @@ def export_data_route(study_id):
                 writer.writerow(
                     ["Average Completion Time (seconds)", summary["avgCompletionTime"]]
                 )
-                writer.writerow(["Overall Completion Rate (%)", summary["completionRate"]])
+                writer.writerow(
+                    ["Overall Completion Rate (%)", summary["completionRate"]]
+                )
                 writer.writerow([])
 
                 # Write task performance
